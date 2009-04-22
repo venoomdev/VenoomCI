@@ -26,10 +26,47 @@
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_UP_THRESHOLD		(95)
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
-#define MIN_FREQUENCY_UP_THRESHOLD		(1)
+#define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 
-static struct od_ops od_ops;
+/*
+ * The polling frequency of this governor depends on the capability of
+ * the processor. Default polling frequency is 1000 times the transition
+ * latency of the processor. The governor will work on any processor with
+ * transition latency <= 10mS, using appropriate sampling
+ * rate.
+ * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
+ * this governor will not work.
+ * All times here are in uS.
+ */
+#define MIN_SAMPLING_RATE_RATIO			(2)
+
+static unsigned int min_sampling_rate;
+
+#define LATENCY_MULTIPLIER			(1000)
+#define MIN_LATENCY_MULTIPLIER			(100)
+#define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
+
+static void do_dbs_timer(struct work_struct *work);
+
+/* Sampling types */
+enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
+
+struct cpu_dbs_info_s {
+	cputime64_t prev_cpu_idle;
+	cputime64_t prev_cpu_wall;
+	cputime64_t prev_cpu_nice;
+	struct cpufreq_policy *cur_policy;
+	struct delayed_work work;
+	struct cpufreq_frequency_table *freq_table;
+	unsigned int freq_lo;
+	unsigned int freq_lo_jiffies;
+	unsigned int freq_hi_jiffies;
+	int cpu;
+	unsigned int enable:1,
+		sample_type:1;
+};
+static DEFINE_PER_CPU(struct cpu_dbs_info_s, cpu_dbs_info);
 
 static unsigned int default_powersave_bias;
 
@@ -119,14 +156,13 @@ static void dbs_freq_increase(struct cpufreq_policy *policy, unsigned int freq)
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	struct od_dbs_tuners *od_tuners = dbs_data->tuners;
 
-	if (od_tuners->powersave_bias)
-		freq = od_ops.powersave_bias_target(policy, freq,
-				CPUFREQ_RELATION_H);
-	else if (policy->cur == policy->max)
-		return;
-
-	__cpufreq_driver_target(policy, freq, od_tuners->powersave_bias ?
-			CPUFREQ_RELATION_L : CPUFREQ_RELATION_H);
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: ondemand sampling_rate_max "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
+	return sprintf(buf, "%u\n", -1U);
 }
 
 /*
@@ -168,6 +204,7 @@ static void od_update(struct cpufreq_policy *policy)
 
 		__cpufreq_driver_target(policy, freq_next, CPUFREQ_RELATION_C);
 	}
+	return sprintf(buf, "%u\n", min_sampling_rate);
 }
 
 static unsigned int od_dbs_update(struct cpufreq_policy *policy)
@@ -213,10 +250,9 @@ static ssize_t store_io_is_busy(struct gov_attr_set *attr_set, const char *buf,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	dbs_data->io_is_busy = !!input;
-
-	/* we need to re-evaluate prev_cpu_idle */
-	gov_update_cpu_data(dbs_data);
+	}
+	dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
+	mutex_unlock(&dbs_mutex);
 
 	return count;
 }
@@ -462,11 +498,139 @@ void od_unregister_powersave_bias_handler(void)
 	od_ops.powersave_bias_target = generic_powersave_bias_target;
 	od_set_powersave_bias(0);
 }
-EXPORT_SYMBOL_GPL(od_unregister_powersave_bias_handler);
+
+static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
+				   unsigned int event)
+{
+	unsigned int cpu = policy->cpu;
+	struct cpu_dbs_info_s *this_dbs_info;
+	unsigned int j;
+	int rc;
+
+	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
+
+	switch (event) {
+	case CPUFREQ_GOV_START:
+		if ((!cpu_online(cpu)) || (!policy->cur))
+			return -EINVAL;
+
+		if (this_dbs_info->enable) /* Already enabled */
+			break;
+
+		mutex_lock(&dbs_mutex);
+		dbs_enable++;
+
+		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
+		if (rc) {
+			dbs_enable--;
+			mutex_unlock(&dbs_mutex);
+			return rc;
+		}
+
+		for_each_cpu(j, policy->cpus) {
+			struct cpu_dbs_info_s *j_dbs_info;
+			j_dbs_info = &per_cpu(cpu_dbs_info, j);
+			j_dbs_info->cur_policy = policy;
+
+			j_dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
+						&j_dbs_info->prev_cpu_wall);
+			if (dbs_tuners_ins.ignore_nice) {
+				j_dbs_info->prev_cpu_nice =
+						kstat_cpu(j).cpustat.nice;
+			}
+		}
+		this_dbs_info->cpu = cpu;
+		/*
+		 * Start the timerschedule work, when this governor
+		 * is used for first time
+		 */
+		if (dbs_enable == 1) {
+			unsigned int latency;
+			/* policy latency is in nS. Convert it to uS first */
+			latency = policy->cpuinfo.transition_latency / 1000;
+			if (latency == 0)
+				latency = 1;
+			/* Bring kernel and HW constraints together */
+			min_sampling_rate = max(min_sampling_rate,
+					MIN_LATENCY_MULTIPLIER * latency);
+			dbs_tuners_ins.sampling_rate =
+				max(min_sampling_rate,
+				    latency * LATENCY_MULTIPLIER);
+		}
+		dbs_timer_init(this_dbs_info);
+
+		mutex_unlock(&dbs_mutex);
+		break;
+
+	case CPUFREQ_GOV_STOP:
+		mutex_lock(&dbs_mutex);
+		dbs_timer_exit(this_dbs_info);
+		sysfs_remove_group(&policy->kobj, &dbs_attr_group);
+		dbs_enable--;
+		mutex_unlock(&dbs_mutex);
+
+		break;
+
+	case CPUFREQ_GOV_LIMITS:
+		mutex_lock(&dbs_mutex);
+		if (policy->max < this_dbs_info->cur_policy->cur)
+			__cpufreq_driver_target(this_dbs_info->cur_policy,
+				policy->max, CPUFREQ_RELATION_H);
+		else if (policy->min > this_dbs_info->cur_policy->cur)
+			__cpufreq_driver_target(this_dbs_info->cur_policy,
+				policy->min, CPUFREQ_RELATION_L);
+		mutex_unlock(&dbs_mutex);
+		break;
+	}
+	return 0;
+}
+
+#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMAND
+static
+#endif
+struct cpufreq_governor cpufreq_gov_ondemand = {
+	.name			= "ondemand",
+	.governor		= cpufreq_governor_dbs,
+	.max_transition_latency = TRANSITION_LATENCY_LIMIT,
+	.owner			= THIS_MODULE,
+};
 
 static int __init cpufreq_gov_dbs_init(void)
 {
-	return cpufreq_register_governor(CPU_FREQ_GOV_ONDEMAND);
+	int err;
+	cputime64_t wall;
+	u64 idle_time;
+	int cpu = get_cpu();
+
+	idle_time = get_cpu_idle_time_us(cpu, &wall);
+	put_cpu();
+	if (idle_time != -1ULL) {
+		/* Idle micro accounting is supported. Use finer thresholds */
+		dbs_tuners_ins.up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
+		dbs_tuners_ins.down_differential =
+					MICRO_FREQUENCY_DOWN_DIFFERENTIAL;
+		/*
+		 * In no_hz/micro accounting case we set the minimum frequency
+		 * not depending on HZ, but fixed (very low). The deferred
+		 * timer might skip some samples if idle/sleeping as needed.
+		*/
+		min_sampling_rate = MICRO_FREQUENCY_MIN_SAMPLE_RATE;
+	} else {
+		/* For correct statistics, we need 10 ticks for each measure */
+		min_sampling_rate =
+			MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
+	}
+
+	kondemand_wq = create_workqueue("kondemand");
+	if (!kondemand_wq) {
+		printk(KERN_ERR "Creation of kondemand failed\n");
+		return -EFAULT;
+	}
+	err = cpufreq_register_governor(&cpufreq_gov_ondemand);
+	if (err)
+		destroy_workqueue(kondemand_wq);
+
+	return err;
 }
 
 static void __exit cpufreq_gov_dbs_exit(void)

@@ -14,8 +14,42 @@
 #include <linux/slab.h>
 #include "cpufreq_governor.h"
 
-struct cs_policy_dbs_info {
-	struct policy_dbs_info policy_dbs;
+/*
+ * dbs is used in this file as a shortform for demandbased switching
+ * It helps to keep variable names smaller, simpler
+ */
+
+#define DEF_FREQUENCY_UP_THRESHOLD		(80)
+#define DEF_FREQUENCY_DOWN_THRESHOLD		(20)
+
+/*
+ * The polling frequency of this governor depends on the capability of
+ * the processor. Default polling frequency is 1000 times the transition
+ * latency of the processor. The governor will work on any processor with
+ * transition latency <= 10mS, using appropriate sampling
+ * rate.
+ * For CPUs with transition latency > 10mS (mostly drivers with CPUFREQ_ETERNAL)
+ * this governor will not work.
+ * All times here are in uS.
+ */
+#define MIN_SAMPLING_RATE_RATIO			(2)
+
+static unsigned int min_sampling_rate;
+
+#define LATENCY_MULTIPLIER			(1000)
+#define MIN_LATENCY_MULTIPLIER			(100)
+#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define MAX_SAMPLING_DOWN_FACTOR		(10)
+#define TRANSITION_LATENCY_LIMIT		(10 * 1000 * 1000)
+
+static void do_dbs_timer(struct work_struct *work);
+
+struct cpu_dbs_info_s {
+	cputime64_t prev_cpu_idle;
+	cputime64_t prev_cpu_wall;
+	cputime64_t prev_cpu_nice;
+	struct cpufreq_policy *cur_policy;
+	struct delayed_work work;
 	unsigned int down_skip;
 	unsigned int requested_freq;
 };
@@ -106,9 +140,14 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 	if (load > dbs_data->up_threshold) {
 		dbs_info->down_skip = 0;
 
-		/* if we are already at full speed then break out early */
-		if (requested_freq == policy->max)
-			goto out;
+	if (!print_once) {
+		printk(KERN_INFO "CPUFREQ: conservative sampling_rate_max "
+		       "sysfs file is deprecated - used by: %s\n",
+		       current->comm);
+		print_once = 1;
+	}
+	return sprintf(buf, "%u\n", -1U);
+}
 
 		requested_freq += freq_step;
 		if (requested_freq > policy->max)
@@ -118,6 +157,8 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 		dbs_info->requested_freq = requested_freq;
 		goto out;
 	}
+	return sprintf(buf, "%u\n", min_sampling_rate);
+}
 
 	/* if sampling_down_factor is active break out early */
 	if (++dbs_info->down_skip < dbs_data->sampling_down_factor)
@@ -158,7 +199,10 @@ static ssize_t store_sampling_down_factor(struct gov_attr_set *attr_set,
 	if (ret != 1 || input > MAX_SAMPLING_DOWN_FACTOR || input < 1)
 		return -EINVAL;
 
-	dbs_data->sampling_down_factor = input;
+	mutex_lock(&dbs_mutex);
+	dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
+	mutex_unlock(&dbs_mutex);
+
 	return count;
 }
 
@@ -308,10 +352,113 @@ static void cs_exit(struct dbs_data *dbs_data)
 
 static void cs_start(struct cpufreq_policy *policy)
 {
-	struct cs_policy_dbs_info *dbs_info = to_dbs_info(policy->governor_data);
+	unsigned int cpu = policy->cpu;
+	struct cpu_dbs_info_s *this_dbs_info;
+	unsigned int j;
+	int rc;
 
-	dbs_info->down_skip = 0;
-	dbs_info->requested_freq = policy->cur;
+	this_dbs_info = &per_cpu(cpu_dbs_info, cpu);
+
+	switch (event) {
+	case CPUFREQ_GOV_START:
+		if ((!cpu_online(cpu)) || (!policy->cur))
+			return -EINVAL;
+
+		if (this_dbs_info->enable) /* Already enabled */
+			break;
+
+		mutex_lock(&dbs_mutex);
+
+		rc = sysfs_create_group(&policy->kobj, &dbs_attr_group);
+		if (rc) {
+			mutex_unlock(&dbs_mutex);
+			return rc;
+		}
+
+		for_each_cpu(j, policy->cpus) {
+			struct cpu_dbs_info_s *j_dbs_info;
+			j_dbs_info = &per_cpu(cpu_dbs_info, j);
+			j_dbs_info->cur_policy = policy;
+
+			j_dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
+						&j_dbs_info->prev_cpu_wall);
+			if (dbs_tuners_ins.ignore_nice) {
+				j_dbs_info->prev_cpu_nice =
+						kstat_cpu(j).cpustat.nice;
+			}
+		}
+		this_dbs_info->down_skip = 0;
+		this_dbs_info->requested_freq = policy->cur;
+
+		dbs_enable++;
+		/*
+		 * Start the timerschedule work, when this governor
+		 * is used for first time
+		 */
+		if (dbs_enable == 1) {
+			unsigned int latency;
+			/* policy latency is in nS. Convert it to uS first */
+			latency = policy->cpuinfo.transition_latency / 1000;
+			if (latency == 0)
+				latency = 1;
+
+			/*
+			 * conservative does not implement micro like ondemand
+			 * governor, thus we are bound to jiffes/HZ
+			 */
+			min_sampling_rate =
+				MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
+			/* Bring kernel and HW constraints together */
+			min_sampling_rate = max(min_sampling_rate,
+					MIN_LATENCY_MULTIPLIER * latency);
+			dbs_tuners_ins.sampling_rate =
+				max(min_sampling_rate,
+				    latency * LATENCY_MULTIPLIER);
+
+			cpufreq_register_notifier(
+					&dbs_cpufreq_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
+		}
+		dbs_timer_init(this_dbs_info);
+
+		mutex_unlock(&dbs_mutex);
+
+		break;
+
+	case CPUFREQ_GOV_STOP:
+		mutex_lock(&dbs_mutex);
+		dbs_timer_exit(this_dbs_info);
+		sysfs_remove_group(&policy->kobj, &dbs_attr_group);
+		dbs_enable--;
+
+		/*
+		 * Stop the timerschedule work, when this governor
+		 * is used for first time
+		 */
+		if (dbs_enable == 0)
+			cpufreq_unregister_notifier(
+					&dbs_cpufreq_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
+
+		mutex_unlock(&dbs_mutex);
+
+		break;
+
+	case CPUFREQ_GOV_LIMITS:
+		mutex_lock(&dbs_mutex);
+		if (policy->max < this_dbs_info->cur_policy->cur)
+			__cpufreq_driver_target(
+					this_dbs_info->cur_policy,
+					policy->max, CPUFREQ_RELATION_H);
+		else if (policy->min > this_dbs_info->cur_policy->cur)
+			__cpufreq_driver_target(
+					this_dbs_info->cur_policy,
+					policy->min, CPUFREQ_RELATION_L);
+		mutex_unlock(&dbs_mutex);
+
+		break;
+	}
+	return 0;
 }
 
 static struct dbs_governor cs_governor = {
