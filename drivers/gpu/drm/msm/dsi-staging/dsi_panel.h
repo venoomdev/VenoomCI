@@ -239,6 +239,7 @@ struct dsi_panel {
 	struct dsi_read_config xy_coordinate_cmds;
 	struct dsi_read_config max_luminance_cmds;
 	bool panel_max_frame_rate;
+	int hbm_mode;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -358,5 +359,7 @@ struct dsi_panel *dsi_panel_ext_bridge_get(struct device *parent,
 int dsi_panel_parse_esd_reg_read_configs(struct dsi_panel *panel);
 
 void dsi_panel_ext_bridge_put(struct dsi_panel *panel);
+
+int dsi_panel_apply_hbm_mode(struct dsi_panel *panel);
 
 #endif /* _DSI_PANEL_H_ */
