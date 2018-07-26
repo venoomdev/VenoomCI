@@ -90,6 +90,7 @@ struct erofs_sb_info {
 
 
 
+
 	/* the dedicated workstation for compression */
 	struct radix_tree_root workstn_tree;
 
@@ -97,6 +98,10 @@ struct erofs_sb_info {
 	struct inode *managed_cache;
 #endif
 
+
+
+	/* the dedicated workstation for compression */
+	struct radix_tree_root workstn_tree;
 
 #endif
 
@@ -166,6 +171,9 @@ static inline void *erofs_kmalloc(struct erofs_sb_info *sbi,
 #define clear_opt(sbi, option)	((sbi)->mount_opt &= ~EROFS_MOUNT_##option)
 #define set_opt(sbi, option)	((sbi)->mount_opt |= EROFS_MOUNT_##option)
 #define test_opt(sbi, option)	((sbi)->mount_opt & EROFS_MOUNT_##option)
+
+
+
 
 
 
@@ -257,6 +265,7 @@ static inline void erofs_workstation_cleanup_all(struct super_block *sb)
 	erofs_shrink_workstation(EROFS_SB(sb), ~0UL, true);
 }
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 #define EROFS_UNALLOCATED_CACHED_PAGE	((void *)0x5F0EF00D)
 
@@ -265,6 +274,10 @@ extern int try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 extern int try_to_free_cached_page(struct address_space *mapping,
 	struct page *page);
 #endif
+
+#endif
+
+
 
 #endif
 

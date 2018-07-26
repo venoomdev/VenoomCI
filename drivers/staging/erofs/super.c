@@ -364,6 +364,7 @@ static int erofs_read_super(struct super_block *sb,
 	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
 #endif
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	sbi->managed_cache = erofs_init_managed_cache(sb);
 	if (IS_ERR(sbi->managed_cache)) {
@@ -371,6 +372,8 @@ static int erofs_read_super(struct super_block *sb,
 		goto err_init_managed_cache;
 	}
 #endif
+
+
 
 	/* get the root inode */
 	inode = erofs_iget(sb, ROOT_NID(sbi), true);
