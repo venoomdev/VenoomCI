@@ -95,6 +95,7 @@ struct z_erofs_vle_work_builder {
 #define VLE_WORK_BUILDER_INIT()	\
 	{ .work = NULL, .role = Z_EROFS_VLE_WORK_PRIMARY_FOLLOWED }
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 
 static bool grab_managed_cache_pages(struct address_space *mapping,
@@ -199,6 +200,8 @@ int try_to_free_cached_page(struct address_space *mapping, struct page *page)
 	return ret;
 }
 #endif
+
+
 
 /* page_type must be Z_EROFS_PAGE_TYPE_EXCLUSIVE */
 static inline bool try_to_reuse_as_compressed_page(
@@ -568,9 +571,12 @@ struct z_erofs_vle_frontend {
 	z_erofs_vle_owned_workgrp_t owned_head;
 
 	bool initial;
+
 #if (EROFS_FS_ZIP_CACHE_LVL >= 2)
 	erofs_off_t cachedzone_la;
 #endif
+
+
 };
 
 #define VLE_FRONTEND_INIT(__i) { \
@@ -597,11 +603,14 @@ static int z_erofs_do_read_page(struct z_erofs_vle_frontend *fe,
 	bool tight = builder_is_followed(builder);
 	struct z_erofs_vle_work *work = builder->work;
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	struct address_space *const mngda = sbi->managed_cache->i_mapping;
 	struct z_erofs_vle_workgroup *grp;
 	bool noio_outoforder;
 #endif
+
+
 
 	enum z_erofs_page_type page_type;
 	unsigned cur, end, spiltted, index;
@@ -643,6 +652,7 @@ repeat:
 	if (unlikely(err))
 		goto err_out;
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	grp = fe->builder.grp;
 
@@ -657,6 +667,8 @@ repeat:
 	if (noio_outoforder && builder_is_followed(builder))
 		builder->role = Z_EROFS_VLE_WORK_PRIMARY;
 #endif
+
+
 
 	tight &= builder_is_followed(builder);
 	work = builder->work;
@@ -736,6 +748,7 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 	const blk_status_t err = bio->bi_status;
 	unsigned i;
 	struct bio_vec *bvec;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	struct address_space *mngda = NULL;
 #endif
@@ -744,8 +757,14 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 		struct page *page = bvec->bv_page;
 		bool cachemngd = false;
 
+
+	bio_for_each_segment_all(bvec, bio, i) {
+		struct page *page = bvec->bv_page;
+
+
 		DBG_BUGON(PageUptodate(page));
 		BUG_ON(page->mapping == NULL);
+
 
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 		if (unlikely(mngda == NULL && !z_erofs_is_stagingpage(page))) {
@@ -769,6 +788,10 @@ static inline void z_erofs_vle_read_endio(struct bio *bio)
 
 		if (cachemngd)
 			unlock_page(page);
+
+		if (unlikely(err))
+			SetPageError(page);
+
 	}
 
 	z_erofs_vle_unzip_kickoff(bio->bi_private, -1);
@@ -783,9 +806,12 @@ static int z_erofs_vle_unzip(struct super_block *sb,
 	struct list_head *page_pool)
 {
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	struct address_space *const mngda = sbi->managed_cache->i_mapping;
 #endif
+
+
 	const unsigned clusterpages = erofs_clusterpages(sbi);
 
 	struct z_erofs_pagevec_ctor ctor;
@@ -883,6 +909,7 @@ repeat:
 
 		if (z_erofs_is_stagingpage(page))
 			continue;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 		else if (page->mapping == mngda) {
 			BUG_ON(PageLocked(page));
@@ -890,6 +917,8 @@ repeat:
 			continue;
 		}
 #endif
+
+
 
 		/* only non-head page could be reused as a compressed page */
 		pagenr = z_erofs_onlinepage_index(page);
@@ -967,10 +996,13 @@ out_percpu:
 	for (i = 0; i < clusterpages; ++i) {
 		page = compressed_pages[i];
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 		if (page->mapping == mngda)
 			continue;
 #endif
+
+
 		/* recycle all individual staging pages */
 		(void)z_erofs_gather_if_stagingpage(page_pool, page);
 
@@ -1065,6 +1097,7 @@ out:
 	return io;
 }
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 /* true - unlocked (noio), false - locked (need submit io) */
 static inline bool recover_managed_page(struct z_erofs_vle_workgroup *grp,
@@ -1090,6 +1123,8 @@ static inline bool recover_managed_page(struct z_erofs_vle_workgroup *grp,
 #else
 #define __FSIO_1 0
 #endif
+#define __FSIO_1 0
+
 
 static bool z_erofs_vle_submit_all(struct super_block *sb,
 				   z_erofs_vle_owned_workgrp_t owned_head,
@@ -1100,10 +1135,12 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 	struct erofs_sb_info *const sbi = EROFS_SB(sb);
 	const unsigned clusterpages = erofs_clusterpages(sbi);
 	const gfp_t gfp = GFP_NOFS;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	struct address_space *const mngda = sbi->managed_cache->i_mapping;
 	struct z_erofs_vle_workgroup *lstgrp_noio = NULL, *lstgrp_io = NULL;
 #endif
+
 	struct z_erofs_vle_unzip_io *ios[1 + __FSIO_1];
 	struct bio *bio;
 	tagptr1_t bi_private;
@@ -1119,9 +1156,11 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 	 * force_fg == 1, (io, fg_io[0]) no io, (io, fg_io[1]) need submit io
 	 * force_fg == 0, (io, fg_io[0]) no io; (io[1], bg_io) need submit io
 	 */
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	ios[0] = prepare_io_handler(sb, fg_io + 0, false);
 #endif
+
 
 	if (force_fg) {
 		ios[__FSIO_1] = prepare_io_handler(sb, fg_io + __FSIO_1, false);
@@ -1143,10 +1182,13 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 		struct page **compressed_pages, *oldpage, *page;
 		pgoff_t first_index;
 		unsigned i = 0;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 		unsigned int noio = 0;
 		bool cachemngd;
 #endif
+
+
 		int err;
 
 		/* no possible 'owned_head' equals the following */
@@ -1166,6 +1208,7 @@ static bool z_erofs_vle_submit_all(struct super_block *sb,
 repeat:
 		/* fulfill all compressed pages */
 		oldpage = page = READ_ONCE(compressed_pages[i]);
+
 
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 		cachemngd = false;
@@ -1189,18 +1232,26 @@ do_allocpage:
 			BUG_ON(PageUptodate(page));
 		else {
 #endif
+
+		if (page != NULL)
+			BUG_ON(PageUptodate(page));
+		else {
+
 			page = __stagingpage_alloc(pagepool, gfp);
 
 			if (oldpage != cmpxchg(compressed_pages + i,
 				oldpage, page)) {
 				list_add(&page->lru, pagepool);
 				goto repeat;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 			} else if (cachemngd && !add_to_page_cache_lru(page,
 				mngda, first_index + i, gfp)) {
 				set_page_private(page, (unsigned long)grp);
 				SetPagePrivate(page);
 #endif
+
+
 			}
 		}
 
@@ -1224,6 +1275,7 @@ submit_bio_retry:
 
 		force_submit = false;
 		last_index = first_index + i;
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 skippage:
 #endif
@@ -1252,10 +1304,15 @@ skippage:
 			lstgrp_noio = grp;
 		}
 #endif
+
+		if (++i < clusterpages)
+			goto repeat;
+
 	} while (owned_head != Z_EROFS_VLE_WORKGRP_TAIL);
 
 	if (bio != NULL)
 		__submit_bio(bio, REQ_OP_READ, 0);
+
 
 #ifndef EROFS_FS_HAS_MANAGED_CACHE
 	BUG_ON(!nr_bios);
@@ -1269,6 +1326,9 @@ skippage:
 		return true;
 	}
 #endif
+
+	BUG_ON(!nr_bios);
+
 
 	z_erofs_vle_unzip_kickoff(tagptr_cast_ptr(bi_private), nr_bios);
 	return true;
@@ -1284,9 +1344,12 @@ static void z_erofs_submit_and_unzip(struct z_erofs_vle_frontend *f,
 	if (!z_erofs_vle_submit_all(sb, f->owned_head, pagepool, io, force_fg))
 		return;
 
+
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 	z_erofs_vle_unzip_all(sb, &io[0], pagepool);
 #endif
+
+
 	if (!force_fg)
 		return;
 
@@ -1306,9 +1369,12 @@ static int z_erofs_vle_normalaccess_readpage(struct file *file,
 	int err;
 	LIST_HEAD(pagepool);
 
+
 #if (EROFS_FS_ZIP_CACHE_LVL >= 2)
 	f.cachedzone_la = page->index << PAGE_SHIFT;
 #endif
+
+
 	err = z_erofs_do_read_page(&f, page, &pagepool);
 	(void)z_erofs_vle_work_iter_end(&f.builder);
 
@@ -1339,9 +1405,12 @@ static inline int __z_erofs_vle_normalaccess_readpages(
 	struct page *head = NULL;
 	LIST_HEAD(pagepool);
 
+
 #if (EROFS_FS_ZIP_CACHE_LVL >= 2)
 	f.cachedzone_la = lru_to_page(pages)->index << PAGE_SHIFT;
 #endif
+
+
 	for (; nr_pages; --nr_pages) {
 		struct page *page = lru_to_page(pages);
 
