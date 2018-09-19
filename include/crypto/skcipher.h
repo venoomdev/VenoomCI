@@ -156,6 +156,14 @@ struct skcipher_alg {
 			    ] CRYPTO_MINALIGN_ATTR; \
 	struct skcipher_request *name = (void *)__##name##_desc
 
+#define SKCIPHER_REQUEST_ON_STACK(name, tfm) \
+	char __##name##_desc[sizeof(struct skcipher_request) + \
+			     MAX_SYNC_SKCIPHER_REQSIZE + \
+			     (!(sizeof((struct crypto_sync_skcipher *)1 == \
+				       (typeof(tfm))1))) \
+			    ] CRYPTO_MINALIGN_ATTR; \
+	struct skcipher_request *name = (void *)__##name##_desc
+
 /**
  * DOC: Symmetric Key Cipher API
  *
@@ -451,6 +459,12 @@ static inline int crypto_skcipher_setkey(struct crypto_skcipher *tfm,
 					 const u8 *key, unsigned int keylen)
 {
 	return tfm->setkey(tfm, key, keylen);
+}
+
+static inline int crypto_sync_skcipher_setkey(struct crypto_sync_skcipher *tfm,
+					 const u8 *key, unsigned int keylen)
+{
+	return crypto_skcipher_setkey(&tfm->base, key, keylen);
 }
 
 static inline int crypto_sync_skcipher_setkey(struct crypto_sync_skcipher *tfm,
