@@ -38,8 +38,6 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
-#include <linux/pm_qos.h>
-#include <linux/spi/spi-geni-qcom.h>
 #if defined(CONFIG_DRM)
 #include <drm/drm_notifier_mi.h>
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
@@ -72,6 +70,10 @@ struct fts_ts_data *fts_data;
 *****************************************************************************/
 static int fts_ts_suspend(struct device *dev);
 static int fts_ts_resume(struct device *dev);
+
+#define LPM_EVENT_INPUT 0x1
+extern void lpm_disable_for_dev(bool on, char event_dev);
+extern void touch_irq_boost(void);
 
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 static void fts_read_palm_data(u8 reg_value);
@@ -411,6 +413,7 @@ void fts_release_all_finger(void)
 #endif
 	input_report_key(input_dev, BTN_TOUCH, 0);
 	input_sync(input_dev);
+	lpm_disable_for_dev(false, LPM_EVENT_INPUT);
 
 	fts_data->touchs = 0;
 	fts_data->key_state = 0;
@@ -490,6 +493,7 @@ static int fts_input_report_b(struct fts_ts_data *data)
 			if (events[i].area <= 0) {
 				events[i].area = 0x09;
 			}
+			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, events[i].area);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_X, events[i].x);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, events[i].y);
 
@@ -531,6 +535,7 @@ static int fts_input_report_b(struct fts_ts_data *data)
 				FTS_DEBUG("[B]Points All Up!");
 			}
 			input_report_key(data->input_dev, BTN_TOUCH, 0);
+			lpm_disable_for_dev(false, LPM_EVENT_INPUT);
 		} else {
 			input_report_key(data->input_dev, BTN_TOUCH, 1);
 		}
@@ -565,6 +570,7 @@ static int fts_input_report_a(struct fts_ts_data *data)
 			if (events[i].area <= 0) {
 				events[i].area = 0x09;
 			}
+			input_report_abs(data->input_dev, ABS_MT_TOUCH_MAJOR, events[i].area);
 
 			input_report_abs(data->input_dev, ABS_MT_POSITION_X, events[i].x);
 			input_report_abs(data->input_dev, ABS_MT_POSITION_Y, events[i].y);
@@ -734,10 +740,6 @@ static void fts_irq_read_report(void)
 #if FTS_ESDCHECK_EN
 	fts_esdcheck_set_intr(0);
 #endif
-	pm_qos_update_request(&ts_data->pm_touch_req, 100);
-	pm_qos_update_request(&ts_data->pm_spi_req, 100);
-	pm_qos_update_request(&ts_data->pm_spi_req, PM_QOS_DEFAULT_VALUE);
-	pm_qos_update_request(&ts_data->pm_touch_req, PM_QOS_DEFAULT_VALUE);
 }
 
 static irqreturn_t fts_irq_handler(int irq, void *data)
@@ -746,6 +748,7 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
 	int ret = 0;
 	struct fts_ts_data *ts_data = fts_data;
 
+	touch_irq_boost();
 	if ((ts_data->suspended) && (ts_data->pm_suspend)) {
 		ret = wait_for_completion_timeout(
 				  &ts_data->pm_completion,
@@ -755,23 +758,15 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
 			return IRQ_HANDLED;
 		}
 	}
+#else
+	touch_irq_boost();
 #endif
 
 	pm_stay_awake(fts_data->dev);
+	lpm_disable_for_dev(true, LPM_EVENT_INPUT);
 	fts_irq_read_report();
 	pm_relax(fts_data->dev);
 	return IRQ_HANDLED;
-
-	ts_data->pm_spi_req.type = PM_QOS_REQ_AFFINE_IRQ;
-	ts_data->pm_spi_req.irq = ts_data->irq;
-	pm_qos_add_request(&ts_data->pm_spi_req, PM_QOS_CPU_DMA_LATENCY,
-			        PM_QOS_DEFAULT_VALUE);
-
-	ts_data->pm_touch_req.type = PM_QOS_REQ_AFFINE_IRQ;
-	ts_data->pm_touch_req.irq = ts_data->irq;
-	pm_qos_add_request(&ts_data->pm_touch_req, PM_QOS_CPU_DMA_LATENCY,
-				PM_QOS_DEFAULT_VALUE);
-
 }
 
 static int fts_irq_registration(struct fts_ts_data *ts_data)
@@ -780,7 +775,7 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
 	struct fts_ts_platform_data *pdata = ts_data->pdata;
 
 	ts_data->irq = gpio_to_irq(pdata->irq_gpio);
-	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_PRIME_AFFINE;
+	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
 	FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
 	ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
 							   pdata->irq_gpio_flags,
@@ -834,6 +829,7 @@ static int fts_input_init(struct fts_ts_data *ts_data)
 #endif
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->x_min, pdata->x_max - 1, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_Y, pdata->y_min, pdata->y_max - 1, 0, 0);
+	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0, 0xFF, 0, 0);
 #if FTS_REPORT_PRESSURE_EN
 	input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0, 0xFF, 0, 0);
 #endif
@@ -1539,7 +1535,7 @@ static void fts_power_supply_work(struct work_struct *work)
 	pm_stay_awake(ts_data->dev);
 	mutex_lock(&ts_data->power_supply_lock);
 	charger_mode = !!power_supply_is_system_supplied();
-	if (charger_mode != ts_data->charger_mode || !ts_data->charger_mode) {
+	if (charger_mode != ts_data->charger_mode || ts_data->charger_mode < 0) {
 		ts_data->charger_mode = charger_mode;
 		FTS_INFO("%s %d\n", __func__, charger_mode);
 		if (charger_mode) {
@@ -1555,8 +1551,6 @@ static void fts_power_supply_work(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&ts_data->power_supply_lock);
-	pm_qos_update_request(&ts_data->pm_spi_req, PM_QOS_DEFAULT_VALUE);
-        pm_qos_update_request(&ts_data->pm_touch_req, PM_QOS_DEFAULT_VALUE);
 	pm_relax(ts_data->dev);
 }
 
@@ -1786,8 +1780,7 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 
 	free_irq(ts_data->irq, ts_data);
 	input_unregister_device(ts_data->input_dev);
-	pm_qos_remove_request(&ts_data->pm_touch_req);
-	pm_qos_remove_request(&ts_data->pm_spi_req);
+
 	power_supply_unreg_notifier(&ts_data->power_supply_notifier);
 	mutex_destroy(&ts_data->power_supply_lock);
 
@@ -1850,6 +1843,9 @@ static int fts_ts_suspend(struct device *dev)
 	fts_esdcheck_suspend();
 #endif
 
+#ifdef CONFIG_FACTORY_BUILD
+	ts_data->poweroff_on_sleep = true;
+#endif
 	if (ts_data->gesture_mode && !ts_data->poweroff_on_sleep) {
 		fts_gesture_suspend(ts_data);
 	} else {
@@ -1947,22 +1943,6 @@ static const struct dev_pm_ops fts_dev_pm_ops = {
 	.resume = fts_pm_resume,
 };
 #endif
-
-void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool enable)
-{
-	if (ts_data->suspended) {
-		FTS_ERROR("TP is suspended, do not update gesture state");
-		return;
-	}
-	mutex_lock(&ts_data->input_dev->mutex);
-	if (enable)
-		ts_data->gesture_status |= 1 << bit;
-	else
-		ts_data->gesture_status &= ~(1 << bit);
-	FTS_INFO("gesture state:0x%02X", ts_data->gesture_status);
-	ts_data->gesture_mode = ts_data->gesture_status != 0 ? ENABLE : DISABLE;
-	mutex_unlock(&ts_data->input_dev->mutex);
-}
 
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 static struct xiaomi_touch_interface xiaomi_touch_interfaces;
@@ -2143,7 +2123,7 @@ static void fts_restore_mode_value(int mode, int value_type)
 		xiaomi_touch_interfaces.touch_mode[mode][value_type];
 }
 
-static void fts_restore_normal_mode(void)
+static void fts_restore_normal_mode()
 {
 	int i;
 	for (i = 0; i < Touch_Report_Rate; i++) {
@@ -2234,6 +2214,22 @@ static void fts_update_touchmode_data(struct fts_ts_data *ts_data)
 
 	mutex_unlock(&ts_data->cmd_update_mutex);
 	pm_relax(ts_data->dev);
+}
+
+static void fts_update_gesture_state(struct fts_ts_data *ts_data, int bit, bool enable)
+{
+	if (ts_data->suspended) {
+		FTS_ERROR("TP is suspended, do not update gesture state");
+		return;
+	}
+	mutex_lock(&ts_data->input_dev->mutex);
+	if (enable)
+		ts_data->gesture_status |= 1 << bit;
+	else
+		ts_data->gesture_status &= ~(1 << bit);
+	FTS_INFO("gesture state:0x%02X", ts_data->gesture_status);
+	ts_data->gesture_mode = ts_data->gesture_status != 0 ? ENABLE : DISABLE;
+	mutex_unlock(&ts_data->input_dev->mutex);
 }
 
 static void fts_power_status_handle(struct fts_ts_data *fts_data)
