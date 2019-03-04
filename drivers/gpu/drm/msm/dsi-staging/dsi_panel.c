@@ -3505,6 +3505,8 @@ int dsi_panel_drv_deinit(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
+	dsi_panel_switch_destroy(panel);
+
 	mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_bl_unregister(panel);
@@ -4253,6 +4255,11 @@ int dsi_panel_switch(struct dsi_panel *panel)
 		return -EINVAL;
 	}
 
+	if (panel->funcs && panel->funcs->mode_switch) {
+		rc = panel->funcs->mode_switch(panel);
+		return rc;
+	}
+
 	mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_TIMING_SWITCH);
@@ -4354,6 +4361,10 @@ int dsi_panel_pre_disable(struct dsi_panel *panel)
 
 error:
 	mutex_unlock(&panel->panel_lock);
+
+	if (!rc && panel->funcs && panel->funcs->pre_disable)
+		rc = panel->funcs->pre_disable(panel);
+
 	return rc;
 }
 
