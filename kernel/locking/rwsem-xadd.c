@@ -365,7 +365,9 @@ static bool rwsem_optimistic_spin(struct rw_semaphore *sem)
 static inline struct rw_semaphore __sched *
 __rwsem_down_read_failed_common(struct rw_semaphore *sem, int state)
 {
-	long count, adjustment = -RWSEM_READER_BIAS;
+
+	long count, adjustment = -RWSEM_ACTIVE_READ_BIAS;
+
 	struct rwsem_waiter waiter;
 	DEFINE_WAKE_Q(wake_q);
 	bool is_first_waiter = false;
@@ -378,15 +380,15 @@ __rwsem_down_read_failed_common(struct rw_semaphore *sem, int state)
 		/*
 		 * In case the wait queue is empty and the lock isn't owned
 		 * by a writer, this reader can exit the slowpath and return
-		 * immediately as its RWSEM_READER_BIAS has already been
-		 * set in the count.
+		 * immediately as its RWSEM_ACTIVE_READ_BIAS has already
+		 * been set in the count.
 		 */
-		if (!(atomic_long_read(&sem->count) & RWSEM_WRITER_MASK)) {
+		if (atomic_long_read(&sem->count) >= 0) {
 			raw_spin_unlock_irq(&sem->wait_lock);
-			rwsem_set_reader_owned(sem);
 			return sem;
 		}
-		adjustment += RWSEM_FLAG_WAITERS;
+		adjustment += RWSEM_WAITING_BIAS;
+
 	}
 
 	/* is_first_waiter == true means we are first in the queue */
@@ -401,9 +403,12 @@ __rwsem_down_read_failed_common(struct rw_semaphore *sem, int state)
 	 * If there are no writers and we are first in the queue,
 	 * wake our own waiter to join the existing active readers !
 	 */
-	if (!(count & RWSEM_LOCK_MASK) ||
-	   (!(count & RWSEM_WRITER_MASK) && (adjustment & RWSEM_FLAG_WAITERS ||
-	                                     is_first_waiter)))
+
+	if (count == RWSEM_WAITING_BIAS ||
+	    (count > RWSEM_WAITING_BIAS &&
+	     (adjustment != -RWSEM_ACTIVE_READ_BIAS ||
+	     is_first_waiter)))
+
 		__rwsem_mark_wake(sem, RWSEM_WAKE_ANY, &wake_q);
 
 	raw_spin_unlock_irq(&sem->wait_lock);
@@ -429,7 +434,9 @@ __rwsem_down_read_failed_common(struct rw_semaphore *sem, int state)
 out_nolock:
 	list_del(&waiter.list);
 	if (list_empty(&sem->wait_list))
-		atomic_long_andnot(RWSEM_FLAG_WAITERS, &sem->count);
+
+		atomic_long_add(-RWSEM_WAITING_BIAS, &sem->count);
+
 	raw_spin_unlock_irq(&sem->wait_lock);
 	__set_current_state(TASK_RUNNING);
 	return ERR_PTR(-EINTR);
