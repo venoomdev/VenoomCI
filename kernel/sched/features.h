@@ -25,7 +25,7 @@ SCHED_FEAT(ARCH_POWER, true)
  * wakeup-preemption), since its likely going to consume data we
  * touched, increases cache locality.
  */
-SCHED_FEAT(NEXT_BUDDY, false)
+SCHED_FEAT(NEXT_BUDDY, true)
 
 /*
  * Prefer to schedule the task that ran last (when we did
