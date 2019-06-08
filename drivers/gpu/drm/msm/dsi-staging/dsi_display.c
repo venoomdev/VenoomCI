@@ -62,6 +62,12 @@ static const struct of_device_id dsi_display_dt_match[] = {
 
 static unsigned int cur_refresh_rate = 60;
 
+static inline bool is_lp_mode(int power_mode)
+{
+	return power_mode == SDE_MODE_DPMS_LP1 ||
+			power_mode == SDE_MODE_DPMS_LP2;
+}
+
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
 {
@@ -1125,6 +1131,8 @@ int dsi_display_set_power(struct drm_connector *connector,
 		if (display->panel->power_mode == SDE_MODE_DPMS_LP1 ||
 			display->panel->power_mode == SDE_MODE_DPMS_LP2) {
 			drm_notifier_call_chain(DRM_EARLY_EVENT_BLANK, &g_notify_data);
+		if (is_lp_mode(display->panel->power_mode))
+			msm_drm_notifier_call_chain(MSM_DRM_EARLY_EVENT_BLANK, &notify_data);
 			rc = dsi_panel_set_nolp(display->panel);
 			drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
 		}
@@ -6645,7 +6653,8 @@ void dsi_display_set_idle_hint(void *dsi_display, bool is_idle)
 	if (unlikely(!display || !display->panel))
 		return;
 
-	if (display->panel->power_mode != DRM_MODE_DPMS_ON)
+	if (!dsi_panel_initialized(display->panel) ||
+	    is_lp_mode(display->panel->power_mode))
 		return;
 
 	if (is_idle)
