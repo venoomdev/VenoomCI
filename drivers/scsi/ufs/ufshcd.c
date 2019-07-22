@@ -2976,9 +2976,6 @@ static ssize_t ufshcd_hibern8_on_idle_enable_store(struct device *dev,
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 	u32 value;
 
-	if (!ufshcd_is_hibern8_on_idle_allowed(hba))
-		return count;
-
 	if (kstrtou32(buf, 0, &value))
 		return -EINVAL;
 
