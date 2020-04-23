@@ -147,3 +147,4 @@ int find_webview_cpu(struct task_struct *p)
 
 	return max_spare_cap_cpu;
 }
+

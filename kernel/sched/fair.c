@@ -9815,7 +9815,7 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 		update = true;
 	}
 	if (update)
-		trace_sched_capacity_update(cpu);
+	//	trace_sched_capacity_update(cpu);
 
 	sdg->sgc->capacity = capacity;
 	sdg->sgc->min_capacity = capacity;
