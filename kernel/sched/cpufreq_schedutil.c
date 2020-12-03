@@ -160,69 +160,7 @@ static inline bool use_pelt(void)
 	return true;
 #endif
 }
-
-#ifdef CONFIG_SCHED_WALT
-	return sysctl_sched_conservative_pl;
-#else
-	return false;
-#endif
-
-static unsigned long freq_to_util(struct sugov_policy *sg_policy,
-				  unsigned int freq)
-{
-	return mult_frac(sg_policy->max, freq,
-			 sg_policy->policy->cpuinfo.max_freq);
-}
-
-#define KHZ 1000
-static void sugov_track_cycles(struct sugov_policy *sg_policy,
-				unsigned int prev_freq,
-				u64 upto)
-{
-	u64 delta_ns, cycles;
-	u64 next_ws = sg_policy->last_ws + sched_ravg_window;
-
-	if (use_pelt())
-		return;
-
-	upto = min(upto, next_ws);
-	/* Track cycles in current window */
-	delta_ns = upto - sg_policy->last_cyc_update_time;
-	delta_ns *= prev_freq;
-	do_div(delta_ns, (NSEC_PER_SEC / KHZ));
-	cycles = delta_ns;
-	sg_policy->curr_cycles += cycles;
-	sg_policy->last_cyc_update_time = upto;
-}
-
-static void sugov_calc_avg_cap(struct sugov_policy *sg_policy, u64 curr_ws,
-				unsigned int prev_freq)
-{
-	u64 last_ws = sg_policy->last_ws;
-	unsigned int avg_freq;
-
-	if (use_pelt())
-		return;
-
-	BUG_ON(curr_ws < last_ws);
-	if (curr_ws <= last_ws)
-		return;
-
-	/* If we skipped some windows */
-	if (curr_ws > (last_ws + sched_ravg_window)) {
-		avg_freq = prev_freq;
-		/* Reset tracking history */
-		sg_policy->last_cyc_update_time = curr_ws;
-	} else {
-		sugov_track_cycles(sg_policy, prev_freq, curr_ws);
-		avg_freq = sg_policy->curr_cycles;
-		avg_freq /= sched_ravg_window / (NSEC_PER_SEC / KHZ);
-	}
-	sg_policy->avg_cap = freq_to_util(sg_policy, avg_freq);
-	sg_policy->curr_cycles = 0;
-	sg_policy->last_ws = curr_ws;
-}
-
+	
 #ifdef CONFIG_CONTROL_CENTER
 unsigned int cc_cal_next_freq_with_extra_util(
 	struct cpufreq_policy *policy,
@@ -251,7 +189,7 @@ unsigned int cc_cal_next_freq_with_extra_util(
 		struct sugov_cpu *sg_cpu = &per_cpu(sugov_cpu, policy->cpu);
 
 		if (max) {
-			orig_util = freq_to_util(sg_cpu->sg_policy, next_freq);
+//			orig_util = freq_to_util(sg_cpu->sg_policy, next_freq);
 			extra_util = orig_util + extra_util * max / 100;
 			next_freq = freq * extra_util / max;
 		}
@@ -262,7 +200,6 @@ unsigned int cc_cal_next_freq_with_extra_util(
 EXPORT_SYMBOL(cc_cal_next_freq_with_extra_util);
 #endif
 
->>>>>>> 8577f6d48f46 (kernel: import houston and control_center from OnePlus 8)
 static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 				unsigned int next_freq)
 {
@@ -329,15 +266,13 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	freq = (freq + (freq >> 2)) * int_sqrt(util * 100 / max) / 10;
 	trace_sugov_next_freq(policy->cpu, util, max, freq);
 
-//	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
-
 #ifdef CONFIG_CONTROL_CENTER
 	/* keep requested freq */
 	sg_policy->policy->req_freq = freq;
 #endif
 
-	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
-//	if (freq == sg_policy->cached_raw_freq && sg_policy->next_freq != UINT_MAX)
+//	if (freq == sg_policy->cached_raw_freq && !sg_policy->need_freq_update)
+	if (freq == sg_policy->cached_raw_freq && sg_policy->next_freq != UINT_MAX)
 	return sg_policy->next_freq;
 	sg_policy->cached_raw_freq = freq;
 	return cpufreq_driver_resolve_freq(policy, freq);
@@ -539,12 +474,11 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 	unsigned long util, max;
 	unsigned int next_f;
 
-//	if (!sg_policy->tunables->pl && flags & SCHED_CPUFREQ_PL)
 #ifdef CONFIG_CONTROL_CENTER
 	struct cpufreq_policy *policy = sg_policy->policy;
 #endif
-//	if (flags & SCHED_CPUFREQ_PL)
-	if (!sg_policy->tunables->pl && flags & SCHED_CPUFREQ_PL)
+	if (flags & SCHED_CPUFREQ_PL)
+//	if (!sg_policy->tunables->pl && flags & SCHED_CPUFREQ_PL)
 		return;
 
 	sugov_get_util(&util, &max, sg_cpu->cpu, time);

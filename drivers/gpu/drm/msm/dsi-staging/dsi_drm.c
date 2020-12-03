@@ -16,8 +16,8 @@
 #define pr_fmt(fmt)	"dsi-drm:[%s] " fmt, __func__
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_notifier.h>
-#include <linux/notifier.h>
+#include <drm/drm_bridge.h>
+#include <linux/pm_wakeup.h>
 
 #include "msm_kms.h"
 #include "sde_connector.h"
@@ -33,8 +33,6 @@
 #define DEFAULT_PANEL_JITTER_ARRAY_SIZE		2
 #define DEFAULT_PANEL_PREFILL_LINES	25
 
-static BLOCKING_NOTIFIER_HEAD(drm_notifier_list);
-
 static struct dsi_display_mode_priv_info default_priv_info = {
 	.panel_jitter_numer = DEFAULT_PANEL_JITTER_NUMERATOR,
 	.panel_jitter_denom = DEFAULT_PANEL_JITTER_DENOMINATOR,
@@ -42,38 +40,12 @@ static struct dsi_display_mode_priv_info default_priv_info = {
 	.dsc_enabled = false,
 };
 
-struct drm_notify_data g_notify_data;
+#define WAIT_RESUME_TIMEOUT 200
 
-/*
- *	drm_register_client - register a client notifier
- *	@nb:notifier block to callback when event happen
- */
-int drm_register_client(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&drm_notifier_list, nb);
-}
-EXPORT_SYMBOL(drm_register_client);
-
-/*
- *	drm_unregister_client - unregister a client notifier
- *	@nb:notifier block to callback when event happen
- */
-int drm_unregister_client(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&drm_notifier_list, nb);
-}
-EXPORT_SYMBOL(drm_unregister_client);
-
-/*
- *	drm_notifier_call_chain - notify clients of drm_event
- *
- */
-int drm_notifier_call_chain(unsigned long val, void *v)
-{
-	return blocking_notifier_call_chain(&drm_notifier_list, val, v);
-}
-EXPORT_SYMBOL(drm_notifier_call_chain);
-
+struct dsi_bridge *gbridge;
+static struct delayed_work prim_panel_work;
+static atomic_t prim_panel_is_on;
+static struct wakeup_source prim_panel_wakelock;
 static void convert_to_dsi_mode(const struct drm_display_mode *drm_mode,
 				struct dsi_display_mode *dsi_mode)
 {
@@ -208,8 +180,6 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
-	int event = DRM_BLANK_UNBLANK;
-	g_notify_data.data = &event;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
@@ -221,8 +191,6 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		return;
 	}
 
-	drm_notifier_call_chain(DRM_EARLY_EVENT_BLANK, &g_notify_data);
-
 	atomic_set(&c_bridge->display->panel->esd_recovery_pending, 0);
 
 	/* By this point mode should have been validated through mode_fixup */
@@ -232,6 +200,19 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 		pr_err("[%d] failed to perform a mode set, rc=%d\n",
 		       c_bridge->id, rc);
 		return;
+	}
+
+	if (c_bridge->display->is_prim_display && atomic_read(&prim_panel_is_on)) {
+		cancel_delayed_work_sync(&prim_panel_work);
+		__pm_relax(&prim_panel_wakelock);
+		if (c_bridge->display->panel->panel_mode == DSI_OP_VIDEO_MODE) {
+			pr_debug("skip set display config for video panel in fpc\n");
+			return;
+		} else if (c_bridge->display->panel->panel_mode == DSI_OP_CMD_MODE &&
+			c_bridge->dsi_mode.dsi_mode_flags != DSI_MODE_FLAG_DMS) {
+			pr_debug("skip set display config because timming not switch for command panel\n");
+			return;
+		}
 	}
 
 	if (c_bridge->dsi_mode.dsi_mode_flags &
@@ -258,16 +239,59 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 				c_bridge->id, rc);
 		(void)dsi_display_unprepare(c_bridge->display);
 	}
-
-	drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
-
 	SDE_ATRACE_END("dsi_display_enable");
 
 	rc = dsi_display_splash_res_cleanup(c_bridge->display);
 	if (rc)
 		pr_err("Continuous splash pipeline cleanup failed, rc=%d\n",
 									rc);
+	if (c_bridge->display->is_prim_display)
+		atomic_set(&prim_panel_is_on, true);
 }
+
+/**
+ *  dsi_bridge_interface_enable - Panel light on interface for fingerprint
+ *  In order to improve panel light on performance when unlock device by
+ *  fingerprint, export this interface for fingerprint.Once finger touch
+ *  happened, it could light on LCD panel in advance of android resume.
+ *
+ *  @timeout: DSI bridge wait time for android resume and set panel on.
+ *            If timeout, dsi bridge will disable panel to avoid fingerprint
+ *            touch by mistake.
+ */
+
+int dsi_bridge_interface_enable(int timeout)
+{
+	int ret = 0;
+
+	ret = wait_event_timeout(resume_wait_q,
+		!atomic_read(&resume_pending),
+		msecs_to_jiffies(WAIT_RESUME_TIMEOUT));
+	if (!ret) {
+		pr_info("Primary fb resume timeout\n");
+		return -ETIMEDOUT;
+	}
+
+	mutex_lock(&gbridge->base.lock);
+
+	if (atomic_read(&prim_panel_is_on)) {
+		mutex_unlock(&gbridge->base.lock);
+		return 0;
+	}
+
+	__pm_stay_awake(&prim_panel_wakelock);
+	gbridge->dsi_mode.dsi_mode_flags = 0;
+	dsi_bridge_pre_enable(&gbridge->base);
+
+	if (timeout > 0)
+		schedule_delayed_work(&prim_panel_work, msecs_to_jiffies(timeout));
+	else
+		__pm_relax(&prim_panel_wakelock);
+
+	mutex_unlock(&gbridge->base.lock);
+	return ret;
+}
+EXPORT_SYMBOL(dsi_bridge_interface_enable);
 
 static void dsi_bridge_enable(struct drm_bridge *bridge)
 {
@@ -334,15 +358,11 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	int rc = 0;
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
-	int event = DRM_BLANK_POWERDOWN;
-	g_notify_data.data = &event;
 
 	if (!bridge) {
 		pr_err("Invalid params\n");
 		return;
 	}
-
-	drm_notifier_call_chain(DRM_EARLY_EVENT_BLANK, &g_notify_data);
 
 	SDE_ATRACE_BEGIN("dsi_bridge_post_disable");
 	SDE_ATRACE_BEGIN("dsi_display_disable");
@@ -364,7 +384,37 @@ static void dsi_bridge_post_disable(struct drm_bridge *bridge)
 	}
 	SDE_ATRACE_END("dsi_bridge_post_disable");
 
-	drm_notifier_call_chain(DRM_EVENT_BLANK, &g_notify_data);
+	if (c_bridge->display->is_prim_display)
+		atomic_set(&prim_panel_is_on, false);
+}
+
+#if CONFIG_TOUCHSCREEN_COMMON
+typedef int(*touchpanel_recovery_cb_p_t)(void);
+static touchpanel_recovery_cb_p_t touchpanel_recovery_cb_p;
+int set_touchpanel_recovery_callback(touchpanel_recovery_cb_p_t cb)
+{
+	if (IS_ERR_OR_NULL(cb))
+		return -EINVAL;
+	touchpanel_recovery_cb_p = cb;
+	return 0;
+}
+EXPORT_SYMBOL(set_touchpanel_recovery_callback);
+#endif
+
+static void prim_panel_off_delayed_work(struct work_struct *work)
+{
+	mutex_lock(&gbridge->base.lock);
+	if (atomic_read(&prim_panel_is_on)) {
+#if CONFIG_TOUCHSCREEN_COMMON
+		if (!IS_ERR_OR_NULL(touchpanel_recovery_cb_p))
+			touchpanel_recovery_cb_p();
+#endif
+		dsi_bridge_post_disable(&gbridge->base);
+		__pm_relax(&prim_panel_wakelock);
+		mutex_unlock(&gbridge->base.lock);
+		return;
+	}
+	mutex_unlock(&gbridge->base.lock);
 }
 
 static void dsi_bridge_mode_set(struct drm_bridge *bridge,
@@ -396,7 +446,6 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 	struct dsi_bridge *c_bridge = to_dsi_bridge(bridge);
 	struct dsi_display *display;
 	struct dsi_display_mode dsi_mode, cur_dsi_mode, *panel_dsi_mode;
-	struct drm_display_mode cur_mode;
 	struct drm_crtc_state *crtc_state;
 	bool clone_mode = false;
 	struct drm_encoder *encoder;
@@ -450,9 +499,10 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 
 	if (bridge->encoder && bridge->encoder->crtc &&
 			crtc_state->crtc) {
+		const struct drm_display_mode *cur_mode =
+				&crtc_state->crtc->state->mode;
 
-		convert_to_dsi_mode(&crtc_state->crtc->state->mode,
-							&cur_dsi_mode);
+		convert_to_dsi_mode(cur_mode, &cur_dsi_mode);
 		cur_dsi_mode.timing.dsc_enabled =
 				dsi_mode.priv_info->dsc_enabled;
 		cur_dsi_mode.timing.dsc = &dsi_mode.priv_info->dsc;
@@ -472,8 +522,6 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 				clone_mode = true;
 		}
 
-		cur_mode = crtc_state->crtc->mode;
-
 		/* No panel mode switch when drm pipeline is changing */
 		if ((dsi_mode.panel_mode != cur_dsi_mode.panel_mode) &&
 			(!(dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_VRR)) &&
@@ -482,7 +530,7 @@ static bool dsi_bridge_mode_fixup(struct drm_bridge *bridge,
 			dsi_mode.dsi_mode_flags |= DSI_MODE_FLAG_POMS;
 
 		/* No DMS/VRR when drm pipeline is changing */
-		if (!drm_mode_equal(&cur_mode, adjusted_mode) &&
+		if (!drm_mode_equal(cur_mode, adjusted_mode) &&
 			(!(dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_VRR)) &&
 			(!(dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_POMS)) &&
 			(!(dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_DYN_CLK)) &&
@@ -1011,6 +1059,9 @@ void dsi_conn_enable_event(struct drm_connector *connector,
 			event_idx, &event_info, enable);
 }
 
+extern void dsi_display_panel_gamma_mode_change(struct dsi_display *display,
+			struct dsi_display_mode *adj_mode, bool force);
+
 int dsi_conn_post_kickoff(struct drm_connector *connector,
 	struct msm_display_conn_params *params)
 {
@@ -1063,6 +1114,8 @@ int dsi_conn_post_kickoff(struct drm_connector *connector,
 		c_bridge->dsi_mode.dsi_mode_flags &= ~DSI_MODE_FLAG_VRR;
 	}
 
+	dsi_display_panel_gamma_mode_change(display, &adj_mode, false);
+
 	/* ensure dynamic clk switch flag is reset */
 	c_bridge->dsi_mode.dsi_mode_flags &= ~DSI_MODE_FLAG_DYN_CLK;
 
@@ -1100,6 +1153,18 @@ struct dsi_bridge *dsi_drm_bridge_init(struct dsi_display *display,
 	}
 
 	encoder->bridge = &bridge->base;
+	encoder->bridge->is_dsi_drm_bridge = true;
+	mutex_init(&encoder->bridge->lock);
+
+	if (display->is_prim_display) {
+		gbridge = bridge;
+		atomic_set(&resume_pending, 0);
+		wakeup_source_init(&prim_panel_wakelock, "prim_panel_wakelock");
+		atomic_set(&prim_panel_is_on, false);
+		init_waitqueue_head(&resume_wait_q);
+		INIT_DELAYED_WORK(&prim_panel_work, prim_panel_off_delayed_work);
+	}
+
 	return bridge;
 error_free_bridge:
 	kfree(bridge);
@@ -1112,5 +1177,12 @@ void dsi_drm_bridge_cleanup(struct dsi_bridge *bridge)
 	if (bridge && bridge->base.encoder)
 		bridge->base.encoder->bridge = NULL;
 
+	if (bridge == gbridge) {
+		atomic_set(&prim_panel_is_on, false);
+		cancel_delayed_work_sync(&prim_panel_work);
+		wakeup_source_trash(&prim_panel_wakelock);
+	}
+
 	kfree(bridge);
 }
+

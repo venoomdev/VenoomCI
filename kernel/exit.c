@@ -1,4 +1,4 @@
-\/*
+/*
  *  linux/kernel/exit.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
@@ -193,10 +193,11 @@ void release_task(struct task_struct *p)
 {
 	struct task_struct *leader;
 	int zap_leader;
+
 #ifdef CONFIG_HOUSTON
 	ht_rtg_list_del(p);
 #endif
-epeat:
+repeat:
 	/* don't need to get the RCU readlock here - the process is dead and
 	 * can't be modifying its own credentials. But shut RCU-lockdep up */
 	rcu_read_lock();
