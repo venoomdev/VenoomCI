@@ -32,6 +32,7 @@
 #include <drm/drm_print.h>
 #include <drm/drm_writeback.h>
 #include <linux/sync_file.h>
+#include <linux/devfreq_boost.h>
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
@@ -2597,7 +2598,16 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 			(arg->flags & DRM_MODE_PAGE_FLIP_EVENT))
 		return -EINVAL;
 
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
+//	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
+
+	if (!(arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) &&
+			df_boost_within_input(3250)) {
+		devfreq_boost_kick(DEVFREQ_MSM_CPUBW);
+		devfreq_boost_kick(DEVFREQ_MSM_LLCCBW);
+	}
+
+	drm_modeset_acquire_init(&ctx, 0);
+//>>>>>>> 10c79ccc9cd2 (drm: Boost DDR bus upon running an atomic ioctl)
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
