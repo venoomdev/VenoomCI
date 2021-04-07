@@ -60,6 +60,7 @@
 
 #include <linux/swapops.h>
 #include <linux/balloon_compaction.h>
+#include <linux/simple_lmk.h>
 
 #if defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
 #include <linux/process_mm_reclaim.h>

@@ -1,88 +1,62 @@
-IMAGE=$(pwd)/out/arch/arm64/boot/Image
-DTBO=$(pwd)/out/arch/arm64/boot/dtbo.img
-START=$(date +"%s")
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
-VERSION=Venoom
-TANGGAL=$(TZ=Asia/Jakarta date "+%Y%m%d-%H%M")
-KBUILD_COMPILER_STRING=$(/root/kernel/16/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
-KBUILD_LINKER_STRING=$(/root/kernel/16/bin/ld.lld --version  | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//' | sed 's/(compatible with [^)]*)//')
+#!/bin/bash
 
-# Set Kernel Version
-KERNELVER=$(make kernelversion)
+#set -e
 
-# Include argument
-ARGS="ARCH=arm64 \
-        O=out \
-	LLVM=1 \
-	AS=llvm-as \
-	LD=ld.lld \
-	CLANG_TRIPLE=aarch64-linux-gnu- \
-	CROSS_COMPILE=aarch64-linux-gnu- \
-	CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
-        -j48"
-
-# Build Kernel
+KERNEL_DEFCONFIG=alioth_defconfig
+ANYKERNEL3_DIR=$PWD/AnyKernel3/
+FINAL_KERNEL_ZIP=oxygen.zip
 export ARCH=arm64
-export SUBARCH=arm64
-export KBUILD_BUILD_HOST="WartegCI"
-export KBUILD_BUILD_USER="Pocongtobat"
-export KBUILD_COMPILER_STRING
-export KBUILD_LINKER_STRING
-#main group
-#export chat_id="-1001726996867!"
-#channel
-#export chat_id2="-1001608547174!"
-export chat_id="-1001551521202"
-export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc!"
-export DEF="alioth_defconfig"
-TC_DIR=/root/kernel/16
-GCC64_DIR="/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
-GCC32_DIR="/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
-export PATH="/root/kernel/16/bin:${PATH}"
-export LD_LIBRARY_PATH=/root/kernel/16/lib64:$LD_LIBRARY_PATH
 
-# Post to CI channel
-curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage -d text="Buckle up bois Venoom  kernel build has started" -d chat_id=${chat_id} -d parse_mode=HTML
-curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage -d text="Branch: <code>$(git rev-parse --abbrev-ref HEAD)</code>
-Kernel Version : <code>${KERNELVER}</code>
-Compiler Used : <code>${KBUILD_COMPILER_STRING}</code>
-Latest Commit: <code>$(git log --pretty=format:'%h : %s' -1)</code>
-Starting..." -d chat_id=${chat_id} -d parse_mode=HTML
+BUILD_START=$(date +"%s")
+blue='\033[1;34m'
+yellow='\033[1;33m'
+nocol='\033[0m'
 
-# make defconfig
-    make -j48 ${ARGS} ${DEF}
+# Always do clean build lol
+echo -e "$yellow**** Cleaning ****$nocol"
+make O=out
 
-# Make olddefconfig
-cd out || exit
-make -j48 ${ARGS} olddefconfig
-cd ../ || exit
+echo -e "$yellow**** Kernel defconfig is set to $KERNEL_DEFCONFIG ****$nocol"
+echo -e "$blue***********************************************"
+echo "          BUILDING KERNEL          "
+echo -e "***********************************************$nocol"
+make $KERNEL_DEFCONFIG O=out
+make -j$(nproc --all) O=out \
+                      ARCH=arm64 \
+                      CC=/root/kernel/c/bin/clang \
+                      CLANG_TRIPLE=aarch64-linux-gnu- \
+                      CROSS_COMPILE=/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android- \
+                      CROSS_COMPILE_ARM32=/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64/bin/arm-linux-androideabi-
 
-# compiling
-    make -j$(nproc --all) ${ARGS} 2>&1 | tee build.log
+echo -e "$yellow**** Verify Image.gz-dtb & dtbo.img ****$nocol"
+ls $PWD/out/arch/arm64/boot/Image.gz-dtb
+ls $PWD/out/arch/arm64/boot/dtbo.img
 
-END=$(date +"%s")
-DIFF=$((END - START))
+echo -e "$yellow**** Verifying AnyKernel3 Directory ****$nocol"
+ls $ANYKERNEL3_DIR
+echo -e "$yellow**** Removing leftovers ****$nocol"
+rm -rf $ANYKERNEL3_DIR/Image.gz-dtb
+rm -rf $ANYKERNEL3_DIR/dtbo.img
+rm -rf $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP
 
-if [ -f $(pwd)/out/arch/arm64/boot/Image ]
-	then
-	curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage -d text="<i>Build compiled successfully in $((DIFF / 60)) minute(s) and $((DIFF % 60)) seconds</i>" -d chat_id=${chat_id} -d parse_mode=HTML
-        cp ${IMAGE} $(pwd)/AnyKernel3
-        cp ${DTBO} $(pwd)/AnyKernel3
-        cd AnyKernel3
-        zip -r9 Venoom-${TANGGAL}.zip * --exclude *.jar
+echo -e "$yellow**** Copying Image.gz-dtb & dtbo.img ****$nocol"
+cp $PWD/out/arch/arm64/boot/Image.gz-dtb $ANYKERNEL3_DIR/
+cp $PWD/out/arch/arm64/boot/dtbo.img $ANYKERNEL3_DIR/
 
-        curl -F chat_id="${chat_id}"  \
-                    -F caption="sha1sum: $(sha1sum Venoom*.zip | awk '{ print $1 }')" \
-                    -F document=@"$(pwd)/Venoom-${TANGGAL}.zip" \
-                    https://api.telegram.org/bot${TOKEN}/sendDocument
+echo -e "$yellow**** Time to zip up! ****$nocol"
+cd $ANYKERNEL3_DIR/
+zip -r9 $FINAL_KERNEL_ZIP * -x README $FINAL_KERNEL_ZIP
+cp $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP /home/raystef66/kernel/$FINAL_KERNEL_ZIP
 
-        curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage -d text="hi guys, the latest update is available !" -d chat_id=${chat_id2} -d parse_mode=HTML
-
+echo -e "$yellow**** Done, here is your checksum ****$nocol"
 cd ..
-else
-        curl -F chat_id="${chat_id}"  \
-                    -F caption="Build ended with an error !!" \
-                    -F document=@"build.log" \
-                    https://api.telegram.org/bot${TOKEN}/sendDocument
+rm -rf $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP
+rm -rf $ANYKERNEL3_DIR/Image.gz-dtb
+rm -rf $ANYKERNEL3_DIR/dtbo.img
+rm -rf out/
 
-fi
+BUILD_END=$(date +"%s")
+DIFF=$(($BUILD_END - $BUILD_START))
+echo -e "$yellow Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.$nocol"
+sha1sum $KERNELDIR/$FINAL_KERNEL_ZIP
+
