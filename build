@@ -1,7 +1,7 @@
 #!/bin/bash
 KERNEL_DIR=$PWD
 ANYKERNEL_DIR=$KERNEL_DIR/AnyKernel3
-CLANG_DIR=/root/kernel/16
+CLANG_DIR=/root/kernel/proton
 KERNELVER=$(make kernelversion)
 
 if [[ -z "${JTHREAD}" ]]; then

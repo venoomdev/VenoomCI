@@ -39,7 +39,7 @@ export DEF="alioth_defconfig"
 TC_DIR=/root/kernel/16
 GCC64_DIR="/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
 GCC32_DIR="/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
-export PATH="/root/kernel/15/bin:${PATH}"
+export PATH="/root/kernel/16/bin:${PATH}"
 export LD_LIBRARY_PATH=/root/kernel/16/lib64:$LD_LIBRARY_PATH
 
 # Post to CI channel
