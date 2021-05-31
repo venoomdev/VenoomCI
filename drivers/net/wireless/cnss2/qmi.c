@@ -41,6 +41,7 @@
 #define ELF_BDF_FILE_NAME_K81A           "bd_k81a.elf"
 
 #define ELF_BDF_FILE_NAME_GF		"bdwlang.elf"
+
 #define ELF_BDF_FILE_NAME_PREFIX	"bdwlan.e"
 #define ELF_BDF_FILE_NAME_GF_PREFIX	"bdwlang.e"
 #define BIN_BDF_FILE_NAME		"bdwlan.bin"
