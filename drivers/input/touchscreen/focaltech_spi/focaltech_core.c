@@ -38,6 +38,8 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
+#include <linux/pm_qos.h>
+#include <linux/spi/spi-geni-qcom.h>
 #if defined(CONFIG_DRM)
 #include <drm/drm_notifier_mi.h>
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
@@ -732,6 +734,10 @@ static void fts_irq_read_report(void)
 #if FTS_ESDCHECK_EN
 	fts_esdcheck_set_intr(0);
 #endif
+	pm_qos_update_request(&ts_data->pm_touch_req, 100);
+	pm_qos_update_request(&ts_data->pm_spi_req, 100);
+	pm_qos_update_request(&ts_data->pm_spi_req, PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(&ts_data->pm_touch_req, PM_QOS_DEFAULT_VALUE);
 }
 
 static irqreturn_t fts_irq_handler(int irq, void *data)
@@ -755,6 +761,17 @@ static irqreturn_t fts_irq_handler(int irq, void *data)
 	fts_irq_read_report();
 	pm_relax(fts_data->dev);
 	return IRQ_HANDLED;
+
+	ts_data->pm_spi_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	ts_data->pm_spi_req.irq = ts_data->irq;
+	pm_qos_add_request(&ts_data->pm_spi_req, PM_QOS_CPU_DMA_LATENCY,
+			        PM_QOS_DEFAULT_VALUE);
+
+	ts_data->pm_touch_req.type = PM_QOS_REQ_AFFINE_IRQ;
+	ts_data->pm_touch_req.irq = ts_data->irq;
+	pm_qos_add_request(&ts_data->pm_touch_req, PM_QOS_CPU_DMA_LATENCY,
+				PM_QOS_DEFAULT_VALUE);
+
 }
 
 static int fts_irq_registration(struct fts_ts_data *ts_data)
@@ -763,7 +780,7 @@ static int fts_irq_registration(struct fts_ts_data *ts_data)
 	struct fts_ts_platform_data *pdata = ts_data->pdata;
 
 	ts_data->irq = gpio_to_irq(pdata->irq_gpio);
-	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
+	pdata->irq_gpio_flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_PRIME_AFFINE;
 	FTS_INFO("irq:%d, flag:%x", ts_data->irq, pdata->irq_gpio_flags);
 	ret = request_threaded_irq(ts_data->irq, NULL, fts_irq_handler,
 							   pdata->irq_gpio_flags,
@@ -1522,7 +1539,7 @@ static void fts_power_supply_work(struct work_struct *work)
 	pm_stay_awake(ts_data->dev);
 	mutex_lock(&ts_data->power_supply_lock);
 	charger_mode = !!power_supply_is_system_supplied();
-	if (charger_mode != ts_data->charger_mode || ts_data->charger_mode < 0) {
+	if (charger_mode != ts_data->charger_mode || !ts_data->charger_mode) {
 		ts_data->charger_mode = charger_mode;
 		FTS_INFO("%s %d\n", __func__, charger_mode);
 		if (charger_mode) {
@@ -1538,6 +1555,8 @@ static void fts_power_supply_work(struct work_struct *work)
 		}
 	}
 	mutex_unlock(&ts_data->power_supply_lock);
+	pm_qos_update_request(&ts_data->pm_spi_req, PM_QOS_DEFAULT_VALUE);
+        pm_qos_update_request(&ts_data->pm_touch_req, PM_QOS_DEFAULT_VALUE);
 	pm_relax(ts_data->dev);
 }
 
@@ -1767,7 +1786,8 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 
 	free_irq(ts_data->irq, ts_data);
 	input_unregister_device(ts_data->input_dev);
-
+	pm_qos_remove_request(&ts_data->pm_touch_req);
+	pm_qos_remove_request(&ts_data->pm_spi_req);
 	power_supply_unreg_notifier(&ts_data->power_supply_notifier);
 	mutex_destroy(&ts_data->power_supply_lock);
 
@@ -2123,7 +2143,7 @@ static void fts_restore_mode_value(int mode, int value_type)
 		xiaomi_touch_interfaces.touch_mode[mode][value_type];
 }
 
-static void fts_restore_normal_mode()
+static void fts_restore_normal_mode(void)
 {
 	int i;
 	for (i = 0; i < Touch_Report_Rate; i++) {
