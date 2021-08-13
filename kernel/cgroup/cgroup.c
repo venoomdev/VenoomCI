@@ -84,6 +84,13 @@ EXPORT_SYMBOL_GPL(cgroup_mutex);
 EXPORT_SYMBOL_GPL(css_set_lock);
 #endif
 
+#ifdef CONFIG_RATP
+#define STUNE_TYPE_MAX 5
+int stune_map[STUNE_TYPE_MAX] = {0, 0, 0, 0, 0};
+const char *stune_cgroup_type[STUNE_TYPE_MAX] = {"foreground", "background",
+				"top-app", "rt", "audio-app"};
+#endif
+
 DEFINE_SPINLOCK(trace_cgroup_path_lock);
 char trace_cgroup_path[TRACE_CGROUP_PATH_LEN];
 
