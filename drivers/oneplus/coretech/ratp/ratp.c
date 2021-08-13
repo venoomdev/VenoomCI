@@ -2,9 +2,9 @@
 #include <linux/module.h>
 #include <linux/oem/ratp.h>
 
-static int ratp_enable = 0;
-static int ratp_gmod = 0;
-static int ratp_allowmost = 0;
+static int ratp_enable = 1;
+static int ratp_gmod = 1;
+static int ratp_allowmost = 1;
 
 static int ratp_enable_store(const char *buf, const struct kernel_param *kp)
 {
