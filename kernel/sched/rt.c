@@ -19,6 +19,12 @@
 #include <trace/events/kperfevents_sched.h>
 #endif
 
+#ifdef CONFIG_CONTROL_CENTER
+#include <linux/oem/control_center.h>
+#endif
+
+#include <linux/oem/im.h>
+
 int sched_rr_timeslice = RR_TIMESLICE;
 int sysctl_sched_rr_timeslice = (MSEC_PER_SEC / HZ) * RR_TIMESLICE;
 
@@ -1859,6 +1865,10 @@ static int rt_energy_aware_wake_cpu(struct task_struct *task)
 	int cpu_idle_idx = -1;
 	bool boost_on_big = rt_boost_on_big();
 
+	/* For surfaceflinger with util > 90, prefer to use big core */
+	if (task->compensate_need == 2 && tutil > 90)
+		boost_on_big = true;
+
 	rcu_read_lock();
 
 	cpu = cpu_rq(smp_processor_id())->rd->min_cap_orig_cpu;
@@ -1869,6 +1879,11 @@ static int rt_energy_aware_wake_cpu(struct task_struct *task)
 	if (!sd)
 		goto unlock;
 
+#ifdef CONFIG_CONTROL_CENTER
+	boost_on_big = boost_on_big |
+		im_hwc(task) | // HWC select big core first
+		(im_sf(task) && ccdm_get_hint(CCDM_TB_PLACE_BOOST));
+#endif
 retry:
 	sg = sd->groups;
 	do {

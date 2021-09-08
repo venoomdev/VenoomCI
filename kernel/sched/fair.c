@@ -26,6 +26,10 @@
 
 #include "walt.h"
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
+
 #ifdef CONFIG_SMP
 static inline bool task_fits_max(struct task_struct *p, int cpu);
 #endif /* CONFIG_SMP */
@@ -6987,6 +6991,21 @@ static int get_start_cpu(struct task_struct *p)
 
 	if (start_cpu == rd->mid_cap_orig_cpu &&
 			!task_demand_fits(p, start_cpu))
+#ifdef CONFIG_HOUSTON
+	if (current->ravg.demand_scaled >= p->ravg.demand_scaled) {
+		/* add 'current' into RTG list */
+		ht_rtg_list_add_tail(current);
+	}
+#endif
+
+	/* Where the task should land based on its demand *///
+//	if (rd->min_cap_orig_cpu != -1
+//			&& task_fits_max(p, rd->min_cap_orig_cpu))
+//		start_cpu = rd->min_cap_orig_cpu;
+//	else if (rd->mid_cap_orig_cpu != -1
+//				&& task_fits_max(p, rd->mid_cap_orig_cpu))
+//		start_cpu = rd->mid_cap_orig_cpu;
+//	else
 		start_cpu = rd->max_cap_orig_cpu;
 
 	return start_cpu;
