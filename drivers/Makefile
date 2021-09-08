@@ -198,3 +198,4 @@ obj-$(CONFIG_SENSORS_SSC)	+= sensors/
 obj-$(CONFIG_MILLET)		+= millet/
 
 obj-y				+= oplus/
+obj-y   += oneplus/
