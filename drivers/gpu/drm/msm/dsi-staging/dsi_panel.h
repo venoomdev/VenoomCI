@@ -225,6 +225,22 @@ struct dsi_panel {
 
 	int hbm_mode;
 	int cabc_mode;
+	bool resend_ea;
+	bool resend_ea_hbm;
+        int cabc_mode;
+
+	struct brightness_alpha_pair *fod_dim_lut;
+	u32 fod_dim_lut_count;
+
+	u32 last_bl_lvl;
+	u32 backlight_demura_level; /* For the f4_41 panel */
+	/* DC bkl */
+	bool dc_enable;
+	u32 dc_demura_threshold;
+	u32 dc_threshold;
+	u32 dc_type;
+	bool resend_dc;
+	int current_gamma;
 };
 
 /**
@@ -379,5 +395,8 @@ int dsi_panel_idle(struct dsi_panel *panel);
 int dsi_panel_wakeup(struct dsi_panel *panel);
 int dsi_panel_switch_init(struct dsi_panel *panel);
 void dsi_panel_switch_destroy(struct dsi_panel *panel);
+
+void dsi_panel_gamma_mode_change(struct dsi_panel *panel,
+            struct dsi_display_mode *adj_mode, bool force);
 
 #endif /* _DSI_PANEL_H_ */
