@@ -2416,8 +2416,24 @@ long _do_fork(unsigned long clone_flags,
 	pid = get_task_pid(p, PIDTYPE_PID);
 	nr = pid_vnr(pid);
 
-	if (clone_flags & CLONE_PARENT_SETTID)
-		put_user(nr, parent_tidptr);
+
+//	if (clone_flags & CLONE_PARENT_SETTID)
+//		put_user(nr, parent_tidptr);
+		trace_sched_process_fork(current, p);
+	/* bin.zhong@ASTI, 2019/10/11, add for CONFIG_SMART_BOOST */
+	SMB_HOT_COUNT_INIT((clone_flags & CLONE_VM), p);
+
+		pid = get_task_pid(p, PIDTYPE_PID);
+		nr = pid_vnr(pid);
+
+		if (clone_flags & CLONE_PARENT_SETTID)
+			put_user(nr, parent_tidptr);
+
+		if (clone_flags & CLONE_VFORK) {
+			p->vfork_done = &vfork;
+			init_completion(&vfork);
+			get_task_struct(p);
+		}
 
 	if (clone_flags & CLONE_VFORK) {
 		p->vfork_done = &vfork;
