@@ -33,6 +33,7 @@ struct kgsl_page_pool {
 	unsigned int reserved_pages;
 	bool allocation_allowed;
 	unsigned int max_pages;
+	spinlock_t list_lock;
 	struct llist_head page_list;
 };
 
@@ -74,7 +75,9 @@ _kgsl_pool_get_page(struct kgsl_page_pool *pool)
 	struct llist_node *node;
 	struct page *p = NULL;
 
+	spin_lock(&pool->list_lock);
 	node = llist_del_first(&pool->page_list);
+	spin_unlock(&pool->list_lock);
 
 	if (node) {
 		atomic_dec(&pool->page_count);
@@ -89,9 +92,9 @@ _kgsl_pool_get_page(struct kgsl_page_pool *pool)
 
 /* Returns the number of pages in specified pool */
 static int
-kgsl_pool_size(struct kgsl_page_pool *kgsl_pool)
+kgsl_pool_size(struct kgsl_page_pool *pool)
 {
-	return atomic_read(&kgsl_pool->page_count) * (1 << kgsl_pool->pool_order);
+	return atomic_read(&pool->page_count) * (1 << pool->pool_order);
 }
 
 /* Returns the number of pages in all kgsl page pools */
@@ -473,6 +476,7 @@ static void kgsl_pool_config(unsigned int order, unsigned int reserved_pages,
 	kgsl_pools[kgsl_num_pools].reserved_pages = reserved_pages;
 	kgsl_pools[kgsl_num_pools].allocation_allowed = allocation_allowed;
 	kgsl_pools[kgsl_num_pools].max_pages = max_pages;
+	spin_lock_init(&kgsl_pools[kgsl_num_pools].list_lock);
 	init_llist_head(&kgsl_pools[kgsl_num_pools].page_list);
 	kgsl_num_pools++;
 }
