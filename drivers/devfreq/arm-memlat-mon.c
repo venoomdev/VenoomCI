@@ -169,6 +169,15 @@ static inline void read_event(struct event_data *event)
 
 	total = perf_event_read_value(event->pevent, &enabled, &running);
 	ev_count = total - event->prev_count;
+	if (!per_cpu(cpu_is_idle, event->pevent->cpu) &&
+			!per_cpu(cpu_is_hp, event->pevent->cpu)) {
+		total = perf_event_read_value(event->pevent, &enabled,
+								&running);
+		event->cached_total_count = total;
+	} else {
+		total = event->cached_total_count;
+	}
+	event->last_delta = total - event->prev_count;
 	event->prev_count = total;
 	event->last_delta = ev_count;
 }
