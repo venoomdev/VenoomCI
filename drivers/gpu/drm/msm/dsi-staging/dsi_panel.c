@@ -5073,6 +5073,7 @@ int dsi_panel_set_feature(struct dsi_panel *panel, enum dsi_cmd_set_type type)
 		}
 		mutex_unlock(&panel->panel_lock);
 		return rc;
+}
 int dsi_panel_apply_hbm_mode(struct dsi_panel *panel)
 {
 	static const enum dsi_cmd_set_type type_map[] = {
