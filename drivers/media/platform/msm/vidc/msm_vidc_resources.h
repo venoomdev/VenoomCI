@@ -65,10 +65,11 @@ struct context_bank_info {
 	const char *name;
 	u32 buffer_type;
 	bool is_secure;
+	bool secure_vmid_switch;
 	struct addr_range addr_range;
 	struct device *dev;
 	struct dma_iommu_mapping *mapping;
-	int sids[VENUS_SID_MAX];
+	u32 sids[VENUS_SID_MAX];
 	int num_sids;
 	struct cma_info cma;
 };
@@ -224,6 +225,7 @@ struct msm_vidc_platform_resources {
 	struct msm_vidc_ubwc_config *ubwc_config;
 	uint32_t ubwc_config_length;
 	bool cma_exist;
+	bool cma_status;
 };
 
 
