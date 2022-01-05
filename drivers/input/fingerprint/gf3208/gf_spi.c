@@ -60,7 +60,7 @@
 #define PATCH_LEVEL 10
 #define FAIL -1
 
-#define WAKELOCK_HOLD_TIME 500 /* in ms */
+#define WAKELOCK_HOLD_TIME 400 /* in ms */
 #define FP_UNLOCK_REJECTION_TIMEOUT (WAKELOCK_HOLD_TIME - 100)
 #define GF_SPIDEV_NAME     "goodix,fingerprint"
 /*device name after register in character*/
