@@ -48,6 +48,8 @@
 
 #define DEFAULT_BUS_P 25
 
+static bool default_pwrlevel_set = false;
+
 /* Order deeply matters here because reasons. New entries go on the end */
 static const char * const clocks[] = {
 	"src_clk",
@@ -63,6 +65,7 @@ static const char * const clocks[] = {
 	"alwayson_clk",
 	"isense_clk",
 	"rbcpr_clk",
+	"apb_pclk",
 	"iref_clk",
 	"gmu_clk",
 	"ahb_clk",
@@ -1213,7 +1216,50 @@ static ssize_t kgsl_pwrctrl_bus_split_store(struct device *dev,
 
 	return count;
 }
+static ssize_t kgsl_pwrctrl_default_pwrlevel_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct kgsl_device *device = kgsl_device_from_dev(dev);
 
+	if (device == NULL)
+		return 0;
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		device->pwrctrl.default_pwrlevel);
+}
+
+static ssize_t kgsl_pwrctrl_default_pwrlevel_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct kgsl_device *device = kgsl_device_from_dev(dev);
+	struct kgsl_pwrctrl *pwr;
+	struct kgsl_pwrscale *pwrscale;
+	int ret;
+	unsigned int level = 0;
+
+	if (device == NULL)
+		return 0;
+
+	pwr = &device->pwrctrl;
+	pwrscale = &device->pwrscale;
+
+	ret = kgsl_sysfs_store(buf, &level);
+	if (ret)
+		return ret;
+
+	if (level > pwr->num_pwrlevels - 2)
+		goto done;
+
+	mutex_lock(&device->mutex);
+	pwr->default_pwrlevel = level;
+	pwrscale->gpu_profile.profile.initial_freq
+			= pwr->pwrlevels[level].gpu_freq;
+
+	mutex_unlock(&device->mutex);
+done:
+	return count;
+}
 static ssize_t kgsl_pwrctrl_gpu_model_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -1486,6 +1532,9 @@ static DEVICE_ATTR(force_rail_on, 0644,
 static DEVICE_ATTR(bus_split, 0644,
 	kgsl_pwrctrl_bus_split_show,
 	kgsl_pwrctrl_bus_split_store);
+static DEVICE_ATTR(default_pwrlevel, 0644,
+	kgsl_pwrctrl_default_pwrlevel_show,
+	kgsl_pwrctrl_default_pwrlevel_store);
 static DEVICE_ATTR(force_no_nap, 0644,
 	kgsl_pwrctrl_force_no_nap_show,
 	kgsl_pwrctrl_force_no_nap_store);
@@ -1520,6 +1569,7 @@ static const struct device_attribute *pwrctrl_attr_list[] = {
 	&dev_attr_force_bus_on,
 	&dev_attr_force_rail_on,
 	&dev_attr_force_no_nap,
+	&dev_attr_default_pwrlevel,
 	&dev_attr_bus_split,
 	&dev_attr_gpu_model,
 	&dev_attr_gpu_busy_percentage,
@@ -2539,6 +2589,11 @@ static int kgsl_pwrctrl_enable(struct kgsl_device *device)
 {
 	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
 	int level, status;
+
+	if (!default_pwrlevel_set) {
+		pwr->default_pwrlevel = 6;
+		default_pwrlevel_set = true;
+	}
 
 	if (pwr->wakeup_maxpwrlevel) {
 		level = pwr->max_pwrlevel;
