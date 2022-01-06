@@ -3393,6 +3393,9 @@ static void age_active_anon(struct pglist_data *pgdat,
 	if (!total_swap_pages)
 		return;
 
+	if (fatal_signal_pending(current))
+			return;
+
 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
 	do {
 		struct lruvec *lruvec = mem_cgroup_lruvec(pgdat, memcg);
