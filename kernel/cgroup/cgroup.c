@@ -5770,15 +5770,6 @@ static int __init cgroup_disable(char *str)
 				continue;
 			cgroup_disable_mask |= 1 << i;
 		}
-
-		for (i = 0; i < OPT_FEATURE_COUNT; i++) {
-			if (strcmp(token, cgroup_opt_feature_names[i]))
-				continue;
-			cgroup_feature_disable_mask |= 1 << i;
-			pr_info("Disabling %s control group feature\n",
-				cgroup_opt_feature_names[i]);
-			break;
-		}
 	}
 	return 1;
 }
