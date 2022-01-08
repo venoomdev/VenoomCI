@@ -75,6 +75,7 @@
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
 #include <linux/printk.h>
+#include <linux/cache.h>
 #include <linux/cgroup.h>
 #include <linux/cpuset.h>
 #include <linux/audit.h>
@@ -339,6 +340,8 @@ static const struct file_operations proc_pid_cmdline_ops = {
 	.llseek	= generic_file_llseek,
 };
 
+
+
 #ifdef CONFIG_KALLSYMS
 /*
  * Provides a wchan file via kallsyms in a proper one-value-per-file format.
@@ -350,14 +353,17 @@ static int proc_pid_wchan(struct seq_file *m, struct pid_namespace *ns,
 	unsigned long wchan;
 	char symname[KSYM_NAME_LEN];
 
+	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
+		goto print0;
+
 	wchan = get_wchan(task);
+	if (wchan && !lookup_symbol_name(wchan, symname)) {
+		seq_puts(m, symname);
+		return 0;
+	}
 
-	if (wchan && ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS)
-			&& !lookup_symbol_name(wchan, symname))
-		seq_printf(m, "%s", symname);
-	else
-		seq_putc(m, '0');
-
+print0:
+	seq_putc(m, '0');
 	return 0;
 }
 #endif /* CONFIG_KALLSYMS */
@@ -512,7 +518,7 @@ static const struct file_operations proc_lstats_operations = {
 static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
 			  struct pid *pid, struct task_struct *task)
 {
-	unsigned long totalpages = totalram_pages + total_swap_pages;
+	unsigned long totalpages = totalram_pages() + total_swap_pages;
 	unsigned long points = 0;
 
 	points = oom_badness(task, NULL, NULL, totalpages) *
@@ -801,7 +807,7 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 	flags = FOLL_FORCE | (write ? FOLL_WRITE : 0);
 
 	while (count > 0) {
-		int this_len = min_t(int, count, PAGE_SIZE);
+		size_t this_len = min_t(size_t, count, PAGE_SIZE);
 
 		if (write && copy_from_user(page, buf, this_len)) {
 			copied = -EFAULT;
@@ -876,6 +882,76 @@ static const struct file_operations proc_mem_operations = {
 	.open		= mem_open,
 	.release	= mem_release,
 };
+
+#ifdef CONFIG_UXCHAIN
+static int proc_static_ux_show(struct seq_file *m, void *v)
+{
+	struct inode *inode = m->private;
+	struct task_struct *p;
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+	seq_printf(m, "%d\n", p->static_ux);
+	put_task_struct(p);
+	return 0;
+}
+
+static int proc_static_ux_open(struct inode	*inode, struct file *filp)
+{
+	return single_open(filp, proc_static_ux_show, inode);
+}
+
+static ssize_t proc_static_ux_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	struct task_struct *task;
+	char buffer[PROC_NUMBUF];
+	int err, static_ux;
+
+	memset(buffer, 0, sizeof(buffer));
+	if (count > sizeof(buffer) - 1)
+		count = sizeof(buffer) - 1;
+	if (copy_from_user(buffer, buf, count))
+		return -EFAULT;
+	err = kstrtoint(strstrip(buffer), 0, &static_ux);
+	if (err)
+		return err;
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+
+	task->static_ux = static_ux != 0 ? 1 : 0;
+
+	put_task_struct(task);
+	return count;
+}
+
+static ssize_t proc_static_ux_read(struct file *file, char __user *buf,
+							    size_t count, loff_t *ppos)
+{
+	char buffer[PROC_NUMBUF];
+	struct task_struct *task = NULL;
+	int static_ux = -1;
+	size_t len = 0;
+
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+	static_ux = task->static_ux;
+	put_task_struct(task);
+	len = snprintf(buffer, sizeof(buffer), "%d\n", static_ux);
+	return simple_read_from_buffer(buf, count, ppos, buffer, len);
+}
+
+static const struct file_operations proc_static_ux_operations = {
+	.open       = proc_static_ux_open,
+	.write      = proc_static_ux_write,
+	.read       = proc_static_ux_read,
+	.llseek     = seq_lseek,
+	.release    = single_release,
+};
+#endif
 
 static int environ_open(struct inode *inode, struct file *file)
 {
@@ -1001,7 +1077,6 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
 
 static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 {
-	static DEFINE_MUTEX(oom_adj_mutex);
 	struct mm_struct *mm = NULL;
 	struct task_struct *task;
 	int err = 0;
@@ -1011,7 +1086,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 		return -ESRCH;
 
 	mutex_lock(&oom_adj_mutex);
-	if (legacy) {
+	if (unlikely(legacy)) {
 		if (oom_adj < task->signal->oom_score_adj &&
 				!capable(CAP_SYS_RESOURCE)) {
 			err = -EACCES;
@@ -1041,7 +1116,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 		struct task_struct *p = find_lock_task_mm(task);
 
 		if (p) {
-			if (atomic_read(&p->mm->mm_users) > 1) {
+			if (test_bit(MMF_MULTIPROCESS, &p->mm->flags)) {
 				mm = p->mm;
 				mmgrab(mm);
 			}
@@ -1050,7 +1125,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 	}
 
 	task->signal->oom_score_adj = oom_adj;
-	if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+	if (likely(!legacy) && has_capability_noaudit(current, CAP_SYS_RESOURCE))
 		task->signal->oom_score_adj_min = (short)oom_adj;
 	trace_oom_score_adj_update(task);
 
@@ -1069,7 +1144,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 			task_lock(p);
 			if (!p->vfork_done && process_shares_mm(p, mm)) {
 				p->signal->oom_score_adj = oom_adj;
-				if (!legacy && has_capability_noaudit(current, CAP_SYS_RESOURCE))
+				if (likely(!legacy) && has_capability_noaudit(current, CAP_SYS_RESOURCE))
 					p->signal->oom_score_adj_min = (short)oom_adj;
 			}
 			task_unlock(p);
@@ -2088,6 +2163,8 @@ static int dname_to_vma_addr(struct dentry *dentry,
 	unsigned long long sval, eval;
 	unsigned int len;
 
+	if (str[0] == '0' && str[1] != '-')
+		return -EINVAL;
 	len = _parse_integer(str, 16, &sval);
 	if (len & KSTRTOX_OVERFLOW)
 		return -EINVAL;
@@ -2099,6 +2176,8 @@ static int dname_to_vma_addr(struct dentry *dentry,
 		return -EINVAL;
 	str++;
 
+	if (str[0] == '0' && str[1])
+		return -EINVAL;
 	len = _parse_integer(str, 16, &eval);
 	if (len & KSTRTOX_OVERFLOW)
 		return -EINVAL;
@@ -2383,6 +2462,7 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
 		}
 	}
 	up_read(&mm->mmap_sem);
+	mmput(mm);
 
 	for (i = 0; i < nr_files; i++) {
 		p = flex_array_get(fa, i);
@@ -2396,7 +2476,6 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
 	}
 	if (fa)
 		flex_array_free(fa);
-	mmput(mm);
 
 out_put_task:
 	put_task_struct(task);
@@ -2687,6 +2766,13 @@ out:
 }
 
 #ifdef CONFIG_SECURITY
+static int proc_pid_attr_open(struct inode *inode, struct file *file)
+{
+	file->private_data = NULL;
+	__mem_open(inode, file, PTRACE_MODE_READ_FSCREDS);
+	return 0;
+}
+
 static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 				  size_t count, loff_t *ppos)
 {
@@ -2715,6 +2801,10 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 	void *page;
 	ssize_t length;
 	struct task_struct *task = get_proc_task(inode);
+
+	/* A task may only write when it was the opener. */
+	if (file->private_data != current->mm)
+		return -EPERM;
 
 	length = -ESRCH;
 	if (!task)
@@ -2756,9 +2846,11 @@ out_no_task:
 }
 
 static const struct file_operations proc_pid_attr_operations = {
+	.open		= proc_pid_attr_open,
 	.read		= proc_pid_attr_read,
 	.write		= proc_pid_attr_write,
 	.llseek		= generic_file_llseek,
+	.release	= mem_release,
 };
 
 static const struct pid_entry attr_dir_stuff[] = {
@@ -3081,7 +3173,7 @@ out:
 	return err < 0 ? err : count;
 }
 
-static const struct file_operations proc_task_boost_enabled_operations = {
+	static const struct file_operations proc_task_boost_enabled_operations = {
 	.read       = proc_sched_task_boost_read,
 	.write      = proc_sched_task_boost_write,
 	.llseek     = generic_file_llseek,
@@ -3244,6 +3336,49 @@ static int proc_pid_patch_state(struct seq_file *m, struct pid_namespace *ns,
 	return 0;
 }
 #endif /* CONFIG_LIVEPATCH */
+#ifdef CONFIG_VM_FRAGMENT_MONITOR
+static ssize_t vm_fragment_max_gap_read(struct file *file,
+				char __user *buf, size_t count, loff_t *ppos)
+{
+	struct task_struct *task;
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
+	char buffer[PROC_NUMBUF];
+	size_t len;
+	int vm_fragment_gap_max = 0;
+	int gl_fragment_gap_max = 0;
+
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+
+	mm = get_task_mm(task);
+	if (!mm) {
+		put_task_struct(task);
+		return -ENOMEM;
+	}
+
+	if (RB_EMPTY_ROOT(&mm->mm_rb)) {
+		mmput(mm);
+		put_task_struct(task);
+		return -ENOMEM;
+	}
+
+	vma = rb_entry(mm->mm_rb.rb_node, struct vm_area_struct, vm_rb);
+	vm_fragment_gap_max = (int)(vma->rb_subtree_gap >> 20);
+	gl_fragment_gap_max = (int)(vma->rb_glfragment_gap >> 20);
+
+	mmput(mm);
+	put_task_struct(task);
+
+	len = snprintf(buffer, sizeof(buffer), "%d %d\n", vm_fragment_gap_max, gl_fragment_gap_max);
+	return simple_read_from_buffer(buf, count, ppos, buffer, len);
+}
+
+static const struct file_operations proc_vm_fragment_monitor_operations = {
+	.read = vm_fragment_max_gap_read,
+};
+#endif
 
 /*
  * Thread groups
@@ -3299,7 +3434,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
 	REG("mountstats", S_IRUSR, proc_mountstats_operations),
 #ifdef CONFIG_PROCESS_RECLAIM
-	REG("reclaim", 0200, proc_reclaim_operations),
+	REG("reclaim", 0222, proc_reclaim_operations),
 #endif
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),

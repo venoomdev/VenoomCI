@@ -35,8 +35,6 @@
 #define MAX_PROP_SIZE		   32
 #define VDDP_REF_CLK_MIN_UV        1200000
 #define VDDP_REF_CLK_MAX_UV        1200000
-/* TODO: further tuning for this parameter may be required */
-#define UFS_QCOM_PM_QOS_UNVOTE_TIMEOUT_US	(10000) /* microseconds */
 
 #define UFS_QCOM_DEFAULT_DBG_PRINT_EN	\
 	(UFS_QCOM_DBG_PRINT_REGS_EN | UFS_QCOM_DBG_PRINT_TEST_BUS_EN)
@@ -1265,9 +1263,9 @@ static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
 		if (enable) {
 			if (host->hba->dev_info.quirks &
 			    UFS_DEVICE_QUIRK_WAIT_AFTER_REF_CLK_UNGATE)
-				usleep_range(50, 60);
+				usleep_range(960, 970);
 			else
-				udelay(1);
+				usleep_range(200, 210);
 		}
 
 		host->is_dev_ref_clk_enabled = enable;
@@ -1473,7 +1471,6 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
 	if (!host->disable_lpm) {
 		hba->caps |= UFSHCD_CAP_CLK_GATING;
 		hba->caps |= UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
-		hba->caps |= UFSHCD_CAP_CLK_SCALING;
 	}
 	hba->caps |= UFSHCD_CAP_AUTO_BKOPS_SUSPEND;
 
@@ -1530,13 +1527,7 @@ static int ufs_qcom_setup_clocks(struct ufs_hba *hba, bool on,
 			ufs_qcom_dev_ref_clk_ctrl(host, true);
 
 	} else if (!on && (status == PRE_CHANGE)) {
-		/*
-		 * If auto hibern8 is supported then the link will already
-		 * be in hibern8 state and the ref clock can be gated.
-		 */
-		if ((ufshcd_is_auto_hibern8_supported(hba) &&
-		     hba->hibern8_on_idle.is_enabled) ||
-		    !ufs_qcom_is_link_active(hba)) {
+		if (!ufs_qcom_is_link_active(hba)) {
 			/* disable device ref_clk */
 			ufs_qcom_dev_ref_clk_ctrl(host, false);
 
@@ -1665,8 +1656,7 @@ static void ufs_qcom_pm_qos_unvote_work(struct work_struct *work)
 	group->state = PM_QOS_UNVOTED;
 	spin_unlock_irqrestore(host->hba->host->host_lock, flags);
 
-	pm_qos_update_request_timeout(&group->req,
-		group->latency_us, UFS_QCOM_PM_QOS_UNVOTE_TIMEOUT_US);
+	pm_qos_update_request(&group->req, PM_QOS_DEFAULT_VALUE);
 }
 
 static ssize_t ufs_qcom_pm_qos_enable_show(struct device *dev,
@@ -1834,9 +1824,8 @@ static int ufs_qcom_pm_qos_init(struct ufs_qcom_host *host)
 		if (ret)
 			goto free_groups;
 
-		host->pm_qos.groups[i].req.type = PM_QOS_REQ_AFFINE_CORES;
-		host->pm_qos.groups[i].req.cpus_affine =
-			host->pm_qos.groups[i].mask;
+		host->pm_qos.groups[i].req.type = PM_QOS_REQ_AFFINE_IRQ;
+		host->pm_qos.groups[i].req.irq = host->hba->irq;
 		host->pm_qos.groups[i].state = PM_QOS_UNVOTED;
 		host->pm_qos.groups[i].active_reqs = 0;
 		host->pm_qos.groups[i].host = host;
@@ -2655,15 +2644,15 @@ static void ufs_qcom_dump_dbg_regs(struct ufs_hba *hba, bool no_sleep)
 		return;
 
 	/* sleep a bit intermittently as we are dumping too much data */
-	usleep_range(1000, 1100);
+	udelay(1000);
 	ufs_qcom_testbus_read(hba);
-	usleep_range(1000, 1100);
+	udelay(1000);
 	ufs_qcom_print_unipro_testbus(hba);
-	usleep_range(1000, 1100);
+	udelay(1000);
 	ufs_qcom_print_utp_hci_testbus(hba);
-	usleep_range(1000, 1100);
+	udelay(1000);
 	ufs_qcom_phy_dbg_register_dump(phy);
-	usleep_range(1000, 1100);
+	udelay(1000);
 }
 
 /**

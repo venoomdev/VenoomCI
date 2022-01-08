@@ -30,6 +30,7 @@
 #include <asm/insn.h>
 #include <asm/sections.h>
 
+#if defined(CONFIG_MODULES) || defined(CONFIG_BPF_JIT)
 void *module_alloc(unsigned long size)
 {
 	u64 module_alloc_end = module_alloc_base + MODULES_VSIZE;
@@ -71,6 +72,13 @@ void *module_alloc(unsigned long size)
 	return p;
 }
 
+void module_memfree(void *module_region)
+{
+	vfree(module_region);
+}
+#endif /* CONFIG_MODULES || CONFIG_BPF_JIT */
+
+#ifdef CONFIG_MODULES
 enum aarch64_reloc_op {
 	RELOC_OP_NONE,
 	RELOC_OP_ABS,
@@ -422,9 +430,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
 	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++) {
-		if (strcmp(".altinstructions", secstrs + s->sh_name) == 0) {
-			apply_alternatives((void *)s->sh_addr, s->sh_size);
-		}
+		if (strcmp(".altinstructions", secstrs + s->sh_name) == 0)
+			apply_alternatives_module((void *)s->sh_addr, s->sh_size);
 #ifdef CONFIG_ARM64_MODULE_PLTS
 		if (IS_ENABLED(CONFIG_DYNAMIC_FTRACE) &&
 		    !strcmp(".text.ftrace_trampoline", secstrs + s->sh_name))
@@ -434,3 +441,4 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 	return 0;
 }
+#endif /* CONFIG_MODULES */

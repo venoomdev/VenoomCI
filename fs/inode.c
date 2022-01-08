@@ -748,7 +748,9 @@ static enum lru_status inode_lru_isolate(struct list_head *item,
 		spin_unlock(lru_lock);
 		if (remove_inode_buffers(inode)) {
 			unsigned long reap;
-			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
+			/* bin.zhong@ASTI, 2019/10/11, for CONFIG_SMART_BOOST */
+			reap = smb_invalidate_mapping_pages(&inode->i_data,
+						0, -1);
 			if (current_is_kswapd())
 				__count_vm_events(KSWAPD_INODESTEAL, reap);
 			else
@@ -2123,29 +2125,6 @@ void inode_nohighmem(struct inode *inode)
 	mapping_set_gfp_mask(inode->i_mapping, GFP_USER);
 }
 EXPORT_SYMBOL(inode_nohighmem);
-
-/**
- * current_time - Return FS time
- * @inode: inode.
- *
- * Return the current time truncated to the time granularity supported by
- * the fs.
- *
- * Note that inode and inode->sb cannot be NULL.
- * Otherwise, the function warns and returns time without truncation.
- */
-struct timespec current_time(struct inode *inode)
-{
-	struct timespec now = current_kernel_time();
-
-	if (unlikely(!inode->i_sb)) {
-		WARN(1, "current_time() called with uninitialized super_block in the inode");
-		return now;
-	}
-
-	return timespec_trunc(now, inode->i_sb->s_time_gran);
-}
-EXPORT_SYMBOL(current_time);
 
 /*
  * Generic function to check FS_IOC_SETFLAGS values and reject any invalid

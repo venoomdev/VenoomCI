@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -34,7 +34,6 @@
 #include <soc/qcom/subsystem_restart.h>
 #include <soc/qcom/subsystem_notif.h>
 #include <soc/qcom/sysmon.h>
-#include <trace/events/trace_msm_pil_event.h>
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/of_irq.h>
 #include <linux/of.h>
@@ -678,12 +677,10 @@ static void notify_each_subsys_device(struct subsys_device **list,
 		notif_data.no_auth = dev->desc->no_auth;
 		notif_data.pdev = pdev;
 
-		trace_pil_notif("before_send_notif", notif, dev->desc->fw_name);
 		setup_timeout(dev->desc, NULL, SUBSYS_TO_HLOS);
 		subsys_notif_queue_notification(dev->notify, notif,
 								&notif_data);
 		cancel_timeout(dev->desc);
-		trace_pil_notif("after_send_notif", notif, dev->desc->fw_name);
 		subsys_notif_uevent(dev->desc, notif);
 	}
 }
@@ -804,6 +801,7 @@ static int subsystem_powerup(struct subsys_device *dev, void *data)
 	pr_info("[%s:%d]: Powering up %s\n", current->comm, current->pid, name);
 	reinit_completion(&dev->err_ready);
 
+	enable_all_irqs(dev);
 	ret = dev->desc->powerup(dev->desc);
 	if (ret < 0) {
 		notify_each_subsys_device(&dev, 1, SUBSYS_POWERUP_FAILURE,
@@ -819,7 +817,6 @@ static int subsystem_powerup(struct subsys_device *dev, void *data)
 			pr_err("Powerup failure on %s\n", name);
 		return ret;
 	}
-	enable_all_irqs(dev);
 
 	ret = wait_for_err_ready(dev);
 	if (ret) {
@@ -1270,6 +1267,8 @@ int subsystem_restart_dev(struct subsys_device *dev)
 									name);
 		return 0;
 	}
+
+	dev->restart_level = RESET_SUBSYS_COUPLED;
 
 	switch (dev->restart_level) {
 

@@ -194,6 +194,9 @@ int elevator_init(struct request_queue *q, char *name)
 	struct elevator_type *e = NULL;
 	int err;
 
+	if (q->tag_set && q->tag_set->flags & BLK_MQ_F_NO_SCHED_BY_DEFAULT)
+		return 0;
+
 	/*
 	 * q->sysfs_lock must be held to provide mutual exclusion between
 	 * elevator_switch() and here.
@@ -581,15 +584,22 @@ void elv_bio_merged(struct request_queue *q, struct request *rq,
 #ifdef CONFIG_PM
 static void blk_pm_requeue_request(struct request *rq)
 {
-	if (rq->q->dev && !(rq->rq_flags & RQF_PM))
+	if (rq->q->dev && !(rq->rq_flags & RQF_PM) &&
+	    (rq->rq_flags & (RQF_PM_ADDED | RQF_FLUSH_SEQ))) {
+		rq->rq_flags &= ~RQF_PM_ADDED;
 		rq->q->nr_pending--;
+	}
 }
 
 static void blk_pm_add_request(struct request_queue *q, struct request *rq)
 {
-	if (q->dev && !(rq->rq_flags & RQF_PM) && q->nr_pending++ == 0 &&
-	    (q->rpm_status == RPM_SUSPENDED || q->rpm_status == RPM_SUSPENDING))
-		pm_request_resume(q->dev);
+	if (q->dev && !(rq->rq_flags & RQF_PM)) {
+		rq->rq_flags |= RQF_PM_ADDED;
+		if (q->nr_pending++ == 0 &&
+		    (q->rpm_status == RPM_SUSPENDED ||
+		     q->rpm_status == RPM_SUSPENDING))
+			pm_request_resume(q->dev);
+	}
 }
 #else
 static inline void blk_pm_requeue_request(struct request *rq) {}

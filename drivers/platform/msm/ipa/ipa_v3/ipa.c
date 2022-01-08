@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -381,6 +381,7 @@ static void ipa3_active_clients_log_destroy(void)
 	kfree(active_clients_table_buf);
 	active_clients_table_buf = NULL;
 	kfree(ipa3_ctx->ipa3_active_clients_logging.log_buffer[0]);
+	ipa3_ctx->ipa3_active_clients_logging.log_buffer[0] = NULL;
 	ipa3_ctx->ipa3_active_clients_logging.log_head = 0;
 	ipa3_ctx->ipa3_active_clients_logging.log_tail =
 			IPA3_ACTIVE_CLIENTS_LOG_BUFFER_SIZE_LINES - 1;
@@ -583,6 +584,15 @@ static int ipa3_send_pdn_config_msg(unsigned long usr_param)
 	buff = pdn_info;
 
 	msg_meta.msg_type = pdn_info->pdn_cfg_type;
+	/* null terminate the string */
+	pdn_info->dev_name[IPA_RESOURCE_NAME_MAX - 1] = '\0';
+
+	if ((pdn_info->pdn_cfg_type < IPA_PDN_DEFAULT_MODE_CONFIG) ||
+			(pdn_info->pdn_cfg_type >= IPA_PDN_CONFIG_EVENT_MAX)) {
+		IPAERR_RL("invalid pdn_cfg_type =%d", pdn_info->pdn_cfg_type);
+		kfree(pdn_info);
+		return -EINVAL;
+	}
 
 	IPADBG("type %d, interface name: %s, enable:%d\n", msg_meta.msg_type,
 		pdn_info->dev_name, pdn_info->enable);
@@ -3061,14 +3071,20 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		if (ep_info.max_ep_pairs != QUERY_MAX_EP_PAIRS)
+		if (ep_info.max_ep_pairs != QUERY_MAX_EP_PAIRS) {
 			IPAERR_RL("unexpected max_ep_pairs %d\n",
 			ep_info.max_ep_pairs);
+			retval = -EFAULT;
+			break;
+		}
 
-		if (ep_info.ep_pair_size !=
-			(QUERY_MAX_EP_PAIRS * sizeof(struct ipa_ep_pair_info)))
+		if (ep_info.ep_pair_size != (QUERY_MAX_EP_PAIRS *
+			sizeof(struct ipa_ep_pair_info))) {
 			IPAERR_RL("unexpected ep_pair_size %d\n",
 			ep_info.max_ep_pairs);
+			retval = -EFAULT;
+			break;
+		}
 
 		uptr = ep_info.info;
 		if (unlikely(!uptr)) {
@@ -5584,6 +5600,7 @@ void ipa3_dec_client_disable_clks_no_block(
 		&ipa_dec_clients_disable_clks_on_wq_work, 0);
 }
 
+#ifdef IPA_WAKELOCKS
 /**
  * ipa3_inc_acquire_wakelock() - Increase active clients counter, and
  * acquire wakelock if necessary
@@ -5598,7 +5615,7 @@ void ipa3_inc_acquire_wakelock(void)
 	spin_lock_irqsave(&ipa3_ctx->wakelock_ref_cnt.spinlock, flags);
 	ipa3_ctx->wakelock_ref_cnt.cnt++;
 	if (ipa3_ctx->wakelock_ref_cnt.cnt == 1)
-		__pm_stay_awake(&ipa3_ctx->w_lock);
+		__pm_wakeup_event(&ipa3_ctx->w_lock, 500);
 	IPADBG_LOW("active wakelock ref cnt = %d\n",
 		ipa3_ctx->wakelock_ref_cnt.cnt);
 	spin_unlock_irqrestore(&ipa3_ctx->wakelock_ref_cnt.spinlock, flags);
@@ -5624,6 +5641,7 @@ void ipa3_dec_release_wakelock(void)
 		__pm_relax(&ipa3_ctx->w_lock);
 	spin_unlock_irqrestore(&ipa3_ctx->wakelock_ref_cnt.spinlock, flags);
 }
+#endif
 
 int ipa3_set_clock_plan_from_pm(int idx)
 {
@@ -5821,11 +5839,13 @@ void ipa3_suspend_handler(enum ipa_irq_type interrupt,
 					atomic_set(
 					&ipa3_ctx->transport_pm.dec_clients,
 					1);
+				#ifdef IPA_WAKELOCKS
 					/*
 					 * acquire wake lock as long as suspend
 					 * vote is held
 					 */
 					ipa3_inc_acquire_wakelock();
+				#endif
 					ipa3_process_irq_schedule_rel();
 				}
 				mutex_unlock(pm_mutex_ptr);
@@ -5902,7 +5922,9 @@ static void ipa3_transport_release_resource(struct work_struct *work)
 			ipa3_process_irq_schedule_rel();
 		} else {
 			atomic_set(&ipa3_ctx->transport_pm.dec_clients, 0);
+		#ifdef IPA_WAKELOCKS
 			ipa3_dec_release_wakelock();
+		#endif
 			IPA_ACTIVE_CLIENTS_DEC_SPECIAL("TRANSPORT_RESOURCE");
 		}
 	}
@@ -6669,19 +6691,24 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	unsigned long missing;
-
-	char dbg_buff[32] = { 0 };
+	char *dbg_buff = NULL;
+	int ret = 0;
 
 	int i = 0;
 
-	if (sizeof(dbg_buff) < count + 1)
-		return -EFAULT;
+	if (count < 1)
+		return -EINVAL;
 
-	missing = copy_from_user(dbg_buff, buf, min(sizeof(dbg_buff), count));
+	dbg_buff = kmalloc((count + 1) * sizeof(char), GFP_KERNEL);
+	if (!dbg_buff)
+		return -ENOMEM;
+
+	missing = copy_from_user(dbg_buff, buf, count);
 
 	if (missing) {
 		IPAERR("Unable to copy data from user\n");
-		return -EFAULT;
+		ret = -EFAULT;
+		goto end;
 	}
 
 	if (count > 0)
@@ -6698,7 +6725,7 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 
 	if (i == count) {
 		IPADBG("Empty ipa_config file\n");
-		return count;
+		goto end_msg;
 	}
 
 	/* Check MHI configuration on MDM devices */
@@ -6729,7 +6756,7 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 				ipa3_ctx->vlan_mode_iface[IPA_VLAN_IF_RNDIS]);
 			IPAERR("ecm vlan(%d)\n",
 				ipa3_ctx->vlan_mode_iface[IPA_VLAN_IF_ECM]);
-			return count;
+			goto end_msg;
 		}
 
 		/* trim ending newline character if any */
@@ -6746,7 +6773,7 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 		} else if (strcmp(dbg_buff, "1")) {
 			IPAERR("got invalid string %s not loading FW\n",
 				dbg_buff);
-			return count;
+			goto end;
 		}
 		pr_info("IPA is loading with %sMHI configuration\n",
 			ipa3_ctx->ipa_config_is_mhi ? "" : "non ");
@@ -6754,12 +6781,12 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 
 	/* Prevent consequent calls from trying to load the FW again. */
 	if (ipa3_is_ready())
-		return count;
+		goto end_msg;
 
 	/* Prevent multiple calls from trying to load the FW again. */
 	if (ipa3_ctx->fw_loaded) {
 		IPAERR("not load FW again\n");
-		return count;
+		goto end_msg;
 	}
 
 	/* Schedule WQ to load ipa-fws */
@@ -6768,8 +6795,11 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 	queue_work(ipa3_ctx->transport_power_mgmt_wq,
 		&ipa3_fw_loading_work);
 
+end_msg:
 	IPADBG("Scheduled a work to load IPA FW\n");
-	return count;
+end:
+	kfree(dbg_buff);
+	return ret < 0 ? ret : count;
 }
 
 /**
@@ -7256,6 +7286,13 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 		result = -ENOMEM;
 		goto fail_hdr_offset_cache;
 	}
+	ipa3_ctx->fnr_stats_cache = kmem_cache_create("IPA_FNR_STATS",
+		sizeof(struct ipa_ioc_flt_rt_counter_alloc), 0, 0, NULL);
+	if (!ipa3_ctx->fnr_stats_cache) {
+		IPAERR(":ipa fnr stats cache create failed\n");
+		result = -ENOMEM;
+		goto fail_fnr_stats_cache;
+	}
 	ipa3_ctx->hdr_proc_ctx_cache = kmem_cache_create("IPA_HDR_PROC_CTX",
 		sizeof(struct ipa3_hdr_proc_ctx_entry), 0, 0, NULL);
 	if (!ipa3_ctx->hdr_proc_ctx_cache) {
@@ -7368,11 +7405,11 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	}
 
 	ipa3_debugfs_pre_init();
-
+#ifdef IPA_WAKELOCKS
 	/* Create a wakeup source. */
 	wakeup_source_init(&ipa3_ctx->w_lock, "IPA_WS");
 	spin_lock_init(&ipa3_ctx->wakelock_ref_cnt.spinlock);
-
+#endif
 	/* Initialize Power Management framework */
 	if (ipa3_ctx->use_ipa_pm) {
 		result = ipa_pm_init(&ipa3_res.pm_init);
@@ -7513,6 +7550,8 @@ fail_rt_tbl_cache:
 fail_hdr_proc_ctx_offset_cache:
 	kmem_cache_destroy(ipa3_ctx->hdr_proc_ctx_cache);
 fail_hdr_proc_ctx_cache:
+	kmem_cache_destroy(ipa3_ctx->fnr_stats_cache);
+fail_fnr_stats_cache:
 	kmem_cache_destroy(ipa3_ctx->hdr_offset_cache);
 fail_hdr_offset_cache:
 	kmem_cache_destroy(ipa3_ctx->hdr_cache);
@@ -7550,8 +7589,10 @@ fail_bus_reg:
 fail_init_mem_partition:
 fail_bind:
 	kfree(ipa3_ctx->ctrl);
+	ipa3_ctx->ctrl = NULL;
 fail_mem_ctrl:
 	kfree(ipa3_ctx->ipa_tz_unlock_reg);
+	ipa3_ctx->ipa_tz_unlock_reg = NULL;
 fail_tz_unlock_reg:
 	if (ipa3_ctx->logbuf)
 		ipc_log_context_destroy(ipa3_ctx->logbuf);
@@ -7991,6 +8032,7 @@ static int get_ipa_dts_configuration(struct platform_device *pdev,
 			IPAERR("failed to read register addresses\n");
 			kfree(ipa_tz_unlock_reg);
 			kfree(ipa_drv_res->ipa_tz_unlock_reg);
+			ipa_drv_res->ipa_tz_unlock_reg = NULL;
 			return -EFAULT;
 		}
 

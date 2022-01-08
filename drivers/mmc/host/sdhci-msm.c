@@ -1228,6 +1228,12 @@ int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
 		return 0;
 
 	/*
+	 * Clear tuning_done flag before tuning to ensure proper
+	 * HS400 settings.
+	 */
+	msm_host->tuning_done = 0;
+
+	/*
 	 * Don't allow re-tuning for CRC errors observed for any commands
 	 * that are sent during tuning sequence itself.
 	 */
@@ -4140,8 +4146,8 @@ void sdhci_msm_pm_qos_irq_init(struct sdhci_host *host)
 		(msm_host->pm_qos_irq.req.type != PM_QOS_REQ_ALL_CORES))
 		set_affine_irq(msm_host, host);
 	else
-		cpumask_copy(&msm_host->pm_qos_irq.req.cpus_affine,
-			cpumask_of(msm_host->pdata->pm_qos_data.irq_cpu));
+		atomic_set(&msm_host->pm_qos_irq.req.cpus_affine,
+			*cpumask_bits(cpumask_of(msm_host->pdata->pm_qos_data.irq_cpu)));
 
 	sdhci_msm_pm_qos_wq_init(msm_host);
 
@@ -4195,8 +4201,8 @@ static ssize_t sdhci_msm_pm_qos_group_show(struct device *dev,
 	for (i = 0; i < nr_groups; i++) {
 		group = &msm_host->pm_qos[i];
 		offset += snprintf(&buf[offset], PAGE_SIZE,
-			"Group #%d (mask=0x%lx) PM QoS: enabled=%d, counter=%d, latency=%d\n",
-			i, group->req.cpus_affine.bits[0],
+			"Group #%d PM QoS: enabled=%d, counter=%d, latency=%d\n",
+			i,
 			msm_host->pm_qos_group_enable,
 			atomic_read(&group->counter),
 			group->latency);
@@ -4355,15 +4361,14 @@ void sdhci_msm_pm_qos_cpu_init(struct sdhci_host *host,
 			sdhci_msm_pm_qos_cpu_unvote_work);
 		atomic_set(&group->counter, 0);
 		group->req.type = PM_QOS_REQ_AFFINE_CORES;
-		cpumask_copy(&group->req.cpus_affine,
-			&msm_host->pdata->pm_qos_data.cpu_group_map.mask[i]);
+		atomic_set(&group->req.cpus_affine,
+			*cpumask_bits(&msm_host->pdata->pm_qos_data.cpu_group_map.mask[i]));
 		/* We set default latency here for all pm_qos cpu groups. */
 		group->latency = PM_QOS_DEFAULT_VALUE;
 		pm_qos_add_request(&group->req, PM_QOS_CPU_DMA_LATENCY,
 			group->latency);
-		pr_info("%s (): voted for group #%d (mask=0x%lx) latency=%d\n",
+		pr_info("%s (): voted for group #%d latency=%d\n",
 			__func__, i,
-			group->req.cpus_affine.bits[0],
 			group->latency);
 	}
 	msm_host->pm_qos_prev_cpu = -1;
@@ -4682,44 +4687,6 @@ static bool sdhci_msm_is_bootdevice(struct device *dev)
 	 */
 	return true;
 }
-
-/* add sdcard slot info for factory mode
- *    begin
- *    */
-static struct kobject *card_slot_device;
-static struct sdhci_host *card_host;
-static ssize_t card_slot_status_show(struct device *dev,
-					       struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%d\n", mmc_gpio_get_cd(card_host->mmc));
-}
-
-static DEVICE_ATTR(card_slot_status, 0444, card_slot_status_show, NULL);
-
-int32_t card_slot_init_device_name(void)
-{
-	int32_t error = 0;
-
-	if(card_slot_device != NULL){
-		pr_err("card_slot already created\n");
-		return 0;
-	}
-	card_slot_device = kobject_create_and_add("card_slot", NULL);
-	if (card_slot_device == NULL) {
-		printk("%s: card_slot register failed\n", __func__);
-		error = -ENOMEM;
-		return error ;
-	}
-	error = sysfs_create_file(card_slot_device, &dev_attr_card_slot_status.attr);
-	if (error) {
-		printk("%s: card_slot card_slot_status_create_file failed\n", __func__);
-		kobject_del(card_slot_device);
-	}
-	return 0 ;
-}
-/* add sdcard slot info for factory mode
- *    end
- *    */
 
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
@@ -5205,10 +5172,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		ret = device_create_file(&pdev->dev, &msm_host->polling);
 		if (ret)
 			goto remove_max_bus_bw_file;
-	}else{
-		pr_err("card slot init device name enter\n");
-		card_host = dev_get_drvdata(&pdev->dev);
-		card_slot_init_device_name();
 	}
 
 	msm_host->auto_cmd21_attr.show = show_auto_cmd21;

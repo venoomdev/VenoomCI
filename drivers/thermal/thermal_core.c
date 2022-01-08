@@ -28,8 +28,10 @@
 #include <linux/cpu_cooling.h>
 
 #ifdef CONFIG_DRM
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 #endif
+
+#include <linux/moduleparam.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/thermal.h>
@@ -66,7 +68,7 @@ struct screen_monitor {
 struct screen_monitor sm;
 #endif
 
-static atomic_t switch_mode = ATOMIC_INIT(10);
+static atomic_t switch_mode = ATOMIC_INIT(-1);
 static atomic_t temp_state = ATOMIC_INIT(0);
 static char boost_buf[128];
 const char *board_sensor;
@@ -85,6 +87,12 @@ static struct workqueue_struct *thermal_passive_wq;
  * Functions to help in the life cycle of thermal governors within
  * the thermal core and by the thermal governor code.
  */
+
+#ifdef CONFIG_THERMAL_SUSPEND_RESUME
+static int prev_sconfig = 10;
+static int suspend_sconfig = -1;
+module_param(suspend_sconfig, int, 0644);
+#endif
 
 static struct thermal_governor *__find_governor(const char *name)
 {
@@ -551,6 +559,13 @@ void thermal_zone_device_update(struct thermal_zone_device *tz,
 	thermal_zone_set_trips(tz);
 
 	tz->notify_event = event;
+	/*
+	 * To prevent cooling_device throttling
+	 * when tz->temperature keep initialized status.
+	 */
+	if (tz->temperature == THERMAL_TEMP_INVALID ||
+		tz->temperature == THERMAL_TEMP_INVALID_LOW)
+		return;
 
 	for (count = 0; count < tz->trips; count++)
 		handle_thermal_trip(tz, count);
@@ -1618,6 +1633,7 @@ static int thermal_pm_notify(struct notifier_block *nb,
 			     unsigned long mode, void *_unused)
 {
 	struct thermal_zone_device *tz;
+	enum thermal_device_mode tz_mode;
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
@@ -1630,9 +1646,15 @@ static int thermal_pm_notify(struct notifier_block *nb,
 	case PM_POST_SUSPEND:
 		atomic_set(&in_suspend, 0);
 		list_for_each_entry(tz, &thermal_tz_list, node) {
-			if (tz->ops->is_wakeable &&
-				tz->ops->is_wakeable(tz))
+			tz_mode = THERMAL_DEVICE_ENABLED;
+			if (tz->ops->get_mode)
+				tz->ops->get_mode(tz, &tz_mode);
+
+			if ((tz->ops->is_wakeable &&
+				tz->ops->is_wakeable(tz)) ||
+				tz_mode == THERMAL_DEVICE_DISABLED)
 				continue;
+
 			thermal_zone_device_init(tz);
 			thermal_zone_device_update(tz,
 						   THERMAL_EVENT_UNSPECIFIED);
@@ -1685,6 +1707,20 @@ thermal_sconfig_store(struct device *dev,
 
 static DEVICE_ATTR(sconfig, 0664,
 		   thermal_sconfig_show, thermal_sconfig_store);
+
+#ifdef CONFIG_THERMAL_SUSPEND_RESUME
+void thermal_sconfig_suspend(void){
+	prev_sconfig = atomic_read(&switch_mode);
+	if (suspend_sconfig < -1 || suspend_sconfig > THERMAL_MAX_ACTIVE){
+		suspend_sconfig = -1;
+	}
+	atomic_set(&switch_mode, suspend_sconfig);
+}
+
+void thermal_sconfig_resume(void){
+	atomic_set(&switch_mode, prev_sconfig);
+}
+#endif
 
 static ssize_t
 thermal_boost_show(struct device *dev,
@@ -1854,22 +1890,24 @@ static int screen_state_for_thermal_callback(struct notifier_block *nb, unsigned
 	struct drm_notify_data *evdata = data;
 	unsigned int blank;
 
-	if (val != DRM_EVENT_BLANK || !evdata || !evdata->data)
+	if (val != MSM_DRM_EVENT_BLANK || !evdata || !evdata->data)
 		return 0;
 
 	blank = *(int *)(evdata->data);
 	switch (blank) {
-	case DRM_BLANK_LP1:
-		pr_warn("%s: DRM_BLANK_LP1\n", __func__);
-	case DRM_BLANK_LP2:
-		pr_warn("%s: DRM_BLANK_LP2\n", __func__);
-	case DRM_BLANK_POWERDOWN:
+	case MSM_DRM_BLANK_POWERDOWN:
 		sm.screen_state = 0;
 		pr_warn("%s: DRM_BLANK_POWERDOWN\n", __func__);
+#ifdef CONFIG_THERMAL_SUSPEND_RESUME
+		thermal_sconfig_suspend();
+#endif
 		break;
-	case DRM_BLANK_UNBLANK:
+	case MSM_DRM_BLANK_UNBLANK:
 		sm.screen_state = 1;
 		pr_warn("%s: DRM_BLANK_UNBLANK\n", __func__);
+#ifdef CONFIG_THERMAL_SUSPEND_RESUME
+		thermal_sconfig_resume();
+#endif
 		break;
 	default:
 		break;
@@ -1906,8 +1944,7 @@ static int __init thermal_init(void)
 
 	mutex_init(&poweroff_lock);
 	thermal_passive_wq = alloc_workqueue("thermal_passive_wq",
-						WQ_HIGHPRI | WQ_UNBOUND
-						| WQ_FREEZABLE,
+						WQ_UNBOUND | WQ_FREEZABLE,
 						THERMAL_MAX_ACTIVE);
 	if (!thermal_passive_wq) {
 		result = -ENOMEM;
@@ -1943,7 +1980,7 @@ static int __init thermal_init(void)
 
 #ifdef CONFIG_DRM
 	sm.thermal_notifier.notifier_call = screen_state_for_thermal_callback;
-	if (drm_register_client(&sm.thermal_notifier) < 0) {
+	if (msm_drm_register_client(&sm.thermal_notifier) < 0) {
 		pr_warn("Thermal: register screen state callback failed\n");
 	}
 #endif
@@ -1968,7 +2005,7 @@ error:
 static void thermal_exit(void)
 {
 #ifdef CONFIG_DRM
-	drm_unregister_client(&sm.thermal_notifier);
+	msm_drm_unregister_client(&sm.thermal_notifier);
 #endif
 	unregister_pm_notifier(&thermal_pm_nb);
 	of_thermal_destroy_zones();

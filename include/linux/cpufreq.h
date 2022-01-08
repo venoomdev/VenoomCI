@@ -151,6 +151,13 @@ struct cpufreq_policy {
 
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
+#ifdef CONFIG_CONTROL_CENTER
+	unsigned int req_freq;
+	unsigned int cc_min;
+	unsigned int cc_max;
+	spinlock_t cc_lock;
+	bool cc_enable;
+#endif
 };
 
 /* Only for ACPI */
@@ -578,17 +585,6 @@ struct governor_attr {
 			 size_t count);
 };
 
-static inline bool cpufreq_can_do_remote_dvfs(struct cpufreq_policy *policy)
-{
-	/*
-	 * Allow remote callbacks if:
-	 * - dvfs_possible_from_any_cpu flag is set
-	 * - the local and remote CPUs share cpufreq policy
-	 */
-	return policy->dvfs_possible_from_any_cpu ||
-		cpumask_test_cpu(smp_processor_id(), policy->cpus);
-}
-
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/
@@ -931,7 +927,8 @@ extern void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
 				unsigned long max_freq);
 extern void arch_set_max_freq_scale(struct cpumask *cpus,
 				    unsigned long policy_max_freq);
-
+extern void arch_set_max_thermal_scale(struct cpumask *cpus,
+					unsigned long max_thermal_freq);
 /* the following are really really optional */
 extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;
 extern struct freq_attr cpufreq_freq_attr_scaling_boost_freqs;

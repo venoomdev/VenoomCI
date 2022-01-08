@@ -44,8 +44,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/suspend.h>
 #include <linux/notifier.h>
-//2019.04.27 add longcheer fengxingqiang "recording wakeup reason"
-#include <linux/wakeup_reason.h>
+
 #include "irq-gic-common.h"
 
 struct redist_region {
@@ -472,8 +471,6 @@ static void gic_show_resume_irq(struct gic_chip_data *gic)
 			name = desc->action->name;
 
 		pr_warn("%s: %d triggered %s\n", __func__, irq, name);
-//2020.04.27 add longcheer fengxingqiang "recording wakeup reason"
-		log_irq_wakeup_reason(irq);
 	}
 }
 
@@ -701,7 +698,7 @@ static int __gic_populate_rdist(struct redist_region *region, void __iomem *ptr)
 		gic_data_rdist_rd_base() = ptr;
 		gic_data_rdist()->phys_base = region->phys_base + offset;
 
-		pr_info("CPU%d: found redistributor %lx region %d:%pa\n",
+		pr_debug("CPU%d: found redistributor %lx region %d:%pa\n",
 			smp_processor_id(), mpidr,
 			(int)(region - gic_data.redist_regions),
 			&gic_data_rdist()->phys_base);
@@ -864,7 +861,6 @@ static void gic_send_sgi(u64 cluster_id, u16 tlist, unsigned int irq)
 	       MPIDR_TO_SGI_AFFINITY(cluster_id, 1)	|
 	       tlist << ICC_SGI1R_TARGET_LIST_SHIFT);
 
-	pr_devel("CPU%d: ICC_SGI1R_EL1 %llx\n", smp_processor_id(), val);
 	gic_write_sgi1r(val);
 }
 

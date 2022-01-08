@@ -24,9 +24,6 @@
 
 #include <soc/qcom/scm.h>
 
-#define CREATE_TRACE_POINTS
-#include <trace/events/scm.h>
-
 #define SCM_ENOMEM		-5
 #define SCM_EOPNOTSUPP		-4
 #define SCM_EINVAL_ADDR		-3
@@ -36,6 +33,7 @@
 #define SCM_EBUSY		-55
 #define SCM_V2_EBUSY		-12
 
+static DEFINE_PER_CPU(atomic_t, scm_call_count);
 static DEFINE_MUTEX(scm_lock);
 
 /*
@@ -380,7 +378,7 @@ int scm_call_noalloc(u32 svc_id, u32 cmd_id, const void *cmd_buf,
 
 #ifdef CONFIG_ARM64
 
-static int __scm_call_armv8_64(u64 x0, u64 x1, u64 x2, u64 x3, u64 x4, u64 x5,
+static int ___scm_call_armv8_64(u64 x0, u64 x1, u64 x2, u64 x3, u64 x4, u64 x5,
 				u64 *ret1, u64 *ret2, u64 *ret3)
 {
 	register u64 r0 asm("x0") = x0;
@@ -429,7 +427,20 @@ static int __scm_call_armv8_64(u64 x0, u64 x1, u64 x2, u64 x3, u64 x4, u64 x5,
 	return r0;
 }
 
-static int __scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
+static int __scm_call_armv8_64(u64 x0, u64 x1, u64 x2, u64 x3, u64 x4, u64 x5,
+				u64 *ret1, u64 *ret2, u64 *ret3)
+{
+	atomic_t *cnt = per_cpu_ptr(&scm_call_count, raw_smp_processor_id());
+	int ret;
+
+	atomic_inc(cnt);
+	ret = ___scm_call_armv8_64(x0, x1, x2, x3, x4, x5, ret1, ret2, ret3);
+	atomic_dec(cnt);
+
+	return ret;
+}
+
+static int ___scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
 				u64 *ret1, u64 *ret2, u64 *ret3)
 {
 	register u32 r0 asm("w0") = w0;
@@ -477,6 +488,19 @@ static int __scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
 		*ret3 = r3;
 
 	return r0;
+}
+
+static int __scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
+				u64 *ret1, u64 *ret2, u64 *ret3)
+{
+	atomic_t *cnt = per_cpu_ptr(&scm_call_count, raw_smp_processor_id());
+	int ret;
+
+	atomic_inc(cnt);
+	ret = ___scm_call_armv8_32(w0, w1, w2, w3, w4, w5, ret1, ret2, ret3);
+	atomic_dec(cnt);
+
+	return ret;
 }
 
 #else
@@ -527,6 +551,19 @@ static int __scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
 		*ret3 = r3;
 
 	return r0;
+}
+
+static int __scm_call_armv8_32(u32 w0, u32 w1, u32 w2, u32 w3, u32 w4, u32 w5,
+				u64 *ret1, u64 *ret2, u64 *ret3)
+{
+	atomic_t *cnt = per_cpu_ptr(&scm_call_count, raw_smp_processor_id());
+	int ret;
+
+	atomic_inc(cnt);
+	ret = ___scm_call_armv8_32(w0, w1, w2, w3, w4, w5, ret1, ret2, ret3);
+	atomic_dec(cnt);
+
+	return ret;
 }
 
 static int __scm_call_armv8_64(u64 x0, u64 x1, u64 x2, u64 x3, u64 x4, u64 x5,
@@ -649,7 +686,6 @@ static int __scm_call2(u32 fn_id, struct scm_desc *desc, bool retry)
 
 	x0 = fn_id | scm_version_mask;
 
-	trace_scm_call_start(x0, desc);
 	do {
 		mutex_lock(&scm_lock);
 
@@ -684,7 +720,6 @@ static int __scm_call2(u32 fn_id, struct scm_desc *desc, bool retry)
 			pr_warn("scm: secure world has been busy for 1 second!\n");
 	} while (ret == SCM_V2_EBUSY && (retry_count++ < SCM_EBUSY_MAX_RETRY));
 out:
-	trace_scm_call_end(desc);
 	if (ret < 0)
 		pr_err("scm_call failed: func id %#llx, ret: %d, syscall returns: %#llx, %#llx, %#llx\n",
 			x0, ret, desc->ret[0], desc->ret[1], desc->ret[2]);
@@ -758,7 +793,6 @@ int scm_call2_atomic(u32 fn_id, struct scm_desc *desc)
 
 	x0 = fn_id | BIT(SMC_ATOMIC_SYSCALL) | scm_version_mask;
 
-	trace_scm_call_start(x0, desc);
 	if (scm_version == SCM_ARMV8_64)
 		ret = __scm_call_armv8_64(x0, desc->arginfo, desc->args[0],
 					  desc->args[1], desc->args[2],
@@ -769,7 +803,6 @@ int scm_call2_atomic(u32 fn_id, struct scm_desc *desc)
 					  desc->args[1], desc->args[2],
 					  desc->x5, &desc->ret[0],
 					  &desc->ret[1], &desc->ret[2]);
-	trace_scm_call_end(desc);
 	if (ret < 0)
 		pr_err("scm_call failed: func id %#llx, ret: %d, syscall returns: %#llx, %#llx, %#llx\n",
 			x0, ret, desc->ret[0],
@@ -1314,3 +1347,8 @@ inline int scm_enable_mem_protection(void)
 }
 #endif
 EXPORT_SYMBOL(scm_enable_mem_protection);
+
+bool under_scm_call(int cpu)
+{
+	return atomic_read(per_cpu_ptr(&scm_call_count, cpu));
+}

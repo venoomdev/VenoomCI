@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2016  xiaomi Inc.
- */
+ * Copyright (C) 2020 XiaoMi, Inc.
+*/
 #define pr_fmt(fmt)	"[Onewire] %s: " fmt, __func__
 
 #include <linux/slab.h> /* kfree() */
@@ -21,10 +22,10 @@
 #include <linux/device.h>
 #include <linux/spinlock.h>
 
-#define ow_info	pr_err
-#define ow_dbg	pr_err
+#define ow_info	pr_debug
+#define ow_dbg	pr_debug
 #define ow_err	pr_err
-#define ow_log	pr_err
+#define ow_log	pr_debug
 
 #define DRV_STRENGTH_16MA		(0x7 << 6)
 #define DRV_STRENGTH_12MA		(0x5 << 6)
@@ -74,18 +75,6 @@ static int onewire_major;
 static int onewire_gpio_detected;
 static struct onewire_gpio_data *g_onewire_data;
 
-void Delay_us(unsigned int T)
-{
-	udelay(T);
-}
-EXPORT_SYMBOL(Delay_us);
-
-void Delay_ns(unsigned int T)
-{
-	ndelay(T);
-}
-EXPORT_SYMBOL(Delay_ns);
-
 unsigned char ow_reset(void)
 {
 	unsigned char presence = 0xFF;
@@ -94,12 +83,12 @@ unsigned char ow_reset(void)
 	raw_spin_lock_irqsave(&g_onewire_data->lock, flags);
 	ONE_WIRE_CONFIG_OUT;
 	ONE_WIRE_OUT_LOW;
-	Delay_us(50);// 48
+	udelay(50);// 48
 	ONE_WIRE_OUT_HIGH;
 	ONE_WIRE_CONFIG_IN;
-	Delay_us(7);
+	udelay(7);
 	presence = (unsigned char)readl_relaxed(g_onewire_data->gpio_in_out_reg) & 0x01; // Read
-	Delay_us(50);
+	udelay(50);
 	raw_spin_unlock_irqrestore(&g_onewire_data->lock, flags);
 
 	return presence;
@@ -112,29 +101,26 @@ unsigned char read_bit(void)
 
 	ONE_WIRE_CONFIG_OUT;
 	ONE_WIRE_OUT_LOW;
-	//Delay_us(1);////
-	//Delay_ns(400);
+	udelay(1);
 	ONE_WIRE_CONFIG_IN;
-	//Delay_ns(500);//
+	ndelay(500);
 	vamm = readl_relaxed(g_onewire_data->gpio_in_out_reg); // Read
-	Delay_us(15);
-	//ONE_WIRE_OUT_HIGH;
-	//ONE_WIRE_CONFIG_OUT;
-        //ONE_WIRE_OUT_HIGH;
-	//Delay_us(6);
+	udelay(5);
+	ONE_WIRE_OUT_HIGH;
+	ONE_WIRE_CONFIG_OUT;
+	udelay(6);
 	return((unsigned char)vamm & 0x01);
 }
 
 void write_bit(char bitval)
 {
-	ONE_WIRE_CONFIG_OUT;
 	ONE_WIRE_OUT_LOW;
-	Delay_us(1);//
+	udelay(1);//
 	if (bitval != 0)
 		ONE_WIRE_OUT_HIGH;
-	Delay_us(10);
+	udelay(10);
 	ONE_WIRE_OUT_HIGH;
-	Delay_us(6);
+	udelay(6);
 }
 
 unsigned char read_byte(void)
@@ -333,49 +319,49 @@ const char *buf, size_t count)
 		ONE_WIRE_OUT_HIGH;
 		ONE_WIRE_OUT_LOW;
 
-		Delay_us(1000);
+		mdelay(1);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(1);
+		udelay(1);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(1);
+		udelay(1);
 
-		Delay_us(1000);
+		mdelay(1);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_HIGH;
-		Delay_us(5);
+		udelay(5);
 		ONE_WIRE_OUT_LOW;
-		Delay_us(5);
+		udelay(5);
 	}
 
 	return count;
@@ -437,6 +423,7 @@ static int onewire_gpio_probe(struct platform_device *pdev)
 		goto onewire_pinctrl_err;
 
 	// request onewire gpio
+	gpio_free(onewire_data->ow_gpio);
 	if (gpio_is_valid(onewire_data->ow_gpio)) {
 		retval = gpio_request(onewire_data->ow_gpio,
 						"onewire gpio");
@@ -460,7 +447,7 @@ static int onewire_gpio_probe(struct platform_device *pdev)
 	onewire_data->gpio_cfg_reg = devm_ioremap(&pdev->dev,
 					(uint32_t)onewire_data->onewire_gpio_cfg_addr, 0x4);
 	ow_log("onewire_gpio_level_addr is %x; onewire_gpio_cfg_addr is %x", (uint32_t)(onewire_data->onewire_gpio_level_addr), (uint32_t)(onewire_data->onewire_gpio_cfg_addr));
-	ow_log("onewire_data->gpio_cfg_reg is %x; onewire_data->gpio_in_out_reg is %x", (uint32_t)(onewire_data->gpio_cfg_reg), (uint32_t)(onewire_data->gpio_in_out_reg));
+	ow_log("onewire_data->gpio_cfg_reg is %x; onewire_data->gpio_in_out_reg is %x", (long)(onewire_data->gpio_cfg_reg), (long)(onewire_data->gpio_in_out_reg));
 
 	// create device node
 	onewire_data->dev = device_create(onewire_class,
@@ -540,6 +527,7 @@ static const struct file_operations onewire_dev_fops = {
 
 static const struct of_device_id onewire_gpio_dt_match[] = {
 	{.compatible = "xiaomi,onewire_gpio"},
+	{},
 };
 
 static struct platform_driver onewire_gpio_driver = {

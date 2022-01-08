@@ -305,6 +305,9 @@ struct vm_area_struct {
 	struct mm_struct *vm_mm;	/* The address space we belong to. */
 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
 	unsigned long vm_flags;		/* Flags, see mm.h. */
+#ifdef CONFIG_VM_FRAGMENT_MONITOR
+	unsigned long rb_glfragment_gap;
+#endif
 
 	/*
 	 * For areas with an address space and backing store,
@@ -410,9 +413,8 @@ struct mm_struct {
 	 */
 	atomic_t mm_count;
 
-	atomic_long_t nr_ptes;			/* PTE page table pages */
-#if CONFIG_PGTABLE_LEVELS > 2
-	atomic_long_t nr_pmds;			/* PMD page table pages */
+#ifdef CONFIG_MMU
+	atomic_long_t pgtables_bytes;		/* PTE page table pages */
 #endif
 	int map_count;				/* number of VMAs */
 

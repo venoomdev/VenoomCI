@@ -399,25 +399,7 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 		persistent_ram_write(cxt->fprzs[zonenum], record->buf,
 				     record->size);
 		return 0;
-	} else if (record->type == PSTORE_TYPE_PMSG) {
-		pr_warn_ratelimited("PMSG shouldn't call %s\n", __func__);
-		return -EINVAL;
 	}
-
-	if (record->type != PSTORE_TYPE_DMESG)
-		return -EINVAL;
-
-	/*
-	 * Out of the various dmesg dump types, ramoops is currently designed
-	 * to only store crash logs, rather than storing general kernel logs.
-	 */
-	if (record->reason != KMSG_DUMP_OOPS &&
-	    record->reason != KMSG_DUMP_PANIC)
-		return -EINVAL;
-
-	/* Skip Oopes when configured to do so. */
-	if (record->reason == KMSG_DUMP_OOPS && !cxt->dump_oops)
-		return -EINVAL;
 
 	/*
 	 * Explicitly only take the first part of any new crash.
@@ -789,9 +771,6 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
 			- cxt->pmsg_size;
-	pr_err("dump_mem_sz=%d,cxt->record_size=%d,cxt->size=%d,cxt->console_size=%d,cxt->ftrace_size=%d,cxt->pmsg_size=%d\n",
-				dump_mem_sz, cxt->record_size, cxt->size, cxt->console_size,
-				cxt->ftrace_size, cxt->pmsg_size);
 	err = ramoops_init_przs("dump", dev, cxt, &cxt->dprzs, &paddr,
 				dump_mem_sz, cxt->record_size,
 				&cxt->max_dump_cnt, 0, 0);

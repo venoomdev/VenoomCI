@@ -1,5 +1,5 @@
 /* Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
- *
+ * Copyright (C) 2020 XiaoMi, Inc.
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
  * only version 2 as published by the Free Software Foundation.
@@ -41,7 +41,6 @@ union power_supply_propval lct_therm_lvl_reserved;
 union power_supply_propval lct_therm_level;
 union power_supply_propval lct_therm_call_level = {LCT_THERM_CALL_LEVEL,};
 union power_supply_propval lct_therm_lcdoff_level = {LCT_THERM_LCDOFF_LEVEL,};
-
 
 bool lct_backlight_off;
 int LctIsInCall = 0;
@@ -514,7 +513,8 @@ static int smb5_parse_dt(struct smb5 *chip)
 	chg->pd_not_supported = chg->pd_not_supported ||
 			of_property_read_bool(node, "qcom,usb-pd-disable");
 
-	chg->lpd_disabled = of_property_read_bool(node, "qcom,lpd-disable");
+	chg->lpd_disabled = chg->lpd_disabled ||
+			of_property_read_bool(node, "qcom,lpd-disable");
 
 
 	chg->support_ffc = of_property_read_bool(node,
@@ -922,7 +922,7 @@ static int smb5_usb_get_prop(struct power_supply *psy,
 		val->intval = get_client_vote(chg->usb_icl_votable, PD_VOTER);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		rc = smblib_get_prop_input_current_max(chg, val);
+		val->intval = get_effective_result(chg->usb_icl_votable);
 		break;
 	case POWER_SUPPLY_PROP_TYPE:
 		val->intval = POWER_SUPPLY_TYPE_USB_PD;
@@ -1133,7 +1133,6 @@ static int smb5_usb_set_prop(struct power_supply *psy,
 		chg->pd_verifed = val->intval;
 		/*if set pd authentication auto set fastcharge mode*/
 		/*do not break here*/
-		//break;
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 		power_supply_changed(chg->usb_psy);
 		if (chg->support_ffc) {
@@ -1426,7 +1425,9 @@ static int smb5_usb_main_get_prop(struct power_supply *psy,
 		val->intval = chg->flash_active;
 		break;
 	case POWER_SUPPLY_PROP_FLASH_TRIGGER:
-		rc = schgm_flash_get_vreg_ok(chg, &val->intval);
+		val->intval = 0;
+		if (chg->chg_param.smb_version == PMI632_SUBTYPE)
+			rc = schgm_flash_get_vreg_ok(chg, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_TOGGLE_STAT:
 		val->intval = 0;
@@ -1462,7 +1463,7 @@ static int smb5_usb_main_get_prop(struct power_supply *psy,
 		break;
 	}
 	if (rc < 0)
-		pr_err("Couldn't get prop %d rc = %d\n", psp, rc);
+		pr_debug("Couldn't get prop %d rc = %d\n", psp, rc);
 
 	return rc;
 }
@@ -1782,7 +1783,6 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_RECHARGE_SOC,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
-	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_FORCE_RECHARGE,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_TIME_TO_FULL_NOW,
@@ -1794,6 +1794,7 @@ static enum power_supply_property smb5_batt_props[] = {
 	POWER_SUPPLY_PROP_REVERSE_CHARGE_MODE,
 #endif
 	POWER_SUPPLY_PROP_CHARGE_AWAKE_STATE,
+	POWER_SUPPLY_PROP_TYPEC_MODE,
 };
 
 #define DEBUG_ACCESSORY_TEMP_DECIDEGC	250
@@ -1971,8 +1972,13 @@ static int smb5_batt_get_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_AWAKE_STATE:
 		rc = smblib_get_prop_batt_awake(chg, val);
 		break;
+	case POWER_SUPPLY_PROP_TYPEC_MODE:
+		if (chg->connector_type == POWER_SUPPLY_CONNECTOR_MICRO_USB)
+			val->intval = POWER_SUPPLY_TYPEC_NONE;
+		else
+			val->intval = chg->typec_mode;
+		break;
 	default:
-		pr_err("batt power supply prop %d not supported\n", psp);
 		return -EINVAL;
 	}
 
@@ -2126,7 +2132,7 @@ static int smb5_batt_set_prop(struct power_supply *psy,
 		if(val->intval == 0)
 			break;
 		chg->reverse_charge_mode = val->intval;
-		pr_err("longcheer,%s,reverse_charge_mode=%d,reverse_state=%d\n",
+		pr_debug("longcheer,%s,reverse_charge_mode=%d,reverse_state=%d\n",
 			__func__,chg->reverse_charge_mode,chg->reverse_charge_state);
 		if(chg->reverse_charge_mode != chg->reverse_charge_state){
 			chg->reverse_charge_state = chg->reverse_charge_mode;
@@ -2975,8 +2981,9 @@ static int smb5_init_hw(struct smb5 *chip)
 	 */
 	if (chg->chg_param.smb_version == PMI632_SUBTYPE) {
 		schgm_flash_init(chg);
-		smblib_rerun_apsd_if_required(chg);
 	}
+
+	smblib_rerun_apsd_if_required(chg);
 
 	/* Use ICL results from HW */
 	rc = smblib_icl_override(chg, HW_AUTO_MODE);
@@ -3838,17 +3845,14 @@ static int thermal_notifier_callback(struct notifier_block *noti, unsigned long 
 	struct fb_event *ev_data = data;
 	struct smb_charger *chg = container_of(noti, struct smb_charger, notifier);
 	int *blank;
-	printk("%s %d",__FUNCTION__,__LINE__);
 	if (ev_data && ev_data->data && chg) {
 		blank = ev_data->data;
 		if (event == MSM_DRM_EARLY_EVENT_BLANK && *blank == MSM_DRM_BLANK_UNBLANK) {
 			lct_backlight_off = false;
-			pr_info("thermal_notifier lct_backlight_off:%d",lct_backlight_off);
 			schedule_work(&chg->fb_notify_work);
 		}
 		else if (event == MSM_DRM_EVENT_BLANK && *blank == MSM_DRM_BLANK_POWERDOWN) {
 			lct_backlight_off = true;
-			pr_info("thermal_notifier lct_backlight_off:%d",lct_backlight_off);
 			schedule_work(&chg->fb_notify_work);
 		}
 	}
@@ -3876,7 +3880,6 @@ static int lct_unregister_powermanger(struct smb_charger *chg)
 	return 0;
 }
 
-
 #ifdef CONFIG_REVERSE_CHARGE
 #define  BATT_10_BELOW_ZERO_THRESHOLD    (-100)
 #define  BATT_15_THRESHOLD    150
@@ -3903,8 +3906,6 @@ static int lct_get_otg_chg_current(int temp)
 	return otg_chg_current_temp;
 }
 
-
-
 static void step_otg_chg_work(struct work_struct *work)
 {
 	struct smb_charger *chg = container_of(work,
@@ -3914,9 +3915,8 @@ static void step_otg_chg_work(struct work_struct *work)
 	int otg_chg_current_temp = 0;
 	union power_supply_propval prop = {0, };
 
-
 	rc = smblib_get_prop_from_bms(chg,
-							POWER_SUPPLY_PROP_TEMP, &prop);
+		POWER_SUPPLY_PROP_TEMP, &prop);
 
 	if (rc < 0) {
 		pr_err("Couldn't read temp rc=%d\n",rc);
@@ -3924,7 +3924,7 @@ static void step_otg_chg_work(struct work_struct *work)
 	}
 
 	temp = prop.intval;
-	pr_err("longcheer ,%s:temp=%d\n",__func__,temp);
+	pr_debug("longcheer ,%s:temp=%d\n",__func__,temp);
 
 	otg_chg_current_temp = lct_get_otg_chg_current(temp);
 
@@ -3932,13 +3932,9 @@ static void step_otg_chg_work(struct work_struct *work)
 		goto exit_work;
 	else
 		chg->otg_chg_current = otg_chg_current_temp;
-	pr_err("longcheer ,%s:otg_chg_current=%d\n",__func__,chg->otg_chg_current);
+	pr_debug("longcheer ,%s:otg_chg_current=%d\n",__func__,chg->otg_chg_current);
 
 	rerun_reverse_check(chg);
-	//rc = smblib_set_charge_param(chg, &chg->param.otg_cl, chg->otg_chg_current);
-	//if (rc < 0) {
-	//	pr_err("Couldn't set otg current limit rc=%d\n", rc);
-	//}
 
 exit_work:
 	return;
@@ -3953,7 +3949,7 @@ static int step_otg_chg_notifier_call(struct notifier_block *nb,
 
 	if (event != PSY_EVENT_PROP_CHANGED)
 		return NOTIFY_OK;
-	pr_err("longcheer ,%s:reverse_charge_state=%d\n",__func__,chg->reverse_charge_state);
+	pr_debug("longcheer ,%s:reverse_charge_state=%d\n",__func__,chg->reverse_charge_state);
 	if(!chg->reverse_charge_state)
 		return NOTIFY_OK;
 
@@ -3986,18 +3982,12 @@ static int step_otg_chg_register_notifier(struct smb_charger *chg)
 static int init_otg_step_chg(struct smb_charger *chg)
 {
 	int rc = 0;
-	//chg->step_otg_chg_ws = wakeup_source_register("lct-step-otg-chg");
-	//if (!chg->step_otg_chg_ws)
-	//	return -EINVAL;
 	wakeup_source_init(&chg->step_otg_chg_ws, "lct-step-otg-chg");
 	rc = step_otg_chg_register_notifier(chg);
 	if (rc < 0) {
 		pr_err("Couldn't register psy notifier rc = %d\n", rc);
-		//goto release_wakeup_source;
 	}
-	
-//release_wakeup_source:
-	//wakeup_source_unregister(chg->step_otg_chg_ws);
+
 	return rc;
 }
 #endif
@@ -4075,12 +4065,12 @@ static int smb5_probe(struct platform_device *pdev)
 	chg->connector_health = -EINVAL;
 	chg->otg_present = false;
 	chg->main_fcc_max = -EINVAL;
+	mutex_init(&chg->adc_lock);
 #ifdef CONFIG_REVERSE_CHARGE
 	chg->reverse_charge_mode = false;
 	chg->reverse_charge_state = false;
 	chg->otg_chg_current = MICRO_2PA;
 #endif
-	mutex_init(&chg->adc_lock);
 
 	chg->regmap = dev_get_regmap(chg->dev->parent, NULL);
 	if (!chg->regmap) {
@@ -4325,7 +4315,6 @@ static int smb5_remove(struct platform_device *pdev)
 	lct_unregister_powermanger(chg);
 	#ifdef CONFIG_REVERSE_CHARGE
 	power_supply_unreg_notifier(&chg->otg_step_nb);
-	//wakeup_source_unregister(chg->step_otg_chg_ws);
 	wakeup_source_trash(&chg->step_otg_chg_ws);
 	#endif
 

@@ -74,6 +74,10 @@
 #include "ufs.h"
 #include "ufshci.h"
 
+#if defined(CONFIG_UFSFEATURE)
+#include "ufsfeature.h"
+#endif
+
 #define UFSHCD "ufshcd"
 #define UFSHCD_DRIVER_VERSION "0.3"
 
@@ -231,6 +235,10 @@ struct ufshcd_lrb {
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
 
 	bool req_abort_skip;
+
+#if defined(CONFIG_UFSFEATURE) && defined(CONFIG_UFSHPB)
+	int hpb_ctx_id;
+#endif
 };
 
 /**
@@ -422,6 +430,7 @@ struct ufs_hba_crypto_variant_ops {
 				    struct scsi_cmnd *cmd,
 				    struct ufshcd_lrb *lrbp);
 	void *priv;
+	void *crypto_DO_NOT_USE[8];
 };
 
 /* clock gating state  */
@@ -500,6 +509,7 @@ enum ufshcd_hibern8_on_idle_state {
  * @delay_attr: sysfs attribute to control delay_attr
  * @enable_attr: sysfs attribute to enable/disable hibern8 on idle
  * @is_enabled: Indicates the current status of hibern8
+ * @enable_mutex: protect sys node race from multithread access
  */
 struct ufs_hibern8_on_idle {
 	struct delayed_work enter_work;
@@ -511,6 +521,7 @@ struct ufs_hibern8_on_idle {
 	struct device_attribute delay_attr;
 	struct device_attribute enable_attr;
 	bool is_enabled;
+	struct mutex enable_mutex;
 };
 
 /**
@@ -953,6 +964,7 @@ struct ufs_hba {
 	struct work_struct eh_work;
 	struct work_struct eeh_work;
 	struct work_struct rls_work;
+	struct work_struct hibern8_on_idle_enable_work;
 
 	/* HBA Errors */
 	u32 errors;
@@ -985,6 +997,8 @@ struct ufs_hba {
 
 	/* Number of requests aborts */
 	int req_abort_count;
+
+	u32 security_in;
 
 	/* Number of lanes available (1 or 2) for Rx/Tx */
 	u32 lanes_per_direction;
@@ -1088,7 +1102,12 @@ struct ufs_hba {
 	union ufs_crypto_cap_entry *crypto_cap_array;
 	u32 crypto_cfg_register;
 	struct keyslot_manager *ksm;
+	void *crypto_DO_NOT_USE[8];
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
+
+#if defined(CONFIG_UFSFEATURE)
+	struct ufsf_feature ufsf;
+#endif
 };
 
 static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
@@ -1339,6 +1358,15 @@ int ufshcd_query_attr(struct ufs_hba *hba, enum query_opcode opcode,
 	enum attr_idn idn, u8 index, u8 selector, u32 *attr_val);
 int ufshcd_query_descriptor_retry(struct ufs_hba *hba, enum query_opcode opcode,
 	enum desc_idn idn, u8 index, u8 selector, u8 *desc_buf, int *buf_len);
+#if defined(CONFIG_UFSFEATURE)
+int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
+			enum dev_cmd_type cmd_type, int timeout);
+int ufshcd_hibern8_hold(struct ufs_hba *hba, bool async);
+void ufshcd_hold_all(struct ufs_hba *hba);
+void ufshcd_release_all(struct ufs_hba *hba);
+int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
+int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
+#endif
 
 int ufshcd_hold(struct ufs_hba *hba, bool async);
 void ufshcd_release(struct ufs_hba *hba, bool no_sched);

@@ -236,7 +236,7 @@ struct cpufreq_policy *cpufreq_cpu_get(unsigned int cpu)
 	struct cpufreq_policy *policy = NULL;
 	unsigned long flags;
 
-	if (WARN_ON(cpu >= nr_cpu_ids))
+	if (cpu >= nr_cpu_ids)
 		return NULL;
 
 	/* get the cpufreq driver */
@@ -510,6 +510,11 @@ EXPORT_SYMBOL_GPL(cpufreq_disable_fast_switch);
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq)
 {
+#ifdef CONFIG_CONTROL_CENTER
+	if (likely(policy->cc_enable))
+		target_freq = clamp_val(target_freq, policy->cc_min, policy->cc_max);
+#endif
+
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 	policy->cached_target_freq = target_freq;
 
@@ -725,6 +730,9 @@ static ssize_t store_##file_name					\
 {									\
 	int ret, temp;							\
 	struct cpufreq_policy new_policy;				\
+									\
+	if (&policy->object == &policy->min)				\
+		return count;						\
 									\
 	memcpy(&new_policy, policy, sizeof(*policy));			\
 	new_policy.min = policy->user_policy.min;			\
@@ -1152,6 +1160,9 @@ static struct cpufreq_policy *cpufreq_policy_alloc(unsigned int cpu)
 	INIT_LIST_HEAD(&policy->policy_list);
 	init_rwsem(&policy->rwsem);
 	spin_lock_init(&policy->transition_lock);
+#ifdef CONFIG_CONTROL_CENTER
+	spin_lock_init(&policy->cc_lock);
+#endif
 	init_waitqueue_head(&policy->transition_wait);
 	init_completion(&policy->kobj_unregister);
 	INIT_WORK(&policy->update, handle_update);
@@ -1278,6 +1289,12 @@ static int cpufreq_online(unsigned int cpu)
 	} else {
 		policy->min = policy->user_policy.min;
 		policy->max = policy->user_policy.max;
+#ifdef CONFIG_CONTROL_CENTER
+		spin_lock(&policy->cc_lock);
+		policy->cc_min = policy->min;
+		policy->cc_max = policy->max;
+		spin_unlock(&policy->cc_lock);
+#endif
 	}
 
 	if (cpufreq_driver->get && !cpufreq_driver->setpolicy) {
@@ -2004,6 +2021,10 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (cpufreq_disabled())
 		return -ENODEV;
 
+#ifdef CONFIG_CONTROL_CENTER
+	if (likely(policy->cc_enable))
+		target_freq = clamp_val(target_freq, policy->cc_min, policy->cc_max);
+#endif
 	/* Make sure that target_freq is within supported range */
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 
@@ -2252,7 +2273,7 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	* because new_policy is a copy of policy with one field updated.
 	*/
 	if (new_policy->min > new_policy->max)
-		return -EINVAL;
+		new_policy->min = new_policy->max;
 
 	/* verify the cpu speed can be set within this limit */
 	ret = cpufreq_driver->verify(new_policy);
@@ -2263,12 +2284,12 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_ADJUST, new_policy);
 
+        blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
+			CPUFREQ_THERMAL, new_policy);
+
 	/* adjust if necessary - hardware incompatibility */
 	blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
 			CPUFREQ_INCOMPATIBLE, new_policy);
-
-        blocking_notifier_call_chain(&cpufreq_policy_notifier_list,
-			CPUFREQ_THERMAL, new_policy);
 
 	/*
 	 * verify the cpu speed can be set within this limit, which might be
@@ -2284,6 +2305,12 @@ static int cpufreq_set_policy(struct cpufreq_policy *policy,
 
 	policy->min = new_policy->min;
 	policy->max = new_policy->max;
+#ifdef CONFIG_CONTROL_CENTER
+	spin_lock(&policy->cc_lock);
+	policy->cc_min = policy->min;
+	policy->cc_max = policy->max;
+	spin_unlock(&policy->cc_lock);
+#endif
 
 	arch_set_max_freq_scale(policy->cpus, policy->max);
 

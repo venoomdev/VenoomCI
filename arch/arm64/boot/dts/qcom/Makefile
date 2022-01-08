@@ -582,4 +582,3 @@ dtbs: $(addprefix $(obj)/../,$(dtb-y))
 endif
 endif
 clean-files	:= *.dtb *.dtbo
-

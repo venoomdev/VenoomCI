@@ -284,7 +284,6 @@ struct dsi_display {
 	u32 te_source;
 };
 
-static struct dsi_display *whitep_display;
 //Update /proc/tp_info & /proc/tp_lockdown_info node
 extern void update_lct_tp_info(char *tp_info_buf, char *tp_lockdown_info_buf);
 //Set tp_lockdown_info node callback funcation
@@ -719,5 +718,4 @@ int dsi_display_cont_splash_config(void *display);
 int dsi_display_get_panel_vfp(void *display,
 	int h_active, int v_active);
 
-int dsi_panel_set_feature(struct dsi_panel *panel,enum dsi_cmd_set_type type);
 #endif /* _DSI_DISPLAY_H_ */

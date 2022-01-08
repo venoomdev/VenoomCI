@@ -18,7 +18,7 @@
  *
  *
  * Copyright (c) 2015 Fingerprint Cards AB <tech@fingerprints.com>
- *
+ * Copyright (C) 2020 XiaoMi, Inc.
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License Version 2
  * as published by the Free Software Foundation.
@@ -42,7 +42,6 @@
 #include <linux/fb.h>
 #include <drm/drm_bridge.h>
 #include <linux/msm_drm_notify.h>
-
 
 #define FPC1020_NAME "fpc1020"
 
@@ -100,10 +99,8 @@ struct fpc1020_data {
 	bool fb_black;
 	bool wait_finger_down;
 	struct work_struct work;
-
 	struct input_handler input_handler;
 };
-
 
 static int input_connect(struct input_handler *handler,
 		struct input_dev *dev, const struct input_device_id *id) {
@@ -387,7 +384,7 @@ static int hw_reset(struct fpc1020_data *fpc1020)
 	usleep_range(RESET_HIGH_SLEEP2_MIN_US, RESET_HIGH_SLEEP2_MAX_US);
 
 	irq_gpio = gpio_get_value(fpc1020->irq_gpio);
-	dev_info(dev, "IRQ after reset %d=%d\n",fpc1020->irq_gpio, irq_gpio);
+	dev_info(dev, "IRQ after reset %d=%d\n", fpc1020->irq_gpio, irq_gpio);
 
 exit:
 	return rc;
@@ -664,16 +661,16 @@ static struct notifier_block fpc_notif_block = {
 	.notifier_call = fpc_fb_notif_callback,
 };
 
-static int proc_show_ver(struct seq_file *file,void *v)
+static int proc_show_ver(struct seq_file *file, void *v)
 {
-	seq_printf(file,"Fingerprint: FPC\n");
+	seq_printf(file, "Fingerprint: FPC\n");
 	return 0;
 }
 
-static int proc_open(struct inode *inode,struct file *file)
+static int proc_open(struct inode *inode, struct file *file)
 {
 	pr_info("fpc proc_opening\n");
-	single_open(file,proc_show_ver,NULL);
+	single_open(file, proc_show_ver, NULL);
 	return 0;
 }
 
@@ -759,7 +756,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 
 	atomic_set(&fpc1020->wakeup_enabled, 0);
 
-	irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT | IRQF_PERF_CRITICAL;
+	irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT | IRQF_PERF_AFFINE;
 	if (of_property_read_bool(dev->of_node, "fpc,enable-wakeup")) {
 		irqf |= IRQF_NO_SUSPEND;
 		device_init_wakeup(dev, 1);
@@ -838,7 +835,7 @@ static int fpc1020_remove(struct platform_device *pdev)
 	(void)vreg_setup(fpc1020, "vdd_ana", false);
 	(void)vreg_setup(fpc1020, "vdd_io", false);
 	(void)vreg_setup(fpc1020, "vcc_spi", false);
-	remove_proc_entry(PROC_NAME,NULL);
+	remove_proc_entry(PROC_NAME, NULL);
 	dev_info(&pdev->dev, "%s\n", __func__);
 
 	return 0;

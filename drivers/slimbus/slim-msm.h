@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2019, 2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -275,6 +275,11 @@ struct msm_slim_ctrl {
 	struct device		*dev;
 	struct msm_slim_iommu	iommu_desc;
 	void __iomem		*base;
+	struct msm_slim_sps_bam	lpass;
+	struct resource		*lpass_mem;
+	u32			lpass_phy_base;
+	void __iomem		*lpass_virt_base;
+	bool			lpass_mem_usage;
 	struct resource		*slew_mem;
 	struct resource		*bam_mem;
 	u32			curr_bw;
@@ -327,6 +332,8 @@ struct msm_slim_ctrl {
 	u32			current_rx_buf[10];
 	int			current_count;
 	atomic_t		ssr_in_progress;
+	atomic_t		init_in_progress;
+	struct completion	qmi_up;
 };
 
 struct msm_sat_chan {

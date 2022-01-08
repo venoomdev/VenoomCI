@@ -152,90 +152,6 @@ static struct qmi_dev_info device_clients[] = {
 	{
 		.dev_name = "cpr_cold",
 		.type = QMI_CDEV_MIN_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "wlan",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "wlan_bw",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "modem_lte_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "modem_nr_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "modem_nr_scg_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "sdr0_lte_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "sdr1_lte_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "sdr0_nr_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "sdr1_nr_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "pa_sdr0_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "pa_sdr1_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "pa_fr1_sdr0_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "pa_fr1_sdr1_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "pa_fr1_sdr0_scg_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "pa_fr1_sdr1_scg_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "mmw0_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "mmw1_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "mmw2_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "mmw3_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "mmw_ul_throttling_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
-	},
-	{
-		.dev_name = "mmw_ific_dsc",
-		.type = QMI_CDEV_MAX_LIMIT_TYPE,
 	}
 };
 
@@ -318,6 +234,7 @@ static int qmi_tmd_send_state_request(struct qmi_cooling_device *qmi_cdev,
 			state, qmi_cdev->cdev_name, ret);
 		goto qmi_send_exit;
 	}
+	ret = 0;
 	pr_debug("Requested qmi state:%d for %s\n", state, qmi_cdev->cdev_name);
 
 qmi_send_exit:

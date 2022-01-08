@@ -23,7 +23,6 @@ mdss-mdp-objs += mdss_smmu.o
 mdss-mdp-objs += mdss_mdp_wfd.o
 mdss-mdp-objs += mdss_io_util.o
 obj-$(CONFIG_FB_MSM_MDSS) += mdss-mdp.o
-obj-$(CONFIG_FB_MSM_MDSS) += mdss_mdp_debug.o
 
 mdss-mdp-objs += mdss_mdp_pp_v1_7.o
 mdss-mdp-objs += mdss_mdp_pp_v3.o
@@ -31,7 +30,7 @@ mdss-mdp-objs += mdss_mdp_pp_common.o
 mdss-mdp-objs += mdss_mdp_pp_stub.o
 
 ifeq ($(CONFIG_FB_MSM_MDSS),y)
-obj-$(CONFIG_DEBUG_FS) += mdss_debug.o mdss_debug_xlog.o
+obj-$(CONFIG_DEBUG_FS) += mdss_debug.o mdss_debug_xlog.o mdss_mdp_debug.o
 endif
 
 ifeq ($(CONFIG_FB_MSM_MDSS_FRC_DEBUG),y)
@@ -85,3 +84,5 @@ obj-$(CONFIG_FB_MSM_QPIC_ILI_QVGA_PANEL) += qpic_panel_ili_qvga.o
 
 obj-$(CONFIG_FB_MSM_MDSS) += mdss_fb.o mdss_util.o
 obj-$(CONFIG_COMPAT) += mdss_compat_utils.o
+
+obj-$(CONFIG_FB_MSM_MDSS_KCAL_CTRL) += mdss_mdp_kcal_ctrl.o

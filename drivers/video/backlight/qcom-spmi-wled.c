@@ -1,6 +1,6 @@
 /* Copyright (c) 2015, Sony Mobile Communications, AB.
  *
- * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -284,8 +284,6 @@ static const u8 wled5_brt_wid_sel_reg[MOD_MAX] = {
 
 static int wled_flash_setup(struct wled *wled);
 
-static int wled5_cabc_config(struct wled *wled, bool enable);
-
 static inline bool is_wled4(struct wled *wled)
 {
 	if (*wled->version == WLED_PMI8998 || *wled->version == WLED_PM660L)
@@ -369,15 +367,13 @@ static int wled_sync_toggle(struct wled *wled)
 
 	rc = regmap_update_bits(wled->regmap,
 			wled->sink_addr + WLED_SINK_SYNC,
-			WLED_SINK_SYNC_MASK, WLED_SINK_SYNC_MASK);
+			WLED_SINK_SYNC_MASK, WLED_SINK_SYNC_CLEAR);
 	if (rc < 0)
 		return rc;
 
-	rc = regmap_update_bits(wled->regmap,
+	return regmap_update_bits(wled->regmap,
 			wled->sink_addr + WLED_SINK_SYNC,
-			WLED_SINK_SYNC_MASK, WLED_SINK_SYNC_CLEAR);
-
-	return rc;
+			WLED_SINK_SYNC_MASK, WLED_SINK_SYNC_MASK);
 }
 
 static int wled5_sample_hold_control(struct wled *wled, u16 brightness,
@@ -451,20 +447,19 @@ static int wled5_set_brightness(struct wled *wled, u16 brightness)
 	if (rc < 0)
 		return rc;
 
-	/* Update brightness values to modulator in WLED5 */
-	val = (wled->cfg.mod_sel == MOD_A) ? WLED5_SINK_SYNC_MODA_BIT :
-		WLED5_SINK_SYNC_MODB_BIT;
-	rc = regmap_update_bits(wled->regmap,
-			wled->sink_addr + WLED5_SINK_MOD_SYNC_BIT_REG,
-			WLED5_SINK_SYNC_MASK, val);
-	if (rc < 0)
-		return rc;
-
 	val = 0;
 	rc = regmap_update_bits(wled->regmap,
 			wled->sink_addr + WLED5_SINK_MOD_SYNC_BIT_REG,
 			WLED_SINK_SYNC_MASK, val);
-	return rc;
+	/* Update brightness values to modulator in WLED5 */
+	if (rc < 0)
+		return rc;
+
+	val = (wled->cfg.mod_sel == MOD_A) ? WLED5_SINK_SYNC_MODA_BIT :
+		WLED5_SINK_SYNC_MODB_BIT;
+	return regmap_update_bits(wled->regmap,
+			wled->sink_addr + WLED5_SINK_MOD_SYNC_BIT_REG,
+			WLED5_SINK_SYNC_MASK, val);
 }
 
 static int wled4_set_brightness(struct wled *wled, u16 brightness)
@@ -514,13 +509,6 @@ static int wled_update_status(struct backlight_device *bl)
 
 	mutex_lock(&wled->lock);
 	if (brightness) {
-
-		if(brightness <= 40){
-			rc = wled5_cabc_config(wled, false);
-		}else if(brightness > 150){
-			rc = wled5_cabc_config(wled, true);
-		}
-
 		rc = wled_set_brightness(wled, brightness);
 		if (rc < 0) {
 			pr_err("wled failed to set brightness rc:%d\n", rc);

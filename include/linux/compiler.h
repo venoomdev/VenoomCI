@@ -75,6 +75,8 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 #else
 # define likely(x)	__builtin_expect(!!(x), 1)
 # define unlikely(x)	__builtin_expect(!!(x), 0)
+# define likely_notrace(x)	likely(x)
+# define unlikely_notrace(x)	unlikely(x)
 #endif
 
 /* Optimization barrier */
@@ -151,6 +153,8 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
      __ptr = (unsigned long) (ptr);				\
     (typeof(ptr)) (__ptr + (off)); })
 #endif
+
+#define absolute_pointer(val)	RELOC_HIDE((void *)(val), 0)
 
 #ifndef OPTIMIZER_HIDE_VAR
 #define OPTIMIZER_HIDE_VAR(var) barrier()
@@ -381,5 +385,11 @@ unsigned long read_word_at_a_time(const void *addr)
 	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
 	(_________p1); \
 })
+
+/*
+ * This is needed in functions which generate the stack canary, see
+ * arch/x86/kernel/smpboot.c::start_secondary() for an example.
+ */
+#define prevent_tail_call_optimization()	mb()
 
 #endif /* __LINUX_COMPILER_H */
