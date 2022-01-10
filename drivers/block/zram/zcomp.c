@@ -1,6 +1,10 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 Sergey Senozhatsky.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version
+ * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -15,10 +19,7 @@
 #include "zcomp.h"
 
 static const char * const backends[] = {
-#if IS_ENABLED(CONFIG_CRYPTO_LZO)
 	"lzo",
-	"lzo-rle",
-#endif
 #if IS_ENABLED(CONFIG_CRYPTO_LZ4)
 	"lz4",
 #endif
@@ -28,9 +29,7 @@ static const char * const backends[] = {
 #if IS_ENABLED(CONFIG_CRYPTO_842)
 	"842",
 #endif
-#if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
-	"zstd",
-#endif
+	NULL
 };
 
 static void zcomp_strm_free(struct zcomp_strm *zstrm)
@@ -65,7 +64,7 @@ bool zcomp_available_algorithm(const char *comp)
 {
 	int i;
 
-	i = sysfs_match_string(backends, comp);
+	i = __sysfs_match_string(backends, -1, comp);
 	if (i >= 0)
 		return true;
 
@@ -84,9 +83,9 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 {
 	bool known_algorithm = false;
 	ssize_t sz = 0;
-	int i;
+	int i = 0;
 
-	for (i = 0; i < ARRAY_SIZE(backends); i++) {
+	for (; backends[i]; i++) {
 		if (!strcmp(comp, backends[i])) {
 			known_algorithm = true;
 			sz += scnprintf(buf + sz, PAGE_SIZE - sz - 2,
@@ -111,13 +110,12 @@ ssize_t zcomp_available_show(const char *comp, char *buf)
 
 struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
 {
-	local_lock(&comp->stream->lock);
-	return this_cpu_ptr(comp->stream);
+	return get_cpu_ptr(comp->stream);
 }
 
 void zcomp_stream_put(struct zcomp *comp)
 {
-	local_unlock(&comp->stream->lock);
+	put_cpu_ptr(comp->stream);
 }
 
 int zcomp_compress(struct zcomp_strm *zstrm,
@@ -161,8 +159,6 @@ int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 	int ret;
 
 	zstrm = per_cpu_ptr(comp->stream, cpu);
-	local_lock_init(&zstrm->lock);
-
 	ret = zcomp_strm_init(zstrm, comp);
 	if (ret)
 		pr_err("Can't allocate a compression stream\n");
