@@ -227,8 +227,7 @@ struct dsi_panel {
 	int cabc_mode;
 	bool resend_ea;
 	bool resend_ea_hbm;
-        int cabc_mode;
-
+        
 	struct brightness_alpha_pair *fod_dim_lut;
 	u32 fod_dim_lut_count;
 
