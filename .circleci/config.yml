@@ -8,8 +8,8 @@ jobs:
       - run:
           command: |
            pacman -Syu --needed --noconfirm wget base-devel xmlto inetutils bc cpio python-sphinx python-sphinx_rtd_theme graphviz imagemagick git python2 python zip xxd
-           git clone https://venoomdev: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@github.com/venoomdev/VenoomCI.git twelve -b  --depth 1 .
-           git config --global user.name "venoomdev"
+           git clone https://ekoariffaizal3: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@github.com/venoomdev/VenoomCI.git twelve -b  --depth 1 .
+           git config --global user.name "ekoariffaizal3"
            git config --global user.email "ekoariffaizal3@gmail.com"
            git config --global color.ui false
            curl -fsSL "https://repo.archlinuxcn.org/x86_64/glibc-linux4-2.33-4-x86_64.pkg.tar.zst" | bsdtar -C / -xvf -
