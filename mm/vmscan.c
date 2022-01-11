@@ -1510,7 +1510,22 @@ static void smart_boost_reclaim_pages(struct lruvec *lruvec,
 		putback_lru_page(page);
 	}
 }
+#ifdef CONFIG_MEMEX_STANDALONE
+unsigned long swapout_to_zram(struct list_head *page_list,
+	struct vm_area_struct *vma)
+{
+	struct scan_control sc = {
+		.gfp_mask = GFP_KERNEL,
+		.priority = DEF_PRIORITY,
+		.may_writepage = 1,
+		.may_unmap = 1,
+		.may_swap = 1,
+		.target_vma = vma,
+	};
 
+	return coretech_reclaim_pagelist(page_list, vma, &sc);
+}
+#endif
 #ifdef CONFIG_PROCESS_RECLAIM
 unsigned long reclaim_pages_from_list(struct list_head *page_list,
 					struct vm_area_struct *vma)
