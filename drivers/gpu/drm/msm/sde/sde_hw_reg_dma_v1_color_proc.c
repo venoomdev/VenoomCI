@@ -1044,7 +1044,14 @@ reg_dmav1_setup_dspp_pa_hsicv17_kcal(struct sde_hw_dspp *ctx, void *ctl)
 
 void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 {
-	u32 opcode = 0;
+	struct sde_hw_reg_dma_ops *dma_ops;
+	struct sde_reg_dma_kickoff_cfg kick_off;
+	struct sde_hw_cp_cfg *hw_cfg = cfg;
+	struct sde_hw_kcal *kcal = sde_hw_kcal_get();
+	struct sde_reg_dma_setup_ops_cfg dma_write_cfg;
+	struct drm_msm_pcc *pcc_cfg;
+	struct drm_msm_pcc_coeff *coeffs = NULL;
+	u32 *data = NULL;
 	int rc, i = 0;
 	u32 reg = 0;
 
@@ -1150,20 +1157,15 @@ void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 
 	if (kcal->enabled)
 		reg_dmav1_setup_dspp_pa_hsicv17_kcal(ctx, hw_cfg->ctl);
-
 exit:
 	kfree(data);
 }
 
 void reg_dmav1_setup_dspp_pa_hsicv17(struct sde_hw_dspp *ctx, void *cfg)
 {
-	struct sde_hw_reg_dma_ops *dma_ops;
-	struct sde_reg_dma_kickoff_cfg kick_off;
 	struct sde_hw_cp_cfg *hw_cfg = cfg;
 	struct sde_hw_kcal *kcal = sde_hw_kcal_get();
-	struct sde_reg_dma_setup_ops_cfg dma_write_cfg;
-	struct drm_msm_pa_hsic *hsic_cfg;
-	u32 reg = 0, opcode = 0, local_opcode = 0;
+	u32 opcode = 0;
 	int rc;
 
 	if (kcal->enabled)
