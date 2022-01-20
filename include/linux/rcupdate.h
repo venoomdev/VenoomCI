@@ -888,4 +888,3 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 
 
 #endif /* __LINUX_RCUPDATE_H */
-
