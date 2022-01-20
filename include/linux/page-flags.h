@@ -107,9 +107,6 @@ enum pageflags {
 	PG_young,
 	PG_idle,
 #endif
-#ifdef CONFIG_SMART_BOOST
-	PG_uidlru,
-#endif
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */
@@ -319,10 +316,6 @@ PAGEFLAG(Reclaim, reclaim, PF_NO_TAIL)
 	TESTCLEARFLAG(Reclaim, reclaim, PF_NO_TAIL)
 PAGEFLAG(Readahead, reclaim, PF_NO_COMPOUND)
 	TESTCLEARFLAG(Readahead, reclaim, PF_NO_COMPOUND)
-#ifdef CONFIG_SMART_BOOST
-PAGEFLAG(UIDLRU, uidlru, PF_HEAD) __CLEARPAGEFLAG(UIDLRU, uidlru, PF_HEAD)
-	__SETPAGEFLAG(UIDLRU, uidlru, PF_HEAD)
-#endif
 
 #ifdef CONFIG_HIGHMEM
 /*
