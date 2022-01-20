@@ -194,11 +194,11 @@ void release_task(struct task_struct *p)
 	struct task_struct *leader;
 	int zap_leader;
 
-	if (p->fpack) {
-		if (p->fpack->iname)
-			__putname(p->fpack->iname);
-		kfree(p->fpack);
-		p->fpack = NULL;
+//	if (p->fpack) {
+//		if (p->fpack->iname)
+//			__putname(p->fpack->iname);
+//		kfree(p->fpack);
+//		p->fpack = NULL;
 	}
 
 #ifdef CONFIG_HOUSTON
@@ -216,7 +216,7 @@ repeat:
 	cgroup_release(p);
 
 	write_lock_irq(&tasklist_lock);
-	ptrace_release_task(p);
+//	ptrace_release_task(p);
 	__exit_signal(p);
 
 	/*
