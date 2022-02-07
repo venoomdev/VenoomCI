@@ -153,8 +153,8 @@ int nvt_gesture_switch(struct input_dev *dev, unsigned int type, unsigned int co
 static int32_t nvt_ts_resume(struct device *dev);
 static int32_t nvt_ts_suspend(struct device *dev);
 
-typedef int(*touchpanel_recovery_cb_p_t)(void);
-extern int set_touchpanel_recovery_callback(touchpanel_recovery_cb_p_t cb);
+//typedef int(*touchpanel_recovery_cb_p_t)(void);
+//extern int set_touchpanel_recovery_callback(touchpanel_recovery_cb_p_t cb);
 
 /* Fix Touch/Fingerprint wakeup crash issue */
 int nvt_ts_recovery_callback(void)
@@ -1357,7 +1357,7 @@ static void nvt_ts_worker(struct work_struct *work)
 #if WAKEUP_GESTURE
 #ifdef CONFIG_PM
 	if (ts->dev_pm_suspend && ts->is_gesture_mode) {
-		ret = wait_for_completion_timeout(&ts->dev_pm_suspend_completion, msecs_to_jiffies(700));
+		ret = wait_for_completion_timeout(&ts->dev_pm_suspend_completion, msecs_to_jiffies(1500));
 		if (!ret) {
 			NVT_ERR("system(spi bus) can't finished resuming procedure, skip it");
 			return;
@@ -2640,7 +2640,7 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	g_touchscreen_usb_pulgin.event_callback = nvt_ts_usb_event_callback;
 #endif
 
-	set_touchpanel_recovery_callback(nvt_ts_recovery_callback);
+	//set_touchpanel_recovery_callback(nvt_ts_recovery_callback);
 
 #if 0
 	//spi bus pm_runtime_get
@@ -3112,7 +3112,7 @@ static int32_t nvt_ts_resume(struct device *dev)
 		g_touchscreen_usb_pulgin.event_callback();
 #endif
 
-	NVT_LOG("end\n");
+	//NVT_LOG("end\n");
 
 #if LCT_TP_PALM_EN
 	msleep(100);
@@ -3243,7 +3243,7 @@ static int nvt_pm_suspend(struct device *dev)
 
 	ts->dev_pm_suspend = true;
 	reinit_completion(&ts->dev_pm_suspend_completion);
-	NVT_LOG("pm suspend");
+	//NVT_LOG("pm suspend");
 
 	return 0;
 }
@@ -3254,7 +3254,7 @@ static int nvt_pm_resume(struct device *dev)
 
 	ts->dev_pm_suspend = false;
 	complete(&ts->dev_pm_suspend_completion);
-	NVT_LOG("pm resume");
+	//NVT_LOG("pm resume");
 
 	return 0;
 }
