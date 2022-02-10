@@ -23,7 +23,6 @@
 #include "dsi_panel.h"
 #include "dsi_ctrl_hw.h"
 #include "dsi_parser.h"
-#include "sde_trace.h"
 
 /**
  * topology is currently defined by a set of following 3 values:
@@ -4504,75 +4503,4 @@ int dsi_panel_apply_cabc_mode(struct dsi_panel *panel)
 	mutex_unlock(&panel->panel_lock);
 
 	return rc;
-}
-
-static struct dsi_read_config read_reg;
-int dsi_panel_get_lockdowninfo_for_tp(unsigned char *plockdowninfo)
-{
-	int retval = 0, i = 0;
-	struct dsi_panel_cmd_set cmd_sets = {0};
-	while(g_panel && !g_panel->cur_mode) {
-		pr_debug("[%s][%s] cur_mode is null\n", __func__, g_panel->name);
-		msleep_interruptible(1000);
-	}
-	//don't read lockdown info by mipi bus when the screen is off
-	while(!g_panel->panel_initialized) {
-		msleep_interruptible(1000);
-	}
-
-	if(g_panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_READ_LOCKDOWN_INFO].cmds) {
-		mutex_lock(&g_panel->panel_lock);
-
-		cmd_sets.cmds = g_panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_READ_LOCKDOWN_INFO].cmds;
-		cmd_sets.count = 1;
-		cmd_sets.state = g_panel->cur_mode->priv_info->cmd_sets[DSI_CMD_SET_READ_LOCKDOWN_INFO].state;
-		retval = dsi_display_write_panel(g_panel, &cmd_sets);
-		if (retval) {
-			mutex_unlock(&g_panel->panel_lock);
-			pr_err("[%s][%s] failed to send cmds, rc=%d\n", __func__, g_panel->name, retval);
-			return EIO;
-		}
-		read_reg.enabled = 1;
-		read_reg.cmds_rlen = 8;
-		read_reg.read_cmd = cmd_sets;
-		read_reg.read_cmd.cmds = &cmd_sets.cmds[1];
-		retval = dsi_display_read_panel(g_panel, &read_reg);
-		if (retval <= 0) {
-			mutex_unlock(&g_panel->panel_lock);
-			pr_err("[%s][%s] failed to send cmds, rc=%d\n", __func__, g_panel->name, retval);
-			return EIO;
-		}
-		for(i = 0; i < 8; i++) {
-			pr_debug("[%s][%d]0x%x", __func__, __LINE__, read_reg.rbuf[i]);
-			plockdowninfo[i] = read_reg.rbuf[i];
-		}
-		mutex_unlock(&g_panel->panel_lock);
-		return retval;
-	}
-	else {
-		return EINVAL;
-	}
-}
-EXPORT_SYMBOL(dsi_panel_get_lockdowninfo_for_tp);
-
-int dsi_panel_idle(struct dsi_panel *panel)
-{
-	if (unlikely(!panel))
-		return -EINVAL;
-
-	if (panel->funcs && panel->funcs->idle)
-		return panel->funcs->idle(panel);
-
-	return 0;
-}
-
-int dsi_panel_wakeup(struct dsi_panel *panel)
-{
-	if (unlikely(!panel))
-		return -EINVAL;
-
-	if (panel->funcs && panel->funcs->wakeup)
-		return panel->funcs->wakeup(panel);
-
-	return 0;
 }
