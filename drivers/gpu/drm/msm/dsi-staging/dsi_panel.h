@@ -362,14 +362,4 @@ int dsi_panel_apply_hbm_mode(struct dsi_panel *panel);
 
 int dsi_panel_apply_cabc_mode(struct dsi_panel *panel);
 
-int dsi_panel_cmd_set_transfer(struct dsi_panel *panel,
-			       struct dsi_panel_cmd_set *cmd);
-int dsi_panel_parse_dt_cmd_set(struct device_node *of_node,
-			       const char *cmd_str,
-			       const char *cmd_state_str,
-			       struct dsi_panel_cmd_set *cmd);
-
-int dsi_panel_switch_init(struct dsi_panel *panel);
-void dsi_panel_switch_destroy(struct dsi_panel *panel);
-
 #endif /* _DSI_PANEL_H_ */
