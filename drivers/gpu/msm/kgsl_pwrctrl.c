@@ -16,6 +16,10 @@
 #include "kgsl_device.h"
 #include "kgsl_pwrscale.h"
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
+
 #define KGSL_PWRFLAGS_POWER_ON 0
 #define KGSL_PWRFLAGS_CLK_ON   1
 #define KGSL_PWRFLAGS_AXI_ON   2
@@ -2322,6 +2326,10 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 	pwr->sysfs_pwr_limit = kgsl_pwr_limits_add(KGSL_DEVICE_3D0);
 
 	kgsl_pwrctrl_vbif_init(device);
+
+#ifdef CONFIG_HOUSTON
+	ht_register_kgsl_pwrctrl(pwr);
+#endif
 
 	return result;
 
