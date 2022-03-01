@@ -2,7 +2,6 @@
  * The input core
  *
  * Copyright (c) 1999-2002 Vojtech Pavlik
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 /*
@@ -28,7 +27,6 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
-
 #include "input-compat.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -195,6 +193,7 @@ static void input_repeat_key(struct timer_list *t)
 			input_value_sync
 		};
 
+		input_set_timestamp(dev, ktime_get());
 		input_pass_values(dev, vals, ARRAY_SIZE(vals));
 
 		if (dev->rep[REP_PERIOD])

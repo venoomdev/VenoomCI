@@ -25,6 +25,28 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 #define kthread_create(threadfn, data, namefmt, arg...) \
 	kthread_create_on_node(threadfn, data, NUMA_NO_NODE, namefmt, ##arg)
 
+#define kthread_run_perf_critical(perfmask, threadfn, data, namefmt, ...)  \
+({									   \
+	struct task_struct *__k						   \
+		= kthread_create(threadfn, data, namefmt, ## __VA_ARGS__); \
+	if (!IS_ERR(__k)) {						   \
+		BUILD_BUG_ON(perfmask != cpu_lp_mask &&			   \
+			     perfmask != cpu_perf_mask &&		   \
+			     perfmask != cpu_prime_mask);		   \
+		if (perfmask == cpu_prime_mask)				   \
+			__k->pc_flags |= PC_PRIME_AFFINE;		   \
+		else if (perfmask == cpu_perf_mask)			   \
+			__k->pc_flags |= PC_PERF_AFFINE;		   \
+		else							   \
+			__k->pc_flags |= PC_LITTLE_AFFINE;		   \
+		kthread_bind_mask(__k, perfmask);			   \
+		wake_up_process(__k);					   \
+	}								   \
+	__k;								   \
+})
+
+
+
 
 struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 					  void *data,

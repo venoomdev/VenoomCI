@@ -53,7 +53,8 @@ int cam_req_mgr_util_init(void)
 		goto bitmap_alloc_fail;
 	}
 	hdl_tbl->bits = bitmap_size * BITS_PER_BYTE;
-        hdl_count = 0;
+
+	hdl_count = 0;
 	return rc;
 
 bitmap_alloc_fail:
@@ -122,6 +123,7 @@ static int32_t cam_get_free_handle_index(void)
 	}
 
 	set_bit(idx, hdl_tbl->bitmap);
+
 	hdl_count++;
 	return idx;
 }

@@ -240,7 +240,7 @@ struct qpnp_pon {
 	ktime_t			time_kpdpwr_bark;
 };
 
-int		in_long_press;
+int in_long_press;
 static int pon_ship_mode_en;
 
 module_param_named(
@@ -1112,12 +1112,14 @@ static int qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	}
 
 	if (comb_reset_enable == true) {
-		if (((pon_rt_sts & QPNP_PON_KPDPWR_RESIN_N_SET) == QPNP_PON_KPDPWR_RESIN_N_SET) && (pon->collect_d_in_progress == false) &&
+		if (((pon_rt_sts & QPNP_PON_KPDPWR_RESIN_N_SET) == QPNP_PON_KPDPWR_RESIN_N_SET) &&
+			(pon->collect_d_in_progress == false) &&
 			(cfg->key_code == KEY_POWER || cfg->key_code == KEY_VOLUMEDOWN)) {
 			pon->collect_d_in_progress = true;
 			schedule_delayed_work(&pon->collect_d_work,
-							msecs_to_jiffies(comb_reset_time - QPNP_PON_KPDPWR_RESIN_RESET_TIME));
-		} else if ((pon->collect_d_in_progress == true) && ((pon_rt_sts & QPNP_PON_KPDPWR_RESIN_N_SET) != QPNP_PON_KPDPWR_RESIN_N_SET) &&
+				msecs_to_jiffies(comb_reset_time - QPNP_PON_KPDPWR_RESIN_RESET_TIME));
+		} else if ((pon->collect_d_in_progress == true) &&
+			((pon_rt_sts & QPNP_PON_KPDPWR_RESIN_N_SET) != QPNP_PON_KPDPWR_RESIN_N_SET) &&
 			(cfg->key_code == KEY_POWER || cfg->key_code == KEY_VOLUMEDOWN)) {
 			cancel_delayed_work(&pon->collect_d_work);
 			pon->collect_d_in_progress = false;

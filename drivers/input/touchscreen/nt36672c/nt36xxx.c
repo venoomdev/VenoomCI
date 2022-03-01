@@ -31,7 +31,6 @@
 #include <linux/debugfs.h>
 #include <linux/spi-xiaomi-tp.h>
 #include <drm/drm_notifier_mi.h>
-#include <linux/spi/spi-geni-qcom.h>
 
 #include <linux/notifier.h>
 #include <linux/fb.h>
@@ -40,9 +39,22 @@
 #endif
 
 #include "nt36xxx.h"
+#ifndef NVT_SAVE_TESTDATA_IN_FILE
+#include "nt36xxx_mp_ctrlram.h"
+#endif
 #if NVT_TOUCH_ESD_PROTECT
 #include <linux/jiffies.h>
 #endif /* #if NVT_TOUCH_ESD_PROTECT */
+
+#if WAKEUP_GESTURE
+#ifdef CONFIG_TOUCHSCREEN_COMMON
+#include <linux/input/tp_common.h>
+#endif
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
+#include "../xiaomi/xiaomi_touch.h"
+#endif
 
 #if NVT_TOUCH_ESD_PROTECT
 static struct delayed_work nvt_esd_check_work;
@@ -55,6 +67,11 @@ uint8_t esd_retry = 0;
 #if NVT_TOUCH_EXT_PROC
 extern int32_t nvt_extra_proc_init(void);
 extern void nvt_extra_proc_deinit(void);
+#endif
+
+#if NVT_TOUCH_MP
+extern int32_t nvt_mp_proc_init(void);
+extern void nvt_mp_proc_deinit(void);
 #endif
 
 struct nvt_ts_data *ts;
@@ -79,7 +96,9 @@ static int32_t nvt_ts_resume(struct device *dev);
 extern int dsi_panel_lockdown_info_read(unsigned char *plockdowninfo);
 extern void dsi_panel_doubleclick_enable(bool on);
 static int32_t nvt_check_palm(uint8_t input_id, uint8_t *data);
+#if XIAOMI_ROI
 extern void xiaomi_touch_send_btn_tap_key(int status);
+#endif
 uint32_t ENG_RST_ADDR  = 0x7FFF80;
 uint32_t SWRST_N8_ADDR = 0; /* read from dtsi */
 uint32_t SPI_RD_FAST_ADDR = 0;	/* read from dtsi */
@@ -109,6 +128,63 @@ const uint16_t gesture_key_array[] = {
 	KEY_POWER,  //GESTURE_SLIDE_RIGHT
 };
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_COMMON
+static ssize_t double_tap_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", ts->db_wakeup);
+}
+
+static ssize_t double_tap_store(struct kobject *kobj,
+	struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int rc, val;
+
+	rc = kstrtoint(buf, 10, &val);
+	if (rc)
+		return -EINVAL;
+
+	ts->db_wakeup = !!val;
+	return count;
+}
+
+static struct tp_common_ops double_tap_ops = {
+	.show = double_tap_show,
+	.store = double_tap_store
+};
+#endif
+
+#ifdef CONFIG_MTK_SPI
+const struct mt_chip_conf spi_ctrdata = {
+	.setuptime = 25,
+	.holdtime = 25,
+	.high_time = 5,	/* 10MHz (SPI_SPEED=100M / (high_time+low_time(10ns)))*/
+	.low_time = 5,
+	.cs_idletime = 2,
+	.ulthgh_thrsh = 0,
+	.cpol = 0,
+	.cpha = 0,
+	.rx_mlsb = 1,
+	.tx_mlsb = 1,
+	.tx_endian = 0,
+	.rx_endian = 0,
+	.com_mod = DMA_TRANSFER,
+	.pause = 0,
+	.finish_intr = 1,
+	.deassert = 0,
+	.ulthigh = 0,
+	.tckdly = 0,
+};
+#endif  /*endif CONFIG_MTK_SPI*/
+
+#ifdef CONFIG_SPI_MT65XX
+const struct mtk_chip_config spi_ctrdata = {
+    .rx_mlsb = 1,
+    .tx_mlsb = 1,
+    .cs_pol = 0,
+};
+#endif  /*endif CONFIG_SPI_MT65XX*/
 
 static ssize_t nvt_cg_color_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -1375,15 +1451,12 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 #endif /* MT_PROTOCOL_B */
 	int32_t i = 0;
 	int32_t finger_cnt = 0;
-	struct nvt_ts_data *ts_data = (struct nvt_ts_data *)data;
 
 #if WAKEUP_GESTURE
 	if (bTouchIsAwake == 0) {
 		pm_wakeup_event(&ts->input_dev->dev, 5000);
 	}
 #endif
-	pm_qos_update_request(&ts_data->pm_touch_req, 100);
-	pm_qos_update_request(&ts_data->pm_spi_req, 100);
 	mutex_lock(&ts->lock);
 	if (ts->dev_pm_suspend) {
 		ret = wait_for_completion_timeout(&ts->dev_pm_suspend_completion, msecs_to_jiffies(500));
@@ -1444,7 +1517,8 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 	if (bTouchIsAwake == 0) {
 		input_id = (uint8_t)(point_data[1] >> 3);
 		nvt_ts_wakeup_gesture_report(input_id, point_data);
-		goto XFER_ERROR;
+		mutex_unlock(&ts->lock);
+		return IRQ_HANDLED;
 	}
 #endif
 
@@ -1557,8 +1631,6 @@ static irqreturn_t nvt_ts_work_func(int irq, void *data)
 
 XFER_ERROR:
 	mutex_unlock(&ts->lock);
-	pm_qos_update_request(&ts_data->pm_touch_req, PM_QOS_DEFAULT_VALUE);
-	pm_qos_update_request(&ts_data->pm_spi_req, PM_QOS_DEFAULT_VALUE);
 
 	return IRQ_HANDLED;
 }
@@ -2431,6 +2503,18 @@ static int32_t nvt_ts_probe(struct platform_device *pdev)
 		goto err_spi_setup;
 	}
 
+#ifdef CONFIG_MTK_SPI
+    /* old usage of MTK spi API */
+    memcpy(&ts->spi_ctrl, &spi_ctrdata, sizeof(struct mt_chip_conf));
+    ts->client->controller_data = (void *)&ts->spi_ctrl;
+#endif
+
+#ifdef CONFIG_SPI_MT65XX
+    /* new usage of MTK spi API */
+    memcpy(&ts->spi_ctrl, &spi_ctrdata, sizeof(struct mtk_chip_config));
+    ts->client->controller_data = (void *)&ts->spi_ctrl;
+#endif
+
 	NVT_LOG("mode=%d, max_speed_hz=%d\n", ts->client->mode, ts->client->max_speed_hz);
 
 	ret = nvt_pinctrl_init(ts);
@@ -2530,6 +2614,12 @@ static int32_t nvt_ts_probe(struct platform_device *pdev)
 	for (retry = 0; retry < (sizeof(gesture_key_array) / sizeof(gesture_key_array[0])); retry++) {
 		input_set_capability(ts->input_dev, EV_KEY, gesture_key_array[retry]);
 	}
+#ifdef CONFIG_TOUCHSCREEN_COMMON
+	ret = tp_common_set_double_tap_ops(&double_tap_ops);
+	if (ret < 0)
+        	NVT_ERR("%s: Failed to create double_tap node err=%d\n",
+			__func__, ret);
+#endif
 #endif
 
 	sprintf(ts->phys, "input/ts");
@@ -2550,16 +2640,6 @@ static int32_t nvt_ts_probe(struct platform_device *pdev)
 	if (ts->client->irq) {
 		NVT_LOG("int_trigger_type=%d\n", ts->int_trigger_type);
 		ts->irq_enabled = true;
-		ts->pm_spi_req.type = PM_QOS_REQ_AFFINE_IRQ;
-		ts->pm_spi_req.irq = geni_spi_get_master_irq(ts_xsfer);
-		irq_set_perf_affinity(ts->pm_spi_req.irq, IRQF_PERF_AFFINE);
-		pm_qos_add_request(&ts->pm_spi_req, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
-
-		ts->pm_touch_req.type = PM_QOS_REQ_AFFINE_IRQ;
-		ts->pm_touch_req.irq = ts->client->irq;
-		pm_qos_add_request(&ts->pm_touch_req, PM_QOS_CPU_DMA_LATENCY,
-			   PM_QOS_DEFAULT_VALUE);
 		ret = request_threaded_irq(ts->client->irq, NULL, nvt_ts_work_func,
 				ts->int_trigger_type | IRQF_ONESHOT, NVT_SPI_NAME, ts);
 		if (ret != 0) {
@@ -2629,7 +2709,27 @@ static int32_t nvt_ts_probe(struct platform_device *pdev)
 	}
 #endif
 
+#if NVT_TOUCH_MP
+	ret = nvt_mp_proc_init();
+	if (ret != 0) {
+		NVT_ERR("nvt mp proc init failed. ret=%d\n", ret);
+		goto err_mp_proc_init_failed;
+	}
+
+#ifndef NVT_SAVE_TESTDATA_IN_FILE
+	ret = nvt_test_data_proc_init(ts->client);
+	if (ret < 0) {
+		NVT_ERR("nvt test data interface init failed. ret=%d\n", ret);
+		goto err_mp_proc_init_failed;
+	}
+#endif
+
+#endif
 	attrs_p = (struct attribute_group *)devm_kzalloc(&pdev->dev, sizeof(*attrs_p), GFP_KERNEL);
+	if (!attrs_p) {
+		NVT_ERR("no mem to alloc");
+		goto err_mp_proc_init_failed;
+	}
 	ts->attrs = attrs_p;
 	attrs_p->name = "panel_info";
 	attrs_p->attrs = nvt_panel_attr;
@@ -2732,6 +2832,10 @@ err_register_early_suspend_failed:
 #endif
 	destroy_workqueue(ts->event_wq);
 err_alloc_work_thread_failed:
+#if NVT_TOUCH_MP
+nvt_mp_proc_deinit();
+err_mp_proc_init_failed:
+#endif
 #if NVT_TOUCH_EXT_PROC
 nvt_extra_proc_deinit();
 err_extra_proc_init_failed:
@@ -2766,8 +2870,6 @@ err_create_nvt_lockdown_wq_failed:
 	device_init_wakeup(&ts->input_dev->dev, 0);
 #endif
 	free_irq(ts->client->irq, ts);
-	pm_qos_remove_request(&ts->pm_touch_req);
-	pm_qos_remove_request(&ts->pm_spi_req);
 err_int_request_failed:
 	input_unregister_device(ts->input_dev);
 	ts->input_dev = NULL;
@@ -2823,6 +2925,12 @@ static int32_t nvt_ts_remove(struct platform_device *pdev)
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&ts->early_suspend);
 #endif
+#ifndef NVT_SAVE_TESTDATA_IN_FILE
+	nvt_test_data_proc_deinit();
+#endif
+#if NVT_TOUCH_MP
+	nvt_mp_proc_deinit();
+#endif
 #if NVT_TOUCH_EXT_PROC
 	nvt_extra_proc_deinit();
 #endif
@@ -2853,8 +2961,6 @@ static int32_t nvt_ts_remove(struct platform_device *pdev)
 
 	nvt_irq_enable(false);
 	free_irq(ts->client->irq, ts);
-	pm_qos_remove_request(&ts->pm_touch_req);
-	pm_qos_remove_request(&ts->pm_spi_req);
 
 #if XIAOMI_ROI
 	mutex_destroy(&ts->diffdata_lock);
@@ -2900,6 +3006,9 @@ static void nvt_ts_shutdown(struct platform_device *pdev)
 #endif
 #if defined(CONFIG_HAS_EARLYSUSPEND)
 	unregister_early_suspend(&ts->early_suspend);
+#endif
+#if NVT_TOUCH_MP
+	nvt_mp_proc_deinit();
 #endif
 #if NVT_TOUCH_EXT_PROC
 	nvt_extra_proc_deinit();

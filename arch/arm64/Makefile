@@ -18,7 +18,7 @@ ifeq ($(CONFIG_RELOCATABLE), y)
 # Pass --no-apply-dynamic-relocs to restore pre-binutils-2.27 behaviour
 # for relative relocs, since this leads to better Image compression
 # with the relocation offsets always being zero.
-LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext \
+LDFLAGS_vmlinux		+= -shared -Bsymbolic -z notext -z norelro \
 			$(call ld-option, --no-apply-dynamic-relocs)
 endif
 
@@ -72,19 +72,15 @@ CHECKFLAGS	+= -D__AARCH64EB__
 AS		+= -EB
 # Prefer the baremetal ELF build target, but not all toolchains include
 # it so fall back to the standard linux version if needed.
-KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb -z norelro)
+KBUILD_LDFLAGS	+= -EB $(call ld-option, -maarch64elfb, -maarch64linuxb)
 UTS_MACHINE	:= aarch64_be
 else
 KBUILD_CPPFLAGS	+= -mlittle-endian
 CHECKFLAGS	+= -D__AARCH64EL__
 AS		+= -EL
 # Same as above, prefer ELF but fall back to linux target if needed.
-KBUILD_LDFLAGS	+= -EL $(call ld-option, -maarch64elf, -maarch64linux -z norelro)
+KBUILD_LDFLAGS	+= -EL $(call ld-option, -maarch64elf, -maarch64linux)
 UTS_MACHINE	:= aarch64
-endif
-
-ifeq ($(CONFIG_LD_IS_LLD), y)
-KBUILD_LDFLAGS	+= -z norelro
 endif
 
 CHECKFLAGS	+= -D__aarch64__
@@ -152,6 +148,8 @@ endif
 
 KBUILD_DTBS	:= dtbs
 
+KBUILD_DTBO_IMG := dtbo.img
+
 ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
 export DTC_FLAGS := -@
 endif
@@ -183,6 +181,13 @@ Image-dtb: vmlinux scripts dtbs
 
 Image.gz-dtb: vmlinux scripts dtbs Image.gz
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+ifeq ($(CONFIG_BUILD_ARM64_DT_OVERLAY),y)
+$(KBUILD_DTBO_IMG): dtbs
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+all: $(KBUILD_DTBO_IMG)
+endif
 
 PHONY += vdso_install
 vdso_install:

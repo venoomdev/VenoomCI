@@ -28,13 +28,21 @@
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include <linux/power_supply.h>
-#include <linux/pm_qos.h>
+
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
 #include "nt36xxx_mem_map.h"
+
+#ifdef CONFIG_MTK_SPI
+#include "mtk_spi.h"
+#endif
+
+#ifdef CONFIG_SPI_MT65XX
+#include <linux/platform_data/spi-mt65xx.h>
+#endif
 
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 #include "../xiaomi/xiaomi_touch.h"
@@ -49,9 +57,7 @@
 #define PINCTRL_STATE_RELEASE		"pmx_ts_release"
 #define MI_DRM_NOTIFIER
 
-#define NVT_DEBUG 1
-#define TOUCH_DISABLE_LPM 1
-#define TOUCH_IRQ_BOOST 2
+#define NVT_DEBUG 0
 
 /*---GPIO number---*/
 #define NVTTOUCH_RST_PIN 980
@@ -67,12 +73,8 @@
 /*---SPI driver info.---*/
 #define NVT_SPI_NAME "NVT-ts-spi"
 
-#if NVT_DEBUG
-#define NVT_LOG(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
-#else
-#define NVT_LOG(fmt, args...)    pr_info("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
-#endif
-#define NVT_ERR(fmt, args...)    pr_err("[%s] %s %d: " fmt, NVT_SPI_NAME, __func__, __LINE__, ##args)
+#define NVT_LOG(fmt, args...) ((void)0)
+#define NVT_ERR(fmt, args...) ((void)0)
 
 /*---Input device info.---*/
 #define NVT_TS_NAME "NVTCapacitiveTouchScreen"
@@ -94,6 +96,8 @@ extern const uint16_t touch_key_array[TOUCH_KEY_NUM];
 /*---Customerized func.---*/
 #define NVT_TOUCH_PROC 1
 #define NVT_TOUCH_EXT_PROC 1
+#define NVT_TOUCH_MP 1
+#define NVT_TOUCH_MP_SETTING_CRITERIA_FROM_CSV 1
 #define MT_PROTOCOL_B 1
 #define WAKEUP_GESTURE 1
 #define FUNCPAGE_PALM 4
@@ -186,9 +190,18 @@ struct nvt_ts_data {
 	uint8_t *xbuf;
 	struct mutex xbuf_lock;
 	bool irq_enabled;
+#ifdef CONFIG_MTK_SPI
+	struct mt_chip_conf spi_ctrl;
+#endif
+#ifdef CONFIG_SPI_MT65XX
+    struct mtk_chip_config spi_ctrl;
+#endif
 	struct pinctrl *ts_pinctrl;
 	struct pinctrl_state *pinctrl_state_active;
 	struct pinctrl_state *pinctrl_state_suspend;
+#ifndef NVT_SAVE_TESTDATA_IN_FILE
+	void *testdata;
+#endif
 	int db_wakeup;
 	bool lkdown_readed;
 	bool boot_firmware_updated;
@@ -217,8 +230,6 @@ struct nvt_ts_data {
 	bool palm_sensor_changed;
 	bool palm_sensor_switch;
 	uint8_t debug_flag;
-	struct pm_qos_request pm_touch_req;
-	struct pm_qos_request pm_spi_req;
 };
 
 #if NVT_TOUCH_PROC

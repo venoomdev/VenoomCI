@@ -28,6 +28,10 @@
 #include <linux/fscrypt.h>
 #include <linux/fsverity.h>
 
+#ifdef CONFIG_FS_HPB
+#include <linux/fs_hpb.h>
+#endif
+
 #ifdef CONFIG_F2FS_CHECK_FS
 #define f2fs_bug_on(sbi, condition)	BUG_ON(condition)
 #else
@@ -199,7 +203,7 @@ enum {
 #define	CP_DISCARD	0x00000010
 #define CP_TRIMMED	0x00000020
 #define CP_PAUSE	0x00000040
-
+#define CP_RESIZE 	0x00000080
 #define MAX_DISCARD_BLOCKS(sbi)		BLKS_PER_SEC(sbi)
 #define DEF_MAX_DISCARD_REQUEST		8	/* issue 8 discards per round */
 #define DEF_MIN_DISCARD_ISSUE_TIME	50	/* 50 ms, if exists */
@@ -734,6 +738,12 @@ enum {
 	FI_VERITY_IN_PROGRESS,	/* building fs-verity Merkle tree */
 	FI_COMPRESSED_FILE,	/* indicate file's data can be compressed */
 	FI_MMAP_FILE,		/* indicate file was mmapped */
+	FI_ENABLE_COMPRESS,	/* enable compression in "user" compression mode */
+	FI_COMPRESS_RELEASED,	/* compressed blocks were released */
+	FI_ALIGNED_WRITE,	/* enable aligned write */
+#ifdef CONFIG_FS_HPB
+	FI_HPB_INODE,		/* HPB */
+#endif
 	FI_MAX,			/* max flag, never be used */
 };
 
@@ -1373,6 +1383,7 @@ struct f2fs_sb_info {
 	int cur_cp_pack;			/* remain current cp pack */
 	spinlock_t cp_lock;			/* for flag in ckpt */
 	struct inode *meta_inode;		/* cache meta blocks */
+        struct rw_semaphore cp_global_sem;	/* checkpoint procedure lock */
 	struct mutex cp_mutex;			/* checkpoint procedure lock */
 	struct rw_semaphore cp_rwsem;		/* blocking FS operations */
 	struct rw_semaphore node_write;		/* locking node writes */

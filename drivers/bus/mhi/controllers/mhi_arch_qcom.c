@@ -17,12 +17,10 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/mhi.h>
-
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-
 #include "mhi_qcom.h"
 
 struct arch_info {
@@ -311,7 +309,6 @@ static void mhi_arch_esoc_ops_mdm_error(void *priv)
 static char sdx55m_cpuid[SERIAL_NUM_LEN]={"\0"};
 static char sdx55m_fuse[64]={"\0"};
 
-
 static int secureboot_proc_show(struct seq_file *m, void *v)
 {
 	seq_printf(m, "%s\n", sdx55m_cpuid);
@@ -336,7 +333,6 @@ static int __init proc_sdx55m_cpuid_init(void)
 	return 0;
 }
 fs_initcall(proc_sdx55m_cpuid_init);
-
 
 static int fuse_proc_show(struct seq_file *m, void *v)
 {
@@ -363,9 +359,6 @@ static int __init proc_sdx55m_fuse_init(void)
 }
 fs_initcall(proc_sdx55m_fuse_init);
 
-
-
-
 static void mhi_bl_dl_cb(struct mhi_device *mhi_device,
 			 struct mhi_result *mhi_result)
 {
@@ -383,15 +376,15 @@ static void mhi_bl_dl_cb(struct mhi_device *mhi_device,
 	buf[mhi_result->bytes_xferd - 1] = 0;
 
 	pSerial_number = strstr(buf,const_serial_number);
-	if( pSerial_number != NULL )
-	{
-		strncpy(sdx55m_cpuid, pSerial_number + strlen(const_serial_number), strlen("0x3de665bd"));
+	if (pSerial_number != NULL) {
+		strncpy(sdx55m_cpuid, pSerial_number + strlen(const_serial_number),
+			strlen("0x3de665bd"));
 	}
 
 	pSerial_number = strstr(buf,const_sdx55m_fuse);
-	if( pSerial_number != NULL )
-	{
-		strncpy(sdx55m_fuse, pSerial_number + strlen(const_sdx55m_fuse), strlen("Off"));
+	if (pSerial_number != NULL) {
+		strncpy(sdx55m_fuse, pSerial_number + strlen(const_sdx55m_fuse),
+			strlen("Off"));
 	}
 
 	if (mhi_result->bytes_xferd >= MAX_MSG_SIZE) {
@@ -834,7 +827,6 @@ int mhi_arch_link_resume(struct mhi_controller *mhi_cntrl)
 
 	if (!ret)
 		msm_pcie_l1ss_timeout_enable(pci_dev);
-	mhi_cntrl->force_m3_done = true;
 
 	MHI_LOG("Exited with ret:%d\n", ret);
 

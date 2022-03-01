@@ -32,6 +32,7 @@ enum msm_pcie_event {
 	MSM_PCIE_EVENT_L1SS_TIMEOUT = BIT(3),
 	MSM_PCIE_EVENT_DRV_CONNECT = BIT(4),
 	MSM_PCIE_EVENT_DRV_DISCONNECT = BIT(5),
+	MSM_PCIE_EVENT_LINK_RECOVER = BIT(6),
 };
 
 enum msm_pcie_trigger {
@@ -216,6 +217,8 @@ int msm_pcie_shadow_control(struct pci_dev *dev, bool enable);
  */
 int msm_pcie_debug_info(struct pci_dev *dev, u32 option, u32 base,
 			u32 offset, u32 mask, u32 value);
+
+int msm_pcie_reg_dump(struct pci_dev *pci_dev, u8 *buff, u32 len);
 
 #else /* !CONFIG_PCI_MSM */
 static inline int msm_pcie_pm_control(enum msm_pcie_pm_opt pm_opt, u32 busnr,
