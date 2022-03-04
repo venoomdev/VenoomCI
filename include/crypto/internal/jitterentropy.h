@@ -1,6 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
 
-typedef unsigned long long      __u64;
 
 extern void *jent_zalloc(unsigned int len);
 extern void jent_zfree(void *ptr);
@@ -17,3 +15,5 @@ extern int jent_read_entropy(struct rand_data *ec, unsigned char *data,
 extern struct rand_data *jent_entropy_collector_alloc(unsigned int osr,
 						      unsigned int flags);
 extern void jent_entropy_collector_free(struct rand_data *entropy_collector);
+extern __u64 jent_rol64(__u64 word, unsigned int shift);
+
