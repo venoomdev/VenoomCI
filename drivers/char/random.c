@@ -1538,7 +1538,7 @@ static void _get_random_bytes(void *buf, int nbytes)
 	memzero_explicit(tmp, sizeof(tmp));
 }
 
-int __must_check get_random_bytes_arch(void *buf, int nbytes)
+/*int __must_check get_random_bytes_arch(void *buf, int nbytes)
 {
 	int left = nbytes;
 	char *p = buf;
@@ -1558,7 +1558,7 @@ int __must_check get_random_bytes_arch(void *buf, int nbytes)
 
 	return nbytes - left;
 }
-EXPORT_SYMBOL(get_random_bytes_arch);
+EXPORT_SYMBOL(get_random_bytes_arch);*/
 
 
 void get_random_bytes(void *buf, int nbytes)
