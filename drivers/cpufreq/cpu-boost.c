@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2015,2017,2019, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #define pr_fmt(fmt) "cpu-boost: " fmt
@@ -43,7 +42,6 @@ struct cpu_sync {
 	unsigned int input_boost_freq;
 	unsigned int powerkey_input_boost_freq;
 };
-
 
 static DEFINE_PER_CPU(struct cpu_sync, sync_info);
 static struct workqueue_struct *cpu_boost_wq;
