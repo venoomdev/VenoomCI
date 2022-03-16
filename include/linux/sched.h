@@ -28,7 +28,7 @@
 #include <linux/mm_types_task.h>
 #include <linux/task_io_accounting.h>
 #include <linux/rseq.h>
-
+#include <linux/android_kabi.h>
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
 struct backing_dev_info;
@@ -831,6 +831,7 @@ struct task_struct {
 	unsigned int			flags;
 	unsigned int			ptrace;
 	unsigned int                    pc_flags;
+	ANDROID_KABI_USE(1, unsigned frozen:1);
 
 #ifdef CONFIG_SMP
 	struct llist_node		wake_entry;

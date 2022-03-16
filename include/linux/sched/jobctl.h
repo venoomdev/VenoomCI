@@ -9,8 +9,9 @@ struct task_struct;
 /*
  * task->jobctl flags
  */
+#define JOBCTL_TRAP_FREEZE_BIT	23	/* trap for cgroup freezer */
 #define JOBCTL_STOP_SIGMASK	0xffff	/* signr of the last group stop */
-
+#define JOBCTL_TRAP_FREEZE	(1UL << JOBCTL_TRAP_FREEZE_BIT)
 #define JOBCTL_STOP_DEQUEUED_BIT 16	/* stop signal dequeued */
 #define JOBCTL_STOP_PENDING_BIT	17	/* task should stop for group stop */
 #define JOBCTL_STOP_CONSUME_BIT	18	/* consume group stop count */
