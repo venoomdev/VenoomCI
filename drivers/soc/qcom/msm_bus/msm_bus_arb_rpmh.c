@@ -23,6 +23,8 @@
 #define MSM_BUS_RSC_DISP		8001
 #define BCM_TCS_CMD_ACV_APPS		0x8
 
+#define DEBUG_REC_TRANSACTION 0
+
 struct bus_search_type {
 	struct list_head link;
 	struct list_head node_list;
@@ -1399,7 +1401,7 @@ static int update_client_alc(struct msm_bus_client *client, bool log_trns,
 {
 	int lnode, cur_idx;
 	uint64_t req_idle_time, req_fal, dual_idle_time, dual_fal,
-	cur_idle_time, cur_fal;
+	cur_idle_time = 0, cur_fal = 0;
 	int ret = 0;
 	struct msm_bus_scale_pdata *pdata;
 	struct device *src_dev;
@@ -1794,7 +1796,8 @@ static int update_bw_adhoc(struct msm_bus_client_handle *cl, u64 ab, u64 ib)
 	if (!strcmp(test_cl, cl->name))
 		log_transaction = true;
 
-	msm_bus_dbg_rec_transaction(cl, ab, ib);
+	if (DEBUG_REC_TRANSACTION)
+		msm_bus_dbg_rec_transaction(cl, ab, ib);
 
 	if (cl->active_only) {
 		if ((cl->cur_act_ib == ib) && (cl->cur_act_ab == ab)) {
@@ -1863,7 +1866,9 @@ static int update_bw_context(struct msm_bus_client_handle *cl, u64 act_ab,
 
 	if (!dual_ab && !dual_ib)
 		cl->active_only = true;
-	msm_bus_dbg_rec_transaction(cl, cl->cur_act_ab, cl->cur_dual_ib);
+	if (DEBUG_REC_TRANSACTION)
+		msm_bus_dbg_rec_transaction(cl, cl->cur_act_ab,
+					    cl->cur_dual_ib);
 	ret = update_path(cl->mas_dev, cl->slv, act_ib, act_ab, dual_ib,
 				dual_ab, cl->cur_act_ab, cl->cur_act_ab,
 				cl->first_hop, cl->active_only);

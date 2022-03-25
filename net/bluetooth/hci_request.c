@@ -271,12 +271,16 @@ int hci_req_sync(struct hci_dev *hdev, int (*req)(struct hci_request *req,
 {
 	int ret;
 
-	if (!test_bit(HCI_UP, &hdev->flags))
-		return -ENETDOWN;
-
 	/* Serialize all requests */
 	hci_req_sync_lock(hdev);
-	ret = __hci_req_sync(hdev, req, opt, timeout, hci_status);
+	/* check the state after obtaing the lock to protect the HCI_UP
+	 * against any races from hci_dev_do_close when the controller
+	 * gets removed.
+	 */
+	if (test_bit(HCI_UP, &hdev->flags))
+		ret = __hci_req_sync(hdev, req, opt, timeout, hci_status);
+	else
+		ret = -ENETDOWN;
 	hci_req_sync_unlock(hdev);
 
 	return ret;
@@ -2041,7 +2045,7 @@ static void connectable_update_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    connectable_update);
-	u8 status;
+	u8 status = 0;
 
 	hci_req_sync(hdev, connectable_update, 0, HCI_CMD_TIMEOUT, &status);
 	mgmt_set_connectable_complete(hdev, status);
@@ -2154,7 +2158,7 @@ static void discoverable_update_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    discoverable_update);
-	u8 status;
+	u8 status = 0;
 
 	hci_req_sync(hdev, discoverable_update, 0, HCI_CMD_TIMEOUT, &status);
 	mgmt_set_discoverable_complete(hdev, status);
@@ -2266,7 +2270,7 @@ static void bg_scan_update(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    bg_scan_update);
 	struct hci_conn *conn;
-	u8 status;
+	u8 status = 0;
 	int err;
 
 	err = hci_req_sync(hdev, update_bg_scan, 0, HCI_CMD_TIMEOUT, &status);
@@ -2319,7 +2323,7 @@ static void le_scan_disable_work(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_disable.work);
-	u8 status;
+	u8 status = 0;
 
 	BT_DBG("%s", hdev->name);
 
@@ -2410,7 +2414,7 @@ static void le_scan_restart_work(struct work_struct *work)
 	struct hci_dev *hdev = container_of(work, struct hci_dev,
 					    le_scan_restart.work);
 	unsigned long timeout, duration, scan_start, now;
-	u8 status;
+	u8 status = 0;
 
 	BT_DBG("%s", hdev->name);
 

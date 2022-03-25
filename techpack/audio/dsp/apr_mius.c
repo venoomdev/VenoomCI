@@ -1,3 +1,4 @@
+
 /**
  * Mi
  */
@@ -143,7 +144,7 @@ static int afe_set_parameter(int port,
 	}
 	ret = wait_event_timeout(mius_afe.ptr_wait[index],
 		(atomic_read(mius_afe.ptr_state) == 0),
-		msecs_to_jiffies(mius_afe.timeout_ms*10));
+		msecs_to_jiffies(mius_afe.timeout_ms));
 	if (!ret) {
 		pr_err("%s: wait_event timeout\n", __func__);
 		ret = -EINVAL;
@@ -366,7 +367,8 @@ static int ups_event;
 {
 	struct task_struct *p;
 
-	for_each_process(p){
+	for_each_process(p) {
+		// Skip kthreads
 		if (p->flags & PF_KTHREAD)
 			continue;
 
@@ -374,6 +376,9 @@ static int ups_event;
 			int adj = p->signal->oom_score_adj;
 
 			pr_info("%s has adj: %d", p->comm, adj);
+			// Telegram has adj of 700 when it's not a top-app, but playing a message
+			// It drops to 945 when it stops playing
+			// Telegram when it's a top-app has adj of 0
 			if (adj <= 700) {
 				pr_info("Blocking %s from reading proximity sensor...", p->comm);
 				return 1;
@@ -389,6 +394,7 @@ int32_t mius_process_apr_payload(uint32_t *payload)
 {
 	uint32_t payload_size = 0;
 	int32_t  ret = -1;
+
 	//if (payload[0] == MIUS_ULTRASOUND_MODULE_TX) {
 	if (true) {
 		/* payload format

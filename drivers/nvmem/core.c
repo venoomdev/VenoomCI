@@ -69,7 +69,7 @@ static ssize_t bin_attr_nvmem_cell_read(struct file *filp, struct kobject *kobj,
 				    char *buf, loff_t pos, size_t count)
 {
 	struct nvmem_cell *cell;
-	size_t len;
+	size_t len = 0;
 	u8 *data;
 
 	cell = attr->private;
@@ -899,8 +899,8 @@ static void nvmem_shift_read_buffer_in_place(struct nvmem_cell *cell, void *buf)
 		*p-- = 0;
 
 	/* clear msb bits if any leftover in the last byte */
-	if (cell->nbits%BITS_PER_BYTE)
-		*p &= GENMASK((cell->nbits%BITS_PER_BYTE) - 1, 0);
+	if (cell->nbits % BITS_PER_BYTE)
+		*p &= GENMASK((cell->nbits % BITS_PER_BYTE) - 1, 0);
 }
 
 static int __nvmem_cell_read(struct nvmem_device *nvmem,

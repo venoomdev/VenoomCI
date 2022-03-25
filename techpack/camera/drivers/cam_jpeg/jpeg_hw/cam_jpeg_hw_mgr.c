@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/uaccess.h>
@@ -728,10 +728,12 @@ static int cam_jpeg_mgr_prepare_hw_update(void *hw_mgr_priv,
 	}
 
 	if ((packet->num_cmd_buf > 5) || !packet->num_patches ||
-		!packet->num_io_configs) {
-		CAM_ERR(CAM_JPEG, "wrong number of cmd/patch info: %u %u",
-			packet->num_cmd_buf,
-			packet->num_patches);
+		!packet->num_io_configs ||
+		(packet->num_io_configs > CAM_JPEG_IMAGE_MAX)) {
+		CAM_ERR(CAM_JPEG,
+			"wrong number of cmd/patch/io_configs info: %u %u %u",
+			packet->num_cmd_buf, packet->num_patches,
+			packet->num_io_configs);
 		return -EINVAL;
 	}
 
@@ -1561,7 +1563,7 @@ hw_dump:
 
 	if (diff < CAM_JPEG_RESPONSE_TIME_THRESHOLD) {
 		CAM_INFO(CAM_JPEG,
-			"No error req %lld %ld:%06ld %ld:%06ld",
+			"No error req %lld %lld:%06ld %lld:%06ld",
 			dump_args->request_id,
 			req_ts.tv_sec,
 			req_ts.tv_nsec/NSEC_PER_USEC,
@@ -1572,7 +1574,7 @@ hw_dump:
 	}
 
 	CAM_INFO(CAM_JPEG,
-		"Error req %lld %ld:%06ld %ld:%06ld",
+		"Error req %lld %lld:%06ld %lld:%06ld",
 		dump_args->request_id,
 		req_ts.tv_sec,
 		req_ts.tv_nsec/NSEC_PER_USEC,
@@ -1667,8 +1669,8 @@ int cam_jpeg_hw_mgr_init(struct device_node *of_node, uint64_t *hw_mgr_hdl,
 	int *iommu_hdl)
 {
 	int i, rc;
-	uint32_t num_dev;
-	uint32_t num_dma_dev;
+	uint32_t num_dev = 0;
+	uint32_t num_dma_dev = 0;
 	struct cam_hw_mgr_intf *hw_mgr_intf;
 	struct cam_iommu_handle cdm_handles;
 

@@ -36,6 +36,12 @@
 #include <dsp/msm-cirrus-playback.h>
 #endif
 
+#ifdef AUDIO_FORCE_RESTART_ADSP
+#include <soc/qcom/subsystem_restart.h>
+#define ADSP_ERR_LIMITED_COUNT   (3)
+static int err_count = 0;
+#endif
+
 #define WAKELOCK_TIMEOUT	5000
 #define AFE_CLK_TOKEN	1024
 
@@ -1487,16 +1493,37 @@ static int afe_apr_send_clk_pkt(void *data, wait_queue_head_t *wait)
 				pr_err("%s: timeout\n", __func__);
 				ret = -ETIMEDOUT;
 			} else if (atomic_read(&this_afe.clk_status) > 0) {
+#ifdef AUDIO_FORCE_RESTART_ADSP
+				pr_err("%s: DSP returned error[%s][%d]\n", __func__,
+					adsp_err_get_err_str(atomic_read(
+					&this_afe.clk_status)), err_count);
+#else
 				pr_err("%s: DSP returned error[%s]\n", __func__,
 					adsp_err_get_err_str(atomic_read(
 					&this_afe.clk_status)));
+#endif
 				ret = adsp_err_get_lnx_err_code(
 						atomic_read(&this_afe.clk_status));
+#ifdef AUDIO_FORCE_RESTART_ADSP
+				if (atomic_read(&this_afe.clk_status) == ADSP_ENEEDMORE)
+					err_count++;
+				else
+					err_count = 0;
+
+				if (err_count >= ADSP_ERR_LIMITED_COUNT) {
+					err_count = 0;
+					pr_err("%s: DSP returned error more than limited, restart now !\n", __func__);
+					subsystem_restart("adsp");
+				}
+#endif
 			} else {
 				ret = 0;
 			}
 		} else {
 			ret = 0;
+#ifdef AUDIO_FORCE_RESTART_ADSP
+			err_count = 0;
+#endif
 		}
 	} else if (ret == 0) {
 		pr_err("%s: packet not transmitted\n", __func__);
@@ -9212,6 +9239,7 @@ static int afe_get_sp_th_vi_v_vali_data(
 
 	mutex_lock(&this_afe.afe_cmd_lock);
 	memset(&param_hdr, 0, sizeof(param_hdr));
+	memset(th_vi_v_vali, 0, sizeof(*th_vi_v_vali));
 
 	param_hdr.module_id = AFE_MODULE_SPEAKER_PROTECTION_V2_TH_VI;
 	param_hdr.instance_id = INSTANCE_ID_0;
@@ -10071,6 +10099,9 @@ static int afe_set_cal_sp_th_vi_cfg(int32_t cal_type, size_t data_size,
 
 	if (cal_data == NULL ||
 	    data_size > sizeof(*cal_data) ||
+	    (data_size < sizeof(cal_data->cal_hdr) +
+		sizeof(cal_data->cal_data) +
+		sizeof(cal_data->cal_info.mode)) ||
 	    this_afe.cal_data[AFE_FB_SPKR_PROT_TH_VI_CAL] == NULL)
 		goto done;
 
@@ -10288,7 +10319,9 @@ static int afe_get_cal_sp_th_vi_param(int32_t cal_type, size_t data_size,
 
 	if (cal_data == NULL ||
 	    data_size > sizeof(*cal_data) ||
-	    data_size < sizeof(cal_data->cal_hdr) ||
+	    (data_size < sizeof(cal_data->cal_hdr) +
+		sizeof(cal_data->cal_data) +
+		sizeof(cal_data->cal_info.mode)) ||
 	    this_afe.cal_data[AFE_FB_SPKR_PROT_TH_VI_CAL] == NULL)
 		return 0;
 
@@ -10317,8 +10350,7 @@ static int afe_get_cal_spv4_ex_vi_ftm_param(int32_t cal_type, size_t data_size,
 	pr_debug("%s: cal_type = %d\n", __func__, cal_type);
 	if (this_afe.cal_data[AFE_FB_SPKR_PROT_V4_EX_VI_CAL] == NULL ||
 	    cal_data == NULL ||
-	    data_size > sizeof(*cal_data) ||
-	    data_size < sizeof(cal_data->cal_hdr))
+	    data_size != sizeof(*cal_data))
 		goto done;
 
 	mutex_lock(&this_afe.cal_data[AFE_FB_SPKR_PROT_V4_EX_VI_CAL]->lock);
@@ -10385,8 +10417,7 @@ static int afe_get_cal_sp_ex_vi_ftm_param(int32_t cal_type, size_t data_size,
 	pr_debug("%s: cal_type = %d\n", __func__, cal_type);
 	if (this_afe.cal_data[AFE_FB_SPKR_PROT_EX_VI_CAL] == NULL ||
 	    cal_data == NULL ||
-	    data_size > sizeof(*cal_data) ||
-	    data_size < sizeof(cal_data->cal_hdr))
+	    data_size != sizeof(*cal_data))
 		goto done;
 
 	mutex_lock(&this_afe.cal_data[AFE_FB_SPKR_PROT_EX_VI_CAL]->lock);
@@ -10779,7 +10810,7 @@ static void afe_release_uevent_data(struct kobject *kobj)
 #ifdef TFA_ADSP_SUPPORTED
 int send_tfa_cal_apr(void *buf, int cmd_size, bool bRead)
 {
-	int32_t result, port_id = AFE_PORT_ID_TFADSP_RX;
+	int32_t result = 0, port_id = AFE_PORT_ID_TFADSP_RX;
 	uint32_t port_index = 0, payload_size = 0;
 	size_t len;
 	struct rtac_cal_block_data *tfa_cal = &(this_afe.tfa_cal);

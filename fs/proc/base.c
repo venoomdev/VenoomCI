@@ -99,10 +99,6 @@
 #include "internal.h"
 #include "fd.h"
 
-#ifdef CONFIG_TASK_DELAY_ACCT
-#include <linux/delayacct.h>
-#endif
-
 #include "../../lib/kstrtox.h"
 
 /* NOTE:
@@ -775,51 +771,6 @@ static const struct file_operations proc_single_file_operations = {
 	.release	= single_release,
 };
 
-#ifdef CONFIG_TASK_DELAY_ACCT
-struct delay_struct {
-	u64 version;
-	u64 blkio_delay;      /* wait for sync block io completion */
-	u64 swapin_delay;     /* wait for swapin block io completion */
-	u64 freepages_delay;  /* wait for memory reclaim */
-	u64 cpu_runtime;
-	u64 cpu_run_delay;
-};
-
-static ssize_t delay_read(struct file *file, char __user *buf,
-			  size_t count, loff_t *ppos)
-{
-	struct task_struct *task = get_proc_task(file_inode(file));
-	struct delay_struct d = {};
-	unsigned long flags;
-	u64 blkio_delay, swapin_delay, freepages_delay;
-	loff_t dummy_pos = 0;
-	if (!task)
-		return -ESRCH;
-
-	raw_spin_lock_irqsave(&task->delays->lock, flags);
-	blkio_delay = task->delays->blkio_delay;
-	swapin_delay = task->delays->swapin_delay;
-	freepages_delay = task->delays->freepages_delay;
-	raw_spin_unlock_irqrestore(&task->delays->lock, flags);
-
-	d.version = 1;
-	d.blkio_delay = blkio_delay >> 20;
-	d.swapin_delay = swapin_delay >> 20;
-	d.freepages_delay = freepages_delay >> 20;
-
-	if (likely(sched_info_on())) {
-		d.cpu_runtime = task->se.sum_exec_runtime >> 20;
-		d.cpu_run_delay = task->sched_info.run_delay >> 20;
-	}
-
-	put_task_struct(task);
-	return simple_read_from_buffer(buf, count, &dummy_pos, &d, sizeof(struct delay_struct));
-}
-
-static const struct file_operations proc_delay_file_operations = {
-	.read = delay_read,
-};
-#endif
 
 struct mm_struct *proc_mem_open(struct inode *inode, unsigned int mode)
 {
@@ -885,7 +836,7 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
 	flags = FOLL_FORCE | (write ? FOLL_WRITE : 0);
 
 	while (count > 0) {
-		int this_len = min_t(int, count, PAGE_SIZE);
+		size_t this_len = min_t(size_t, count, PAGE_SIZE);
 
 		if (write && copy_from_user(page, buf, this_len)) {
 			copied = -EFAULT;
@@ -1085,7 +1036,6 @@ static ssize_t oom_adj_read(struct file *file, char __user *buf, size_t count,
 
 static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 {
-	static DEFINE_MUTEX(oom_adj_mutex);
 	struct mm_struct *mm = NULL;
 	struct task_struct *task;
 	int err = 0;
@@ -1125,7 +1075,7 @@ static int __set_oom_adj(struct file *file, int oom_adj, bool legacy)
 		struct task_struct *p = find_lock_task_mm(task);
 
 		if (p) {
-			if (atomic_read(&p->mm->mm_users) > 1) {
+			if (test_bit(MMF_MULTIPROCESS, &p->mm->flags)) {
 				mm = p->mm;
 				mmgrab(mm);
 			}
@@ -2836,6 +2786,13 @@ out:
 }
 
 #ifdef CONFIG_SECURITY
+static int proc_pid_attr_open(struct inode *inode, struct file *file)
+{
+	file->private_data = NULL;
+	__mem_open(inode, file, PTRACE_MODE_READ_FSCREDS);
+	return 0;
+}
+
 static ssize_t proc_pid_attr_read(struct file * file, char __user * buf,
 				  size_t count, loff_t *ppos)
 {
@@ -2864,6 +2821,10 @@ static ssize_t proc_pid_attr_write(struct file * file, const char __user * buf,
 	struct task_struct *task;
 	void *page;
 	int rv;
+
+	/* A task may only write when it was the opener. */
+	if (file->private_data != current->mm)
+		return -EPERM;
 
 	rcu_read_lock();
 	task = pid_task(proc_pid(inode), PIDTYPE_PID);
@@ -2910,9 +2871,11 @@ out:
 }
 
 static const struct file_operations proc_pid_attr_operations = {
+	.open		= proc_pid_attr_open,
 	.read		= proc_pid_attr_read,
 	.write		= proc_pid_attr_write,
 	.llseek		= generic_file_llseek,
+	.release	= mem_release,
 };
 
 static const struct pid_entry attr_dir_stuff[] = {
@@ -3454,7 +3417,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
 	REG("mountstats", S_IRUSR, proc_mountstats_operations),
 #ifdef CONFIG_PROCESS_RECLAIM
-	REG("reclaim", S_IWUSR|S_IWGRP|S_IWOTH, proc_reclaim_operations),
+	REG("reclaim", 0222, proc_reclaim_operations),
 #endif
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
@@ -3874,9 +3837,6 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 #ifdef CONFIG_SCHED_INFO
 	ONE("schedstat", S_IRUGO, proc_pid_schedstat),
-#endif
-#ifdef CONFIG_TASK_DELAY_ACCT
-	REG("delay",      S_IRUGO, proc_delay_file_operations),
 #endif
 #ifdef CONFIG_LATENCYTOP
 	REG("latency",  S_IRUGO, proc_lstats_operations),

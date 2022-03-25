@@ -444,7 +444,7 @@ void generic_shutdown_super(struct super_block *sb)
 		sync_filesystem(sb);
 		sb->s_flags &= ~SB_ACTIVE;
 
-		fsnotify_unmount_inodes(sb);
+		fsnotify_sb_delete(sb);
 		cgroup_writeback_umount();
 
 		evict_inodes(sb);
@@ -1262,17 +1262,15 @@ mount_fs(struct file_system_type *type, int flags, const char *name, struct vfsm
 {
 	struct dentry *root;
 	struct super_block *sb;
-	char *secdata = NULL;
 	int error = -ENOMEM;
+	struct security_mnt_opts opts;
+
+	security_init_mnt_opts(&opts);
 
 	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		secdata = alloc_secdata();
-		if (!secdata)
-			goto out;
-
-		error = security_sb_copy_data(data, secdata);
+		error = security_sb_eat_lsm_opts(data, &opts);
 		if (error)
-			goto out_free_secdata;
+			return ERR_PTR(error);
 	}
 
 	if (type->mount2)
@@ -1296,7 +1294,7 @@ mount_fs(struct file_system_type *type, int flags, const char *name, struct vfsm
 	smp_wmb();
 	sb->s_flags |= SB_BORN;
 
-	error = security_sb_kern_mount(sb, flags, secdata);
+	error = security_sb_kern_mount(sb, flags, &opts);
 	if (error)
 		goto out_sb;
 
@@ -1310,14 +1308,13 @@ mount_fs(struct file_system_type *type, int flags, const char *name, struct vfsm
 		"negative value (%lld)\n", type->name, sb->s_maxbytes);
 
 	up_write(&sb->s_umount);
-	free_secdata(secdata);
+	security_free_mnt_opts(&opts);
 	return root;
 out_sb:
 	dput(root);
 	deactivate_locked_super(sb);
 out_free_secdata:
-	free_secdata(secdata);
-out:
+	security_free_mnt_opts(&opts);
 	return ERR_PTR(error);
 }
 
@@ -1380,36 +1377,11 @@ EXPORT_SYMBOL(__sb_end_write);
  */
 int __sb_start_write(struct super_block *sb, int level, bool wait)
 {
-	bool force_trylock = false;
-	int ret = 1;
+	if (!wait)
+		return percpu_down_read_trylock(sb->s_writers.rw_sem + level-1);
 
-#ifdef CONFIG_LOCKDEP
-	/*
-	 * We want lockdep to tell us about possible deadlocks with freezing
-	 * but it's it bit tricky to properly instrument it. Getting a freeze
-	 * protection works as getting a read lock but there are subtle
-	 * problems. XFS for example gets freeze protection on internal level
-	 * twice in some cases, which is OK only because we already hold a
-	 * freeze protection also on higher level. Due to these cases we have
-	 * to use wait == F (trylock mode) which must not fail.
-	 */
-	if (wait) {
-		int i;
-
-		for (i = 0; i < level - 1; i++)
-			if (percpu_rwsem_is_held(sb->s_writers.rw_sem + i)) {
-				force_trylock = true;
-				break;
-			}
-	}
-#endif
-	if (wait && !force_trylock)
-		percpu_down_read(sb->s_writers.rw_sem + level-1);
-	else
-		ret = percpu_down_read_trylock(sb->s_writers.rw_sem + level-1);
-
-	WARN_ON(force_trylock && !ret);
-	return ret;
+	percpu_down_read(sb->s_writers.rw_sem + level-1);
+	return 1;
 }
 EXPORT_SYMBOL(__sb_start_write);
 

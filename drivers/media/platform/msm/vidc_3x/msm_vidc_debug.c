@@ -21,7 +21,7 @@
 int msm_vidc_debug = VIDC_ERR | VIDC_WARN;
 int msm_vidc_debug_out = VIDC_OUT_PRINTK;
 int msm_vidc_fw_debug = 0x18;
-int msm_vidc_fw_debug_mode = 1;
+int msm_vidc_fw_debug_mode = 0;
 int msm_vidc_fw_low_power_mode = 1;
 int msm_vidc_hw_rsp_timeout = 1000;
 bool msm_vidc_fw_coverage = true;
@@ -479,6 +479,9 @@ void msm_vidc_debugfs_deinit_inst(struct msm_vidc_inst *inst)
 		return;
 
 	dentry = inst->debugfs_root;
+	if (IS_ERR_OR_NULL(dentry))
+		return;
+
 	if (dentry->d_inode) {
 		dprintk(VIDC_INFO, "Destroy %pK\n", dentry->d_inode->i_private);
 		kfree(dentry->d_inode->i_private);

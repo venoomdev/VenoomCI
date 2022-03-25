@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2021 XiaoMi, Inc.
  */
 
@@ -74,6 +74,7 @@ enum print_reason {
 #define JEITA_ARB_VOTER			"JEITA_ARB_VOTER"
 #define MOISTURE_VOTER			"MOISTURE_VOTER"
 #define HVDCP2_ICL_VOTER		"HVDCP2_ICL_VOTER"
+#define HVDCP2_12V_ICL_VOTER		"HVDCP2_12V_ICL_VOTER"
 #define HVDCP2_FCC_VOTER		"HVDCP2_FCC_VOTER"
 #define AICL_THRESHOLD_VOTER		"AICL_THRESHOLD_VOTER"
 #define USBOV_DBC_VOTER			"USBOV_DBC_VOTER"
@@ -143,7 +144,13 @@ enum print_reason {
 #define SDP_CURRENT_UA			500000
 #define CDP_CURRENT_UA			1500000
 #define DCP_CURRENT_UA			1600000
-#define HVDCP_START_CURRENT_UA		1000000
+
+#ifdef CONFIG_RX1619_REMOVE
+#define HVDCP_START_CURRENT_UA		500000
+#else
+#define HVDCP_START_CURRENT_UA          1000000
+#endif
+
 #define HVDCP_CURRENT_UA		2800000
 #define TYPEC_DEFAULT_CURRENT_UA	900000
 #define TYPEC_MEDIUM_CURRENT_UA		1500000
@@ -561,6 +568,7 @@ struct smb_charger {
 	struct mutex		smb_lock;
 	struct mutex		ps_change_lock;
 	struct mutex		irq_status_lock;
+	struct mutex		moisture_detection_enable;
 	struct mutex		dcin_aicl_lock;
 	spinlock_t		typec_pr_lock;
 	struct mutex		adc_lock;
@@ -736,8 +744,10 @@ struct smb_charger {
 	int			dcp_icl_ua;
 	int			fake_capacity;
 	int			fake_batt_status;
+	bool			chg_enable_k11a;
 	bool			step_chg_enabled;
 	bool			sw_jeita_enabled;
+	bool			jeita_arb_enable;
 	bool			typec_legacy_use_rp_icl;
 	bool			is_hdc;
 	bool			chg_done;
@@ -784,6 +794,7 @@ struct smb_charger {
 	int			jeita_soft_fcc[2];
 	int			jeita_soft_fv[2];
 	bool			moisture_present;
+	bool			moisture_detection_enabled;
 	bool			uusb_moisture_protection_capable;
 	bool			uusb_moisture_protection_enabled;
 	bool			hw_die_temp_mitigation;
@@ -858,9 +869,11 @@ struct smb_charger {
 	int64_t			rpp;
 	int64_t			cep;
 	int64_t			tx_bt_mac;
+	int64_t			pen_bt_mac;
 	int64_t oob_rpp_msg_cnt;
 	int64_t oob_cep_msg_cnt;
 	int			reverse_chg_state;
+	int			reverse_pen_chg_state;
 	int			reverse_gpio_state;
 
 	/* product related */
@@ -951,6 +964,10 @@ struct smb_charger {
 	bool			flag_second_ffc_term_current;
 
 	int			night_chg_flag;
+
+	/* lpd timer work */
+	struct workqueue_struct *wq;
+	struct work_struct	lpd_recheck_work;
 };
 
 int smblib_read(struct smb_charger *chg, u16 addr, u8 *val);
@@ -1193,6 +1210,8 @@ int smblib_get_prop_dc_temp_level(struct smb_charger *chg,
 				union power_supply_propval *val);
 int smblib_set_prop_tx_mac(struct smb_charger *chg,
 				const union power_supply_propval *val);
+void smblib_set_prop_pen_mac(struct smb_charger *chg,
+				const union power_supply_propval *val);
 int smblib_set_prop_rx_cr(struct smb_charger *chg,
 				const union power_supply_propval *val);
 int smblib_set_prop_rx_cep(struct smb_charger *chg,
@@ -1233,6 +1252,7 @@ int smblib_night_charging_func(struct smb_charger *chg,
 				 union power_supply_propval *val);
 int smblib_get_quick_charge_type(struct smb_charger *chg);
 int smblib_get_qc3_main_icl_offset(struct smb_charger *chg, int *offset_ua);
+int smblib_enable_moisture_detection(struct smb_charger *chg, bool enable);
 
 int smblib_dp_dm_bq(struct smb_charger *chg, int val);
 int smblib_get_prop_battery_charging_enabled(struct smb_charger *chg,

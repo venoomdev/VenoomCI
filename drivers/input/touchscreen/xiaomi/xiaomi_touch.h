@@ -33,7 +33,7 @@
 #define MI_TOUCH_LOGI(level, fmt, args...) ((void)0)
 #define MI_TOUCH_LOGE(level, fmt, args...) ((void)0)
 
-#define XIAOMI_ROI 0
+#define XIAOMI_ROI	1
 
 #if XIAOMI_ROI
 #define DIFF_SENSE_NODE 7
@@ -70,8 +70,8 @@ enum MODE_TYPE {
 	Touch_Tolerance        = 3,
 #ifdef CONFIG_TOUCHSCREEN_SUPPORT_NEW_GAME_MODE
 	Touch_Aim_Sensitivity	= 4,
-	Touch_Tap_Stability		= 5,
-	Touch_Expert_Mode		= 6,
+	Touch_Tap_Stability	= 5,
+	Touch_Expert_Mode	= 6,
 #else
 	Touch_Wgh_Min          = 4,
 	Touch_Wgh_Max          = 5,
@@ -109,6 +109,7 @@ struct xiaomi_touch_interface {
 	u8 (*panel_color_read)(void);
 	u8 (*panel_display_read)(void);
 	char (*touch_vendor_read)(void);
+	int (*get_touch_super_resolution_factor)(void);
 #if XIAOMI_ROI
 	int (*partial_diff_data_read)(struct xiaomi_diff_data *data);
 #endif

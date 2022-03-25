@@ -1010,7 +1010,7 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	struct task_struct *p = timer->it.cpu.task;
 	struct sighand_struct *sighand;
 	unsigned long flags;
-	u64 now;
+	u64 now = 0;
 
 	if (WARN_ON_ONCE(!p))
 		return;
@@ -1371,8 +1371,8 @@ static int posix_cpu_nsleep(const clockid_t which_clock, int flags,
 		if (flags & TIMER_ABSTIME)
 			return -ERESTARTNOHAND;
 
-		restart_block->fn = posix_cpu_nsleep_restart;
 		restart_block->nanosleep.clockid = which_clock;
+		set_restart_fn(restart_block, posix_cpu_nsleep_restart);
 	}
 	return error;
 }

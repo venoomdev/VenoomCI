@@ -46,6 +46,9 @@
 /* Max CSI Rx irq error count threshold value */
 #define CAM_IFE_CSID_MAX_IRQ_ERROR_COUNT               100
 
+/* factor to conver qtime to boottime */
+static int64_t qtime_to_boottime;
+
 static int cam_ife_csid_reset_regs(
 	struct cam_ife_csid_hw *csid_hw, bool reset_hw);
 
@@ -1178,7 +1181,7 @@ int cam_ife_csid_path_reserve(struct cam_ife_csid_hw *csid_hw,
 
 	/* CSID  CSI2 v2.0 supports 31 vc */
 	if (reserve->sync_mode >= CAM_ISP_HW_SYNC_MAX) {
-		CAM_ERR(CAM_ISP, "CSID: %d Sync Mode: %d",
+		CAM_ERR(CAM_ISP, "Sync Mode: %d",
 			reserve->sync_mode);
 		return -EINVAL;
 	}
@@ -1186,9 +1189,9 @@ int cam_ife_csid_path_reserve(struct cam_ife_csid_hw *csid_hw,
 	for (i = 0; i < reserve->in_port->num_valid_vc_dt; i++) {
 		if (reserve->in_port->dt[i] > 0x3f ||
 			reserve->in_port->vc[i] > 0x1f) {
-			CAM_ERR(CAM_ISP, "CSID:%d Invalid vc:%d dt %d",
+			CAM_ERR(CAM_ISP, "CSID:%d Invalid vc:%lu dt %lu",
 				csid_hw->hw_intf->hw_idx,
-				reserve->in_port->vc, reserve->in_port->dt);
+				(uintptr_t)reserve->in_port->vc, (uintptr_t)reserve->in_port->dt);
 			rc = -EINVAL;
 			goto end;
 		}
@@ -1429,7 +1432,7 @@ static int cam_ife_csid_enable_hw(struct cam_ife_csid_hw  *csid_hw)
 	rc = cam_soc_util_get_clk_level(soc_info, csid_hw->clk_rate,
 		soc_info->src_clk_idx, &clk_lvl);
 	if (rc) {
-		CAM_ERR(CAM_ISP, "Failed to get clk level for rate %d",
+		CAM_ERR(CAM_ISP, "Failed to get clk level for rate %llu",
 			csid_hw->clk_rate);
 		goto err;
 	}
@@ -3394,7 +3397,6 @@ static int cam_ife_csid_get_time_stamp(
 	const struct cam_ife_csid_udi_reg_offset   *udi_reg;
 	struct timespec64 ts;
 	uint32_t  time_32, id;
-	uint64_t  time_delta;
 
 	time_stamp = (struct cam_csid_get_time_stamp_args  *)cmd_args;
 	res = time_stamp->node_res;
@@ -3466,20 +3468,19 @@ static int cam_ife_csid_get_time_stamp(
 		CAM_IFE_CSID_QTIMER_MUL_FACTOR,
 		CAM_IFE_CSID_QTIMER_DIV_FACTOR);
 
-	if (!csid_hw->prev_boot_timestamp) {
+	/* use a universal qtime-2-boottime offset for all cameras
+	 * this enables uniform timestamp comparision between cameras
+	 */
+	if (qtime_to_boottime == 0) {
 		get_monotonic_boottime64(&ts);
-		time_stamp->boot_timestamp =
-			(uint64_t)((ts.tv_sec * 1000000000) +
-			ts.tv_nsec);
-		csid_hw->prev_qtimer_ts = 0;
-		CAM_DBG(CAM_ISP, "timestamp:%lld",
-			time_stamp->boot_timestamp);
-	} else {
-		time_delta = time_stamp->time_stamp_val -
-			csid_hw->prev_qtimer_ts;
-		time_stamp->boot_timestamp =
-			csid_hw->prev_boot_timestamp + time_delta;
+		qtime_to_boottime =
+			(int64_t)((ts.tv_sec * 1000000000) + ts.tv_nsec) -
+			(int64_t)time_stamp->time_stamp_val;
+		CAM_DBG(CAM_ISP, "qtime_to_boottime:%lld", qtime_to_boottime);
 	}
+
+	time_stamp->boot_timestamp = time_stamp->time_stamp_val +
+		qtime_to_boottime;
 	csid_hw->prev_qtimer_ts = time_stamp->time_stamp_val;
 	csid_hw->prev_boot_timestamp = time_stamp->boot_timestamp;
 
@@ -3765,7 +3766,7 @@ static int cam_ife_csid_reset_regs(
 				rem_jiffies);
 			goto end;
 		}
-		CAM_ERR(CAM_ISP, "CSID:%d csid_reset %s fail rc = %d",
+		CAM_ERR(CAM_ISP, "CSID:%d csid_reset %s fail rc = %lu",
 			csid_hw->hw_intf->hw_idx, reset_hw ? "hw" : "sw",
 			rem_jiffies);
 		rc = -ETIMEDOUT;

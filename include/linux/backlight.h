@@ -3,7 +3,6 @@
  * Backlight Lowlevel Control Abstraction
  *
  * Copyright (C) 2003,2004 Hewlett-Packard Company
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  */
 
@@ -114,8 +113,8 @@ struct backlight_device {
 	struct thermal_cooling_device *cdev;
 	/* Thermally limited max brightness */
 	int thermal_brightness_limit;
-        /* Thermally limited max brightness clone for 8192 hbm*/
-        int thermal_brightness_clone_limit;
+	/* Thermally limited max brightness clone for 8192 hbm */
+	int thermal_brightness_clone_limit;
 	/* User brightness request */
 	int usr_brightness_req;
 

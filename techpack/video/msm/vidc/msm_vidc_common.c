@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/jiffies.h>
@@ -691,6 +691,25 @@ enum multi_stream msm_comm_get_stream_output_mode(struct msm_vidc_inst *inst)
 		return HAL_VIDEO_DECODER_SECONDARY;
 	else
 		return HAL_VIDEO_DECODER_PRIMARY;
+}
+
+bool vidc_scalar_enabled(struct msm_vidc_inst *inst)
+{
+	struct v4l2_format *f;
+	u32 output_height, output_width, input_height, input_width;
+	bool scalar_enable = false;
+
+	f = &inst->fmts[OUTPUT_PORT].v4l2_fmt;
+	output_height = f->fmt.pix_mp.height;
+	output_width = f->fmt.pix_mp.width;
+	f = &inst->fmts[INPUT_PORT].v4l2_fmt;
+	input_height = f->fmt.pix_mp.height;
+	input_width = f->fmt.pix_mp.width;
+
+	if (output_height != input_height || output_width != input_width)
+		scalar_enable = true;
+
+	return scalar_enable;
 }
 
 bool is_single_session(struct msm_vidc_inst *inst, u32 ignore_flags)
@@ -1427,7 +1446,7 @@ static int msm_vidc_comm_update_ctrl(struct msm_vidc_inst *inst,
 			cap->default_value);
 	if (rc) {
 		s_vpr_e(inst->sid,
-			"%s: failed: control name %s, min %d, max %d, %s %x, default_value %d\n",
+			"%s: failed: control name %s, min %d, max %d, %s %llx, default_value %d\n",
 			__func__, ctrl->name, cap->min, cap->max,
 			is_menu ? "menu_skip_mask" : "step",
 			is_menu ? ctrl->menu_skip_mask : cap->step_size,
@@ -1436,7 +1455,7 @@ static int msm_vidc_comm_update_ctrl(struct msm_vidc_inst *inst,
 	}
 
 	s_vpr_h(inst->sid,
-		"Updated control: %s: min %lld, max %lld, %s %x, default value = %lld\n",
+		"Updated control: %s: min %lld, max %lld, %s %llx, default value = %lld\n",
 		ctrl->name, ctrl->minimum, ctrl->maximum,
 		is_menu ? "menu_skip_mask" : "step",
 		is_menu ? ctrl->menu_skip_mask : ctrl->step,
@@ -3055,7 +3074,6 @@ static int msm_comm_init_core(struct msm_vidc_inst *inst)
 	core->state = VIDC_CORE_INIT;
 	core->smmu_fault_handled = false;
 	core->trigger_ssr = false;
-	core->resources.max_inst_count = MAX_SUPPORTED_INSTANCES;
 	core->resources.max_secure_inst_count =
 		core->resources.max_secure_inst_count ?
 		core->resources.max_secure_inst_count :
@@ -4808,6 +4826,7 @@ int msm_comm_qbufs_batch(struct msm_vidc_inst *inst,
 	int rc = 0;
 	struct msm_vidc_buffer *buf;
 	int do_bw_calc = 0;
+	int num_buffers_queued = 0;
 
 	do_bw_calc = mbuf ? mbuf->vvb.vb2_buf.type == INPUT_MPLANE : 0;
 	rc = msm_comm_scale_clocks_and_bus(inst, do_bw_calc);
@@ -4833,10 +4852,13 @@ int msm_comm_qbufs_batch(struct msm_vidc_inst *inst,
 				__func__, rc);
 			break;
 		}
+		num_buffers_queued++;
 loop_end:
-		/* Queue pending buffers till the current buffer only */
-		if (buf == mbuf)
+		/* Queue pending buffers till batch size */
+		if (num_buffers_queued == inst->batch.size) {
+			s_vpr_e(inst->sid, "%s: Queue buffers till batch size\n");
 			break;
+		}
 	}
 	mutex_unlock(&inst->registeredbufs.lock);
 
@@ -5890,7 +5912,7 @@ int msm_comm_check_memory_supported(struct msm_vidc_inst *vidc_inst)
 
 	if ((total_mem_size >> 20) > memory_limit_mbytes) {
 		s_vpr_e(vidc_inst->sid,
-			"%s: video mem overshoot - reached %llu MB, max_limit %llu MB\n",
+			"%s: video mem overshoot - reached %llu MB, max_limit %u MB\n",
 			__func__, total_mem_size >> 20, memory_limit_mbytes);
 		msm_comm_print_insts_info(core);
 		return -EBUSY;
@@ -5905,7 +5927,7 @@ int msm_comm_check_memory_supported(struct msm_vidc_inst *vidc_inst)
 
 		if (non_sec_mem_size > non_sec_cb_size) {
 			s_vpr_e(vidc_inst->sid,
-				"%s: insufficient device addr space, required %llu, available %llu\n",
+				"%s: insufficient device addr space, required %llu, available %u\n",
 				__func__, non_sec_mem_size, non_sec_cb_size);
 			msm_comm_print_insts_info(core);
 			return -EINVAL;
@@ -6167,10 +6189,12 @@ int msm_vidc_check_session_supported(struct msm_vidc_inst *inst)
 				width_min, height_min);
 			rc = -ENOTSUPP;
 		}
-		if (!rc && output_width > width_max) {
+		if (!rc && (output_width > width_max ||
+				output_height > height_max)) {
 			s_vpr_e(sid,
-				"Unsupported width = %u supported max width = %u\n",
-				output_width, width_max);
+				"Unsupported WxH (%u)x(%u), max supported is (%u)x(%u)\n",
+				output_width, output_height,
+				width_max, height_max);
 				rc = -ENOTSUPP;
 		}
 

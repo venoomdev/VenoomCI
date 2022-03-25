@@ -25,33 +25,14 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 #define kthread_create(threadfn, data, namefmt, arg...) \
 	kthread_create_on_node(threadfn, data, NUMA_NO_NODE, namefmt, ##arg)
 
-#define kthread_run_perf_critical(perfmask, threadfn, data, namefmt, ...)  \
-({									   \
-	struct task_struct *__k						   \
-		= kthread_create(threadfn, data, namefmt, ## __VA_ARGS__); \
-	if (!IS_ERR(__k)) {						   \
-		BUILD_BUG_ON(perfmask != cpu_lp_mask &&			   \
-			     perfmask != cpu_perf_mask &&		   \
-			     perfmask != cpu_prime_mask);		   \
-		if (perfmask == cpu_prime_mask)				   \
-			__k->pc_flags |= PC_PRIME_AFFINE;		   \
-		else if (perfmask == cpu_perf_mask)			   \
-			__k->pc_flags |= PC_PERF_AFFINE;		   \
-		else							   \
-			__k->pc_flags |= PC_LITTLE_AFFINE;		   \
-		kthread_bind_mask(__k, perfmask);			   \
-		wake_up_process(__k);					   \
-	}								   \
-	__k;								   \
-})
-
-
-
 
 struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 					  void *data,
 					  unsigned int cpu,
 					  const char *namefmt);
+
+void kthread_set_per_cpu(struct task_struct *k, int cpu);
+bool kthread_is_per_cpu(struct task_struct *k);
 
 /**
  * kthread_run - create and wake a thread.
@@ -189,6 +170,19 @@ extern void __kthread_init_worker(struct kthread_worker *worker,
 			     kthread_delayed_work_timer_fn,		\
 			     TIMER_IRQSAFE);				\
 	} while (0)
+
+/*
+ * Returns true when the work could not be queued at the moment.
+ * It happens when it is already pending in a worker list
+ * or when it is being cancelled.
+ */
+static inline bool queuing_blocked(struct kthread_worker *worker,
+                                   struct kthread_work *work)
+{
+        lockdep_assert_held(&worker->lock);
+
+        return !list_empty(&work->node) || work->canceling;
+}
 
 int kthread_worker_fn(void *worker_ptr);
 

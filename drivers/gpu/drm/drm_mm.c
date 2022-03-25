@@ -1,7 +1,6 @@
 /**************************************************************************
  *
  * Copyright 2006 Tungsten Graphics, Inc., Bismarck, ND., USA.
- * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright 2016 Intel Corporation
  * All Rights Reserved.
  *
@@ -119,7 +118,7 @@ static noinline void save_stack(struct drm_mm_node *node)
 		trace.nr_entries--;
 
 	/* May be called under spinlock, so avoid sleeping */
-	node->stack = depot_save_stack(&trace, GFP_NOWAIT, 0);
+	node->stack = depot_save_stack(&trace, GFP_NOWAIT);
 }
 
 static void show_leaks(struct drm_mm *mm)

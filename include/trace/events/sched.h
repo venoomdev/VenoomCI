@@ -32,25 +32,6 @@ TRACE_EVENT(sched_kthread_stop,
 	TP_printk("comm=%s pid=%d", __entry->comm, __entry->pid)
 );
 
-TRACE_EVENT(sched_setaffinity,
-
-	TP_PROTO(pid_t pid, const struct cpumask *in_mask),
-
-	TP_ARGS(pid, in_mask),
-
-	TP_STRUCT__entry(
-		__field(pid_t, pid)
-		__field(unsigned long, cpu_mask)
-	),
-
-	TP_fast_assign(
-		__entry->pid	     = pid;
-		__entry->cpu_mask  = cpumask_bits(in_mask)[0];
-	),
-
-	TP_printk(" pid=%d affine=%#lx", __entry->pid, __entry->cpu_mask)
-);
-
 /*
  * Tracepoint for the return value of the kthread stopping:
  */
@@ -1228,7 +1209,7 @@ TRACE_EVENT(sched_compute_energy,
 		__entry->best_energy	        = best_energy;
 	),
 
-	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d prev_energy=%llu eval_cpu=%d eval_energy=%llu best_energy_cpu=%d best_energy=%llu",
+	TP_printk("pid=%d comm=%s util=%lu prev_cpu=%d prev_energy=%lu eval_cpu=%d eval_energy=%lu best_energy_cpu=%d best_energy=%lu",
 		__entry->pid, __entry->comm, __entry->util, __entry->prev_cpu,
 		__entry->prev_energy, __entry->eval_cpu, __entry->eval_energy,
 		__entry->best_energy_cpu, __entry->best_energy)
@@ -1286,7 +1267,7 @@ TRACE_EVENT(sched_task_util,
 		__entry->start_cpu		= start_cpu;
 #ifdef CONFIG_SCHED_WALT
 		__entry->unfilter		= p->unfilter;
-		__entry->low_latency		= p->low_latency;
+		__entry->low_latency		= walt_low_latency_task(p);
 #else
 		__entry->unfilter		= 0;
 		__entry->low_latency		= 0;

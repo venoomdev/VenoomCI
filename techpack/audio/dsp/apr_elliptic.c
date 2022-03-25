@@ -1,5 +1,6 @@
 /**
  * Elliptic Labs
+   Fixed proximity sensor, removed block_proximity calls for working fine the proximity sensor
  */
 
 #include <linux/slab.h>
@@ -16,8 +17,6 @@
 #include <dsp/apr_elliptic.h>
 #include <elliptic/elliptic_mixer_controls.h>
 #include <elliptic/elliptic_data_io.h>
-
-
 
 #ifndef min
 #define min(a, b) (((a) < (b)) ? (a) : (b))
@@ -371,17 +370,18 @@ static int32_t process_sensorhub_msg(uint32_t *payload, uint32_t payload_size)
 			int adj = p->signal->oom_score_adj;
 
 			pr_info("%s has adj: %d", p->comm, adj);
+			// Telegram has adj of 700 when it's not a top-app, but playing a message
+			// It drops to 945 when it stops playing
+			// Telegram when it's a top-app has adj of 0
 			if (adj <= 700) {
 				pr_info("Blocking %s from reading proximity sensor...", p->comm);
 				return 1;
 			}
-			break;
 		}
 	}
 
 	return 0;
 }*/
-
 
 int32_t elliptic_process_apr_payload(uint32_t *payload)
 {

@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2013, Sony Mobile Communications AB.
- * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,11 +34,6 @@
 #include <linux/pm.h>
 #include <linux/log2.h>
 #include <linux/bitmap.h>
-
-#include <linux/pinctrl/pinctrl_mi.h>
-#include <linux/power_debug.h>
-#include <linux/wakeup_reason.h>
-#include <linux/syscore_ops.h>
 
 #include "../core.h"
 #include "../pinconf.h"
@@ -493,19 +487,6 @@ static int msm_gpio_get(struct gpio_chip *chip, unsigned offset)
 	return !!(val & BIT(g->in_bit));
 }
 
-///xiaomi add
-void __iomem *msm_gpio_regadd_get(unsigned offset)
-{
-	const struct msm_pingroup *g;
-	struct msm_pinctrl *pctrl = gpiochip_get_data(&msm_pinctrl_data->chip);
-
-	g = &pctrl->soc->groups[offset];
-
-	return (pctrl->regs + g->io_reg);
-}
-EXPORT_SYMBOL(msm_gpio_regadd_get);
-///xiaomi add
-
 static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	const struct msm_pingroup *g;
@@ -529,15 +510,6 @@ static void msm_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/seq_file.h>
-#define msm_gpio_debug_output(m, c, fmt, ...)		\
-do {							\
-	if (m)						\
-		seq_printf(m, fmt, ##__VA_ARGS__);	\
-	else if (c)					\
-		pr_cont(fmt, ##__VA_ARGS__);		\
-	else						\
-		pr_info(fmt, ##__VA_ARGS__);		\
-} while (0)
 
 static void msm_gpio_dbg_show_one(struct seq_file *s,
 				  struct pinctrl_dev *pctldev,
@@ -584,14 +556,14 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	else
 		val = !!(io_reg & BIT(g->in_bit));
 
-	msm_gpio_debug_output(s, 1, " %-8s: %-3s %d" , g->name, is_out ? "out" : "in" , func);
-	msm_gpio_debug_output(s, 1, " %s", val ? "high":"low");
-	msm_gpio_debug_output(s, 1, " %dmA", msm_regval_to_drive(drive));
+	seq_printf(s, " %-8s: %-3s", g->name, is_out ? "out" : "in");
+	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
+	seq_printf(s, " %dmA", msm_regval_to_drive(drive));
 	if (pctrl->soc->pull_no_keeper)
-		msm_gpio_debug_output(s, 1, " %s", pulls_no_keeper[pull]);
+		seq_printf(s, " %s", pulls_no_keeper[pull]);
 	else
-		msm_gpio_debug_output(s, 1,  " %s", pulls_keeper[pull]);
-	msm_gpio_debug_output(s, 1, "\n");
+		seq_printf(s, " %s", pulls_keeper[pull]);
+	seq_puts(s, "\n");
 }
 
 static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -608,7 +580,6 @@ static void msm_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 			continue;
 		}
 		msm_gpio_dbg_show_one(s, NULL, chip, i, gpio);
-		msm_gpio_debug_output(s, 1, "\n");
 	}
 }
 
@@ -1293,7 +1264,7 @@ static int msm_gpio_domain_alloc(struct irq_domain *domain, unsigned int virq,
 				 unsigned int nr_irqs, void *arg)
 {
 	int ret;
-	irq_hw_number_t hwirq;
+	irq_hw_number_t hwirq = 0;
 	struct gpio_chip *gc = domain->host_data;
 	struct msm_pinctrl *pctrl = gpiochip_get_data(gc);
 	struct irq_fwspec *fwspec = arg;
@@ -1591,44 +1562,6 @@ int msm_gpio_mpm_wake_set(unsigned int gpio, bool enable)
 }
 EXPORT_SYMBOL(msm_gpio_mpm_wake_set);
 
-static bool msm_pinctrl_check_wakeup_event(void *data)
-{
-	int i, irq;
-	bool ret = false;
-	u32 val;
-	unsigned long flags;
-	struct irq_desc *desc;
-	const struct msm_pingroup *g;
-	const char *name = "null";
-	struct msm_pinctrl *pctrl= msm_pinctrl_data;
-
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
-	for_each_set_bit(i, pctrl->enabled_irqs, pctrl->chip.ngpio) {
-		g = &pctrl->soc->groups[i];
-		val = readl_relaxed(pctrl->regs + g->intr_status_reg);
-		if (val & BIT(g->intr_status_bit)){
-			irq = irq_find_mapping(pctrl->chip.irq.domain, i);
-			log_wakeup_reason(irq);
-			desc = irq_to_desc(irq);
-			if (desc == NULL)
-				name = "stray_irq";
-			else if (desc->action && desc->action->name)
-				name = desc->action->name;
-			ret = true;
-			pr_warn("%s:%d triggered %s\n", __func__, irq, name);
-		}
-	}
-
-	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
-
-	return ret;
-}
-
-static struct wakeup_device msm_pinctrl_wakeup_device = {
-	.name = "pinctrl-msm",
-	.check_wakeup_event = msm_pinctrl_check_wakeup_event,
-};
-
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data)
 {
@@ -1694,7 +1627,6 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 	platform_set_drvdata(pdev, pctrl);
 
 	register_syscore_ops(&msm_pinctrl_pm_ops);
-	pm_register_wakeup_device(&msm_pinctrl_wakeup_device);
 	dev_dbg(&pdev->dev, "Probed Qualcomm pinctrl driver\n");
 
 	return 0;

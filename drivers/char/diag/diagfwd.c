@@ -1824,6 +1824,12 @@ void diag_process_non_hdlc_pkt(unsigned char *buf, int len, int pid)
 	if (partial_pkt->remaining == 0) {
 		actual_pkt = (struct diag_pkt_frame_t *)(partial_pkt->data);
 		data_ptr = partial_pkt->data + header_len;
+		if ((header_len + actual_pkt->length + 1) >
+				partial_pkt->capacity) {
+			mutex_unlock(&driver->hdlc_recovery_mutex);
+			return;
+		}
+
 		if (*(uint8_t *)(data_ptr + actual_pkt->length) !=
 						CONTROL_CHAR) {
 			mutex_unlock(&driver->hdlc_recovery_mutex);
@@ -1875,6 +1881,11 @@ start:
 			mutex_unlock(&driver->hdlc_recovery_mutex);
 			break;
 		}
+		if ((header_len + actual_pkt->length + 1) >
+				partial_pkt->capacity) {
+			mutex_unlock(&driver->hdlc_recovery_mutex);
+			break;
+		}
 		data_ptr = buf + header_len;
 		if (*(uint8_t *)(data_ptr + actual_pkt->length) !=
 						CONTROL_CHAR) {
@@ -1915,7 +1926,6 @@ static int diagfwd_mux_write_done(unsigned char *buf, int len, int buf_ctxt,
 				  int ctxt)
 {
 	unsigned long flags;
-
 	int peripheral = -1, type = -1;
 	int num = -1, hdlc_ctxt = -1;
 	struct diag_apps_data_t *temp = NULL;

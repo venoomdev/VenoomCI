@@ -2,7 +2,6 @@
  * kernel/power/main.c - PM subsystem core functionality.
  *
  * Copyright (c) 2003 Patrick Mochel
- * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (c) 2003 Open Source Development Lab
  *
  * This file is released under the GPLv2
@@ -542,6 +541,7 @@ static inline void pm_print_times_init(void) {}
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 
 struct kobject *power_kobj;
+EXPORT_SYMBOL_GPL(power_kobj);
 
 /**
  * state - control system sleep states.
@@ -644,7 +644,7 @@ static ssize_t sum_wakeup_time_show(struct kobject *kobj, struct kobj_attribute 
 static ssize_t sum_wakeup_time_store(struct kobject *kobj, struct kobj_attribute *attr,
 			   const char *buf, size_t n)
 {
-	int error;
+	int error = 0;
 	return error ? error : n;
 }
 
@@ -659,7 +659,7 @@ static ssize_t last_wake_time_show(struct kobject *kobj, struct kobj_attribute *
 static ssize_t last_wake_time_store(struct kobject *kobj, struct kobj_attribute *attr,
 			   const char *buf, size_t n)
 {
-	int error;
+	int error = 0;
 	return error ? error : n;
 }
 
@@ -674,7 +674,7 @@ static ssize_t wake_times_show(struct kobject *kobj, struct kobj_attribute *attr
 static ssize_t wake_times_store(struct kobject *kobj, struct kobj_attribute *attr,
 			   const char *buf, size_t n)
 {
-	int error;
+	int error = 0;
 	return error ? error : n;
 }
 
