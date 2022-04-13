@@ -689,7 +689,7 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	}
 #ifdef CONFIG_PERF_HUMANTASK
 	if (speed)
-		se->vruntime = entry->vruntime-1;
+		se->vruntime = entry->vruntime - 1;
 #endif
 
 	rb_link_node(&se->run_node, parent, link);
@@ -7108,7 +7108,12 @@ static void find_best_target(struct sched_domain *sd, cpumask_t *cpus,
 			if (fbt_env->skip_cpu == i)
 				continue;
 
-#ifdef CONFIG_MIHW
+#if IS_ENABLED(CONFIG_PERF_HUMANTASK)
+			if (p->human_task > MAX_LEVER)
+				break;
+#endif
+
+#if IS_ENABLED(CONFIG_MIHW)
 			if (sched_boost_top_app() && rd->mid_cap_orig_cpu != -1
 				&& ((i < rd->mid_cap_orig_cpu
 				&& MAX_USER_RT_PRIO <= p->prio
@@ -7876,7 +7881,13 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
 		goto done;
 	}
 
-#ifdef CONFIG_MIHW
+#if IS_ENABLED(CONFIG_PERF_HUMANTASK)
+	if (p->human_task > MAX_LEVER)
+		goto done;
+#endif
+
+
+#if IS_ENABLED(CONFIG_MIHW)
 	if (sched_boost_top_app() && is_top_app(p) && cpu_online(super_big_cpu) &&
 		!cpu_isolated(super_big_cpu) && cpumask_test_cpu(super_big_cpu, &p->cpus_allowed)) {
 		best_energy_cpu = super_big_cpu;
@@ -9067,7 +9078,12 @@ redo:
 			break;
 		}
 
-#ifdef CONFIG_MIHW
+#if IS_ENABLED(CONFIG_PERF_HUMANTASK)
+		if (p->human_task > MAX_LEVER)
+			goto next;
+#endif
+
+#if IS_ENABLED(CONFIG_MIHW)
 		if (sched_boost_top_app()
 				&& super_big_cpu == env->src_cpu
 				&& is_top_app(p))
