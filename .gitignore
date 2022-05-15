@@ -141,3 +141,13 @@ kernel/configs/android-*.cfg
 out/
 *.zip
 *.log
+clang/
+caf
+c
+build
+build.log
+g
+kernel/power/nvs.c
+16
+AnyKernel3/
+b
