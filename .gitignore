@@ -140,3 +140,12 @@ AnyKernel3/
 #techpack/
 out/
 clang/
+caf
+c
+build
+build.log
+g
+kernel/power/nvs.c
+16
+AnyKernel3/
+b
