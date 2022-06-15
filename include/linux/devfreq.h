@@ -168,6 +168,10 @@ struct devfreq {
 	unsigned long scaling_max_freq;
 	bool stop_polling;
 
+	unsigned long suspend_freq;
+	unsigned long resume_freq;
+	atomic_t suspend_count;
+
 	/* information for device frequency transition */
 	unsigned int total_trans;
 	unsigned int *trans_table;
@@ -182,6 +186,23 @@ struct devfreq_freqs {
 	unsigned long old;
 	unsigned long new;
 };
+
+static inline void event_mutex_init(struct devfreq *devfreq)
+{
+	mutex_init(&devfreq->event_lock);
+}
+static inline void event_mutex_destroy(struct devfreq *devfreq)
+{
+	mutex_destroy(&devfreq->event_lock);
+}
+static inline void event_mutex_lock(struct devfreq *devfreq)
+{
+	mutex_lock(&devfreq->event_lock);
+}
+static inline void event_mutex_unlock(struct devfreq *devfreq)
+{
+	mutex_unlock(&devfreq->event_lock);
+}
 
 #if defined(CONFIG_PM_DEVFREQ)
 extern struct devfreq *devfreq_add_device(struct device *dev,
@@ -199,6 +220,18 @@ extern void devm_devfreq_remove_device(struct device *dev,
 /* Supposed to be called by PM callbacks */
 extern int devfreq_suspend_device(struct devfreq *devfreq);
 extern int devfreq_resume_device(struct devfreq *devfreq);
+
+extern void devfreq_suspend(void);
+extern void devfreq_resume(void);
+
+
+/**
+ * update_devfreq() - Reevaluate the device and configure frequency
+ * @devfreq:	the devfreq device
+ *
+ * Note: devfreq->lock must be held
+ */
+extern int update_devfreq(struct devfreq *devfreq);
 
 /* Helper functions for devfreq user device driver with OPP. */
 extern struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
@@ -321,6 +354,9 @@ static inline int devfreq_resume_device(struct devfreq *devfreq)
 {
 	return 0;
 }
+
+static inline void devfreq_suspend(void) {}
+static inline void devfreq_resume(void) {}
 
 static inline struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
 					   unsigned long *freq, u32 flags)
