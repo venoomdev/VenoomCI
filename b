@@ -6,6 +6,13 @@ KERNEL_DEFCONFIG=vendor/alioth_defconfig
 ANYKERNEL3_DIR=$PWD/AnyKernel3/
 FINAL_KERNEL_ZIP=InfiniR_Alioth_v2.21.zip
 export ARCH=arm64
+export KBUILD_BUILD_HOST="Venoom"
+export KBUILD_BUILD_USER="WartegCI"
+TC_DIR="/home/space/kernel/cl"
+GCC64_DIR="/home/space/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
+GCC32_DIR="/home/space/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
+export PATH="$TC_DIR/bin:$PATH"
+export KBUILD_COMPILER_STRING="/home/space/cl/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
 
 # Speed up build process
 MAKE="./makeparallel"
@@ -25,12 +32,17 @@ echo -e "$blue***********************************************"
 echo "          BUILDING KERNEL          "
 echo -e "***********************************************$nocol"
 make $KERNEL_DEFCONFIG O=out
-make -j$(nproc --all) O=out \
-                      ARCH=arm64 \
-                      CC=/home/space/kernel/cl/bin/clang \
-                      CLANG_TRIPLE=aarch64-linux-gnu- \
-                      CROSS_COMPILE=/home/space/kernel/gcc64/bin/aarch64-linux-android- \
-                      CROSS_COMPILE_ARM32=/home/space/kernel/gcc32/bin/arm-linux-androideabi-
+#make -j$(nproc --all) O=out \
+#                      ARCH=arm64 \
+#                      CC=/home/space/kernel/cl/bin/clang \
+#                      LD=ld.lld \
+#      		       AS=llvm-as \
+#                      CLANG_TRIPLE=aarch64-linux-gnu- \
+#                      CROSS_COMPILE=/home/space/kernel/gcc64/bin/aarch64-linux-android- \
+#                      CROSS_COMPILE_ARM32=/home/space/kernel/gcc32/bin/arm-linux-androideabi-
+
+#make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AS=llvm-as AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CLANG_TRIPLE=aarch64-linux-gnu-
+make -j$(nproc --all) O=out ARCH=arm64 CC=clang OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CLANG_TRIPLE=aarch64-linux-gnu-
 
 echo -e "$yellow**** Verify Image.gz-dtb & dtbo.img ****$nocol"
 ls $PWD/out/arch/arm64/boot/Image.gz-dtb
