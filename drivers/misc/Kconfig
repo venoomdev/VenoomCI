@@ -90,6 +90,37 @@ config ATMEL_TCB_CLKSRC_BLOCK
 	  TC can be used for other purposes, such as PWM generation and
 	  interval timing.
 
+config VPROFILES
+	bool "A kernel Venoom profile changing driver"
+	help
+	  This driver creates a sysfs toggle that can be Enabled/Disabled via userspace,
+	  It provies 4 modes, (Disabled, Battery, Balanced, Performance)
+
+	  The former can be used to disable/enable or tune kernel features
+	  according to a profile mode
+
+	  If in doubt, say N.
+
+config AUTO_VPROFILES_MSM_DRM
+	bool "Enable auto vprofiles for msm drm notifier"
+	depends on VPROFILES && DRM_MSM
+	default n
+	help
+	  Select this to enable automatic vprofiles switching via msm_drm_notifier API,
+	  When this option is enabled vprofiles will automatically switch to 
+	  battery mode when device screen turns off and switch back
+	  to the previously used profile when screen turns on.
+
+config AUTO_VPROFILES_FB
+	bool "Enable auto vprofiles for fb notifier"
+	depends on VPROFILES && !AUTO_VPROFILES_MSM_DRM
+	default n
+	help
+	  Select this to enable automatic vprofiles switching via fb_notifier API,
+	  When this option is enabled vkprofiles will automatically switch to 
+	  battery mode when device screen turns off and switch back
+	  to the previously used profile when screen turns on.
+
 config DUMMY_IRQ
 	tristate "Dummy IRQ handler"
 	default n
