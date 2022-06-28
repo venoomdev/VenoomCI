@@ -20,7 +20,7 @@ nocol='\033[0m'
 # Always do clean build lol
 echo -e "$yellow**** Cleaning ****$nocol"
 mkdir -p out
-make O=out clean
+#make O=out clean
 
 echo -e "$yellow**** Kernel defconfig is set to $KERNEL_DEFCONFIG ****$nocol"
 echo -e "$blue***********************************************"

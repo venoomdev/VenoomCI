@@ -25,10 +25,6 @@
 #include <linux/nls.h>
 #include <linux/sched/signal.h>
 
-#if defined(CONFIG_UFSTW)
-#include <linux/ufstw.h>
-#endif
-
 #include "f2fs.h"
 #include "node.h"
 #include "segment.h"
@@ -275,10 +271,6 @@ static int f2fs_do_sync_file(struct file *file, loff_t start, loff_t end,
 	ktime_t start_time, delta;
 	unsigned long long duration;
 
-#if defined(CONFIG_UFSTW)
-	bool turbo_set = false;
-#endif
-
 	if (unlikely(f2fs_readonly(inode->i_sb)))
 		return 0;
 
@@ -365,10 +357,6 @@ go_write:
 		clear_inode_flag(inode, FI_UPDATE_WRITE);
 		goto out;
 	}
-#if defined(CONFIG_UFSTW)
-	bdev_set_turbo_write(sbi->sb->s_bdev);
-	turbo_set = true;
-#endif
 sync_nodes:
 	atomic_inc(&sbi->wb_sync_req[NODE]);
 	ret = f2fs_fsync_node_pages(sbi, inode, &wbc, atomic, &seq_id);
@@ -433,10 +421,6 @@ out:
 			file_path);
 	}
 
-#if defined(CONFIG_UFSTW)
-	if (turbo_set)
-		bdev_clear_turbo_write(sbi->sb->s_bdev);
-#endif
 	trace_f2fs_sync_file_exit(inode, cp_reason, datasync, ret);
 	stat_inc_sync_file_count(sbi);
 	trace_android_fs_fsync_end(inode, start, end - start);
@@ -1071,12 +1055,6 @@ int f2fs_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 	}
 
-#ifdef CONFIG_FS_HPB
-		if (__is_hpb_file(dentry->d_name.name, inode))
-			set_inode_flag(inode, FI_HPB_INODE);
-		else
-			clear_inode_flag(inode, FI_HPB_INODE);
-#endif
 	/* file size may changed here */
 	f2fs_mark_inode_dirty_sync(inode, true);
 
@@ -3358,15 +3336,15 @@ static int f2fs_ioc_set_pin_file(struct file *filp, unsigned long arg)
 
 	inode_lock(inode);
 
-	if (f2fs_should_update_outplace(inode, NULL)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!pin) {
 		clear_inode_flag(inode, FI_PIN_FILE);
 		f2fs_i_gc_failures_write(inode, 0);
 		goto done;
+	}
+
+	if (f2fs_should_update_outplace(inode, NULL)) {
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (f2fs_pin_file_control(inode, false)) {
@@ -4474,9 +4452,10 @@ static int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *iter)
 	int flag;
 	int ret;
 
-	/* If it will be an out-of-place direct write, don't bother. */
+	/* If it will be an in-place direct write, don't bother. */
 	if (dio && f2fs_lfs_mode(sbi))
 		return 0;
+
 	/*
 	 * Don't preallocate holes aligned to DIO_SKIP_HOLES which turns into
 	 * buffered IO, if DIO meets any holes.
@@ -4509,6 +4488,7 @@ static int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *iter)
 		map.m_len -= map.m_lblk;
 	else
 		map.m_len = 0;
+
 	map.m_may_create = true;
 	if (dio) {
 		map.m_seg_type = f2fs_rw_hint_to_seg_type(inode->i_write_hint);
