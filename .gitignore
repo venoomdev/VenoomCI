@@ -140,3 +140,6 @@ kernel/configs/android-*.cfg
 #techpack/
 /out
 b
+/AnyKernel3
+build.log
+c
