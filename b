@@ -29,10 +29,10 @@ echo -e "***********************************************$nocol"
 make $KERNEL_DEFCONFIG O=out
 make -j$(nproc --all) O=out \
                       ARCH=arm64 \
-                      CC=/home/space/kernel/clang/bin/clang \
+                      CC=/root/kernel/proton/bin/clang \
                       CLANG_TRIPLE=aarch64-linux-gnu- \
-                      CROSS_COMPILE=/home/space/kernel/gcc64/bin/aarch64-linux-android- \
-                      CROSS_COMPILE_ARM32=/home/space/kernel/gcc32/bin/arm-linux-androideabi-
+                      CROSS_COMPILE=/root/kernel/gcc64/bin/aarch64-linux-android- \
+                      CROSS_COMPILE_ARM32=/root/kernel/gcc32/bin/arm-linux-androideabi-
 
 #make -j$(nproc --all) O=out ARCH=arm64 CC=clang LD=ld.lld AS=llvm-as AR=llvm-ar NM=llvm-nm OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CLANG_TRIPLE=aarch64-linux-gnu-
 #make -j$(nproc --all) O=out ARCH=arm64 CC=clang OBJCOPY=llvm-objcopy OBJDUMP=llvm-objdump STRIP=llvm-strip CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- CLANG_TRIPLE=aarch64-linux-gnu-
@@ -55,7 +55,7 @@ cp $PWD/out/arch/arm64/boot/dtbo.img $ANYKERNEL3_DIR/
 echo -e "$yellow**** Time to zip up! ****$nocol"
 cd $ANYKERNEL3_DIR/
 zip -r9 $FINAL_KERNEL_ZIP * -x README $FINAL_KERNEL_ZIP
-cp $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP /home/space/kernel/$FINAL_KERNEL_ZIP
+cp $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP /root/kernel/$FINAL_KERNEL_ZIP
 
 echo -e "$yellow**** Done, here is your checksum ****$nocol"
 cd ..
