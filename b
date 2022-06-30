@@ -46,6 +46,7 @@ ls $ANYKERNEL3_DIR
 echo -e "$yellow**** Removing leftovers ****$nocol"
 rm -rf $ANYKERNEL3_DIR/Image.gz-dtb
 rm -rf $ANYKERNEL3_DIR/dtbo.img
+rm -rf $ANYKERNEL3_DIR/*.zip
 rm -rf $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP
 
 echo -e "$yellow**** Copying Image.gz-dtb & dtbo.img ****$nocol"
