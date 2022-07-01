@@ -550,16 +550,6 @@ static void exit_mm(void)
 	mmput(mm);
 	if (test_thread_flag(TIF_MEMDIE))
 		exit_oom_victim();
-//	mm_released = mmput(mm);
-//#ifdef CONFIG_ANDROID_SIMPLE_LMK
-//	clear_thread_flag(TIF_MEMDIE);
-//#else
-//	if (test_thread_flag(TIF_MEMDIE))
-//		exit_oom_victim();
-//	if (mm_released)
-//		set_tsk_thread_flag(current, TIF_MM_RELEASED);
-//#endif
-//>>>>>>> 0e8eddeb1b4c (simple_lmk: Mark victim thread group with TIF_MEMDIE)
 }
 
 static struct task_struct *find_alive_thread(struct task_struct *p)
