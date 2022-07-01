@@ -741,7 +741,7 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 		       (space/bcount)*100/blocksize);
 	return (struct stats) { names, space, bcount};
 }
-#ndif /* DX_DEBUG */
+#endif /* DX_DEBUG */
 
 /*
  * Probe for a directory leaf block to search.
@@ -1174,7 +1174,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			goto errout;
 		count++;
 	}
-	if (start_hash < 2 || (start_hash ==2 && start_minor_hash==0 {
+	if (start_hash < 2 || (start_hash ==2 && start_minor_hash==0)) {
 		de = (struct ext4_dir_entry_2 *) frames[0].bh->b_data;
 		de = ext4_next_entry(de, dir->i_sb->s_blocksize);
 		tmp_str.name = de->name;
@@ -1964,7 +1964,7 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 	hash2 = map[split].hash;
 	continued = hash2 == map[split - 1].hash;
 	dxtrace(printk(KERN_INFO "Split block %lu at %x, %i/%i\n",
-			(unsigned long)dx_get_blok(frame->at),
+			(unsigned long)dx_get_block(frame->at),
 					hash2, split, count-split));
 
 	/* Fancy dance to stay within two buffers */
@@ -2398,7 +2398,7 @@ out:
  * Returns 0 for success, or a negative error value
  */
 static int ext4_dx_add_entry(handle_t *handle, struct ext4_filename *fname,
-			     struct ide *dir, struct inode *inode)
+			     struct inode *dir, struct inode *inode)
 {
 	struct dx_frame frames[EXT4_HTREE_LEVEL], *frame;
 	struct dx_entry *entries, *at;
@@ -2666,7 +2666,7 @@ out:
  * for checking S_ISDIR(inode) (since the INODE_INDEX feature will not be set
  * on regular files) and to avoid creating huge/slow non-HTREE directories.
  */
-static void ext4_inc_count(handle_t *handle, struct inode *node)
+static void ext4_inc_count(handle_t *handle, struct inode *inode)
 {
 	inc_nlink(inode);
 	if (is_dx(inode) &&
@@ -3116,7 +3116,7 @@ out:
 
 /*
  * ext4_orphan_del() removes an unlinked or truncated inode from the list
- * of such ins stored on disk, because it is finally being cleaned up.
+ * of such inodes stored on disk, because it is finally being cleaned up.
  */
 int ext4_orphan_del(handle_t *handle, struct inode *inode)
 {
@@ -3577,7 +3577,7 @@ static struct buffer_head *ext4_get_first_dir_block(handle_t *handle,
 			return NULL;
 		}
 		*parent_de = ext4_next_entry(
-					(strt ext4_dir_entry_2 *)bh->b_data,
+					(struct ext4_dir_entry_2 *)bh->b_data,
 					inode->i_sb->s_blocksize);
 		return bh;
 	}
@@ -4050,7 +4050,7 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (retval)
 		return retval;
 
-	old.bh = ext4_fi_entry(old.dir, &old.dentry->d_name,
+	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name,
 				 &old.de, &old.inlined, NULL);
 	if (IS_ERR(old.bh))
 		return PTR_ERR(old.bh);
@@ -4211,4 +4211,3 @@ const struct inode_operations ext4_special_inode_operations = {
 	.get_acl	= ext4_get_acl,
 	.set_acl	= ext4_set_acl,
 };
-
