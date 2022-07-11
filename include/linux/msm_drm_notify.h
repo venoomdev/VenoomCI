@@ -25,6 +25,12 @@ enum {
 	MSM_DRM_BLANK_UNBLANK,
 	/* panel: power off */
 	MSM_DRM_BLANK_POWERDOWN,
+	/* panel power on for tp */
+	MSM_DRM_BLANK_UNBLANK_CUST,
+	/* panel:lcd doze mode */
+	MSM_DRM_BLANK_NORMAL,
+	/* panel power off */
+	MSM_DRM_BLANK_POWERDOWN_CUST,
 };
 
 enum msm_drm_display_id {
@@ -45,6 +51,20 @@ struct drm_notify_data {
 	void *data;
 };
 
+int dsi_panel_backlight_get(void);
+
+#ifdef CONFIG_DRM_MSM
 int msm_drm_register_client(struct notifier_block *nb);
 int msm_drm_unregister_client(struct notifier_block *nb);
+#else
+static inline int msm_drm_register_client(struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int msm_drm_unregister_client(struct notifier_block *nb)
+{
+	return 0;
+}
+#endif
 #endif
