@@ -158,13 +158,7 @@
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-timing-switch-command = [
-					39 00 00 00 00 00 02 60 00
-					39 00 00 00 00 00 03 F0 5A 5A
-					39 00 00 00 00 00 03 FC 5A 5A
-					39 00 00 00 00 00 02 B0 16
-					39 00 00 00 00 00 02 D1 2E
-					39 00 00 00 00 00 03 FC A5 A5
-					39 01 00 00 0C 00 03 F0 A5 A5];
+					39 01 00 00 09 00 02 60 00];
 				qcom,mdss-dsi-timing-switch-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-nolp-command = [
@@ -307,13 +301,7 @@
 				qcom,mdss-dsi-off-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-timing-switch-command = [
-					39 00 00 00 00 00 02 60 10
-					39 00 00 00 00 00 03 F0 5A 5A
-					39 00 00 00 00 00 03 FC 5A 5A
-					39 00 00 00 00 00 02 B0 16
-					39 00 00 00 00 00 02 D1 2E
-					39 00 00 00 00 00 03 FC A5 A5
-					39 01 00 00 00 00 03 F0 A5 A5];
+					39 01 00 00 00 00 02 60 10];
 				qcom,mdss-dsi-timing-switch-command-state = "dsi_lp_mode";
 
 				qcom,mdss-dsi-nolp-command = [
@@ -351,8 +339,8 @@
 	mi,mdss-dsi-panel-hbm-off-51-index = <1>;
 	mi,esd-err-irq-gpio = <&tlmm 51 0x2001>;
 	mi,mdss-panel-on-dimming-delay = <120>;
-	// mi,mdss-dsi-pan-enable-smart-fps;
-	// mi,mdss-dsi-smart-fps-max_framerate = <120>;
+	mi,mdss-dsi-pan-enable-smart-fps;
+	mi,mdss-dsi-smart-fps-max_framerate = <120>;
 	mi,mdss-dsi-panel-hbm-brightness = <1>;
 	mi,mdss-dsi-panel-dc-threshold = <440>;
 	mi,mdss-dsi-panel-max-brightness-clone = <8191>;
