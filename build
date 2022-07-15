@@ -2,33 +2,10 @@ IMAGE=$(pwd)/out/arch/arm64/boot/Image
 DTBO=$(pwd)/out/arch/arm64/boot/dtbo.img
 START=$(date +"%s")
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-<<<<<<< HEAD
 VERSION=Venoom
 TANGGAL=$(TZ=Asia/Jakarta date "+%Y%m%d-%H%M")
 KBUILD_COMPILER_STRING=$(/root/kernel/c/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
 KBUILD_LINKER_STRING=$(/root/kernel/c/bin/ld.lld --version  | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//' | sed 's/(compatible with [^)]*)//')
-=======
-TC_DIR="/root/kernel/c"
-GCC_64_DIR="/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
-GCC_32_DIR="/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
-export KBUILD_BUILD_HOST="Venoom"
-export KBUILD_BUILD_USER="WartegCI"
-AK3_DIR=$PWD/AnyKernel3/
-export chat_id="-1001551521202"
-export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc!"
-DEFCONFIG="vendor/alioth_defconfig"
-export PATH="$TC_DIR/bin:$PATH"
-export CCACHE_DIR="/root/.cache/ccache"
-export CA="ccache gcc"
-export CXX="ccache g++"
-export PATH="/usr/lib/ccache:$PATH"
-export KBUILD_COMPILER_STRING="/root/kernel/c/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
-
-BUILD_START=$(date +"%s")
-blue='\033[1;34m'
-yellow='\033[1;33m'
-nocol='\033[0m'
->>>>>>> a19c268888e13 ( fix build devboost)
 
 # Set Kernel Version
 KERNELVER=$(make kernelversion)
@@ -54,13 +31,14 @@ export KBUILD_LINKER_STRING
 #channel
 #export chat_id2="-1001608547174!"
 export chat_id="-1001551521202"
-export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc!"
+export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc"
 export DEF="alioth_defconfig"
 TC_DIR=/root/kernel/c
 GCC64_DIR="/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
 GCC32_DIR="/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
 export PATH="/root/kernel/c/bin:${PATH}"
 export LD_LIBRARY_PATH=/root/kernel/c/lib64:$LD_LIBRARY_PATH
+rm AnyKernel3/*.zip
 
 # Post to CI channel
 curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage -d text="Buckle up bois Venoom  kernel build has started" -d chat_id=${chat_id} -d parse_mode=HTML

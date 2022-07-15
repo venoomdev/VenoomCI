@@ -105,6 +105,7 @@ extern struct cpumask __cpu_perf_mask;
 extern const struct cpumask *const cpu_lp_mask;
 extern const struct cpumask *const cpu_perf_mask;
 extern const struct cpumask *const cpu_perfp_mask;
+extern const struct cpumask *const cpu_prime_mask;
 
 #if NR_CPUS > 1
 #define num_online_cpus()	cpumask_weight(cpu_online_mask)
