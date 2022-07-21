@@ -2090,6 +2090,7 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"mi,mdss-dsi-black-setting-command",
 	"mi,mdss-dsi-read-lockdown-info-command",
 	"qcom,mdss-dsi-dispparam-pen-120hz-command",
+	"qcom,mdss-dsi-dispparam-pen-90hz-command",
 	"qcom,mdss-dsi-dispparam-pen-60hz-command",
 	"qcom,mdss-dsi-dispparam-pen-30hz-command",
 	/* xiaomi add end */
@@ -2188,6 +2189,7 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"mi,mdss-dsi-black-setting-command-state",
 	"mi,mdss-dsi-read-lockdown-info-command-state",
 	"qcom,mdss-dsi-dispparam-pen-120hz-command-state",
+	"qcom,mdss-dsi-dispparam-pen-90hz-command-state",
 	"qcom,mdss-dsi-dispparam-pen-60hz-command-state",
 	"qcom,mdss-dsi-dispparam-pen-30hz-command-state",
 	/* xiaomi add end */
