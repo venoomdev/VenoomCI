@@ -242,6 +242,7 @@ struct dsi_panel {
 	u32 fod_dim_lut_count;
 #endif
 	int hbm_mode;
+	int cabc_mode;
 
 };
 
@@ -387,5 +388,6 @@ u32 dsi_panel_get_fod_dim_alpha(struct dsi_panel *panel);
 
 
 int dsi_panel_apply_hbm_mode(struct dsi_panel *panel);
+int dsi_panel_apply_cabc_mode(struct dsi_panel *panel);
 
 #endif /* _DSI_PANEL_H_ */
