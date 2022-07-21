@@ -1127,6 +1127,8 @@ int dsi_panel_match_fps_pen_setting(struct dsi_panel *panel,
 	/* match fps(120/60/30Hz) pen seeting cmd */
 	if (adj_mode->timing.refresh_rate == 120)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_PEN_120HZ);
+        else if (adj_mode->timing.refresh_rate == 90)
+                rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_PEN_90HZ);
 	else if (adj_mode->timing.refresh_rate == 60)
 		rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_DISP_PEN_60HZ);
 	else if (adj_mode->timing.refresh_rate == 30)
