@@ -2089,10 +2089,6 @@ const char *cmd_set_prop_map[DSI_CMD_SET_MAX] = {
 	"mi,mdss-dsi-greenish-gamma-set-command",
 	"mi,mdss-dsi-black-setting-command",
 	"mi,mdss-dsi-read-lockdown-info-command",
-	"qcom,mdss-dsi-dispparam-cabcuion-command",
-	"qcom,mdss-dsi-dispparam-cabcstillon-command",
-	"qcom,mdss-dsi-dispparam-cabcmovieon-command",
-	"qcom,mdss-dsi-dispparam-cabcoff-command",
 	"qcom,mdss-dsi-dispparam-pen-120hz-command",
 	"qcom,mdss-dsi-dispparam-pen-90hz-command",
 	"qcom,mdss-dsi-dispparam-pen-60hz-command",
@@ -2192,10 +2188,6 @@ const char *cmd_set_state_map[DSI_CMD_SET_MAX] = {
 	"mi,mdss-dsi-greenish-gamma-set-command-state",
 	"mi,mdss-dsi-black-setting-command-state",
 	"mi,mdss-dsi-read-lockdown-info-command-state",
-	"qcom,mdss-dsi-dispparam-cabcuion-command-state",
-	"qcom,mdss-dsi-dispparam-cabcstillon-command-state",
-	"qcom,mdss-dsi-dispparam-cabcmovieon-command-state",
-	"qcom,mdss-dsi-dispparam-cabcoff-command-state",
 	"qcom,mdss-dsi-dispparam-pen-120hz-command-state",
 	"qcom,mdss-dsi-dispparam-pen-90hz-command-state",
 	"qcom,mdss-dsi-dispparam-pen-60hz-command-state",
@@ -5030,9 +5022,6 @@ int dsi_panel_enable(struct dsi_panel *panel)
 	if (panel->hbm_mode)
 		dsi_panel_apply_hbm_mode(panel);
 
-	if (panel->cabc_mode)
-		dsi_panel_apply_cabc_mode(panel);
-
 	mutex_lock(&panel->panel_lock);
 
 	mi_cfg = &panel->mi_cfg;
@@ -5370,31 +5359,6 @@ int dsi_panel_apply_hbm_mode(struct dsi_panel *panel)
 	if (panel->hbm_mode >= 0 &&
 		panel->hbm_mode < ARRAY_SIZE(type_map))
 		type = type_map[panel->hbm_mode];
-	else
-		type = type_map[0];
-
-	mutex_lock(&panel->panel_lock);
-	rc = dsi_panel_tx_cmd_set(panel, type);
-	mutex_unlock(&panel->panel_lock);
-
-	return rc;
-}
-
-int dsi_panel_apply_cabc_mode(struct dsi_panel *panel)
-{
-	static const enum dsi_cmd_set_type type_map[] = {
-		DSI_CMD_SET_DISP_CABC_OFF,
-		DSI_CMD_SET_DISP_CABC_UI_ON,
-		DSI_CMD_SET_DISP_CABC_STILL_ON,
-		DSI_CMD_SET_DISP_CABC_MOVIE_ON
-	};
-
-	enum dsi_cmd_set_type type;
-	int rc;
-
-	if (panel->cabc_mode >= 0 &&
-		panel->cabc_mode < ARRAY_SIZE(type_map))
-		type = type_map[panel->cabc_mode];
 	else
 		type = type_map[0];
 
