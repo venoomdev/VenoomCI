@@ -3149,6 +3149,9 @@ static int dsi_display_clocks_init(struct dsi_display *display)
 		dsi_display_get_clock_name(display, dsi_clock_name, i,
 						&clk_name);
 
+		if(!strcmp(clk_name,"shadow_bype_clk0"))
+			clk_name="shadow_byte_clk0";
+
 		DSI_DEBUG("clock name:%s\n", clk_name);
 
 		dsi_clk = devm_clk_get(&display->pdev->dev, clk_name);
