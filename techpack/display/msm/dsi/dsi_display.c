@@ -1093,7 +1093,7 @@ int dsi_display_set_power(struct drm_connector *connector,
 		mi_cfg->in_aod = true;
 		mi_drm_notifier_call_chain(MI_DRM_EARLY_EVENT_BLANK, &notify_data);
 		rc = dsi_panel_set_lp2(display->panel);
-		if (mi_cfg->last_bl_level>70)
+		if (mi_cfg->last_bl_level>50)
 			mi_cfg->unset_doze_brightness=DOZE_BRIGHTNESS_HBM;
 		else
 			mi_cfg->unset_doze_brightness=DOZE_BRIGHTNESS_LBM;
@@ -3150,6 +3150,9 @@ static int dsi_display_clocks_init(struct dsi_display *display)
 	for (i = 0; i < num_clk; i++) {
 		dsi_display_get_clock_name(display, dsi_clock_name, i,
 						&clk_name);
+
+		if(!strcmp(clk_name,"shadow_bype_clk0"))
+			clk_name="shadow_byte_clk0";
 
 		DSI_DEBUG("clock name:%s\n", clk_name);
 

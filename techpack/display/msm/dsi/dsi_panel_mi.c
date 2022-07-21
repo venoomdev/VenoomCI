@@ -2376,7 +2376,7 @@ int dsi_panel_set_doze_brightness(struct dsi_panel *panel,
 				if (doze_brightness == DOZE_BRIGHTNESS_HBM ||
 					mi_cfg->unset_doze_brightness == DOZE_BRIGHTNESS_HBM) {
 					cmd_type = DSI_CMD_SET_MI_DOZE_HBM;
-					mi_cfg->aod_backlight = 170;
+					mi_cfg->aod_backlight = 100;
 				} else if (doze_brightness == DOZE_BRIGHTNESS_LBM ||
 					mi_cfg->unset_doze_brightness == DOZE_BRIGHTNESS_LBM) {
 					cmd_type = DSI_CMD_SET_MI_DOZE_LBM;
