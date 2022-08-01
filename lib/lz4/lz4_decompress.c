@@ -144,7 +144,6 @@ static FORCE_INLINE int LZ4_decompress_generic(
 		 *
 		 * The & in the likely() below is intentionally not && so that
 		 * some compilers can produce better parallelized runtime code
-
 		 */
 		if ((endOnInput ? length != RUN_MASK : length <= 8)
 		   /*
@@ -155,9 +154,6 @@ static FORCE_INLINE int LZ4_decompress_generic(
 			     (op <= shortoend))) {
 			/* Copy the literals */
 			LZ4_memcpy(op, ip, endOnInput ? 16 : 8);
-
-			memcpy(op, ip, endOnInput ? 16 : 8);
-
 			op += length; ip += length;
 
 			/*
@@ -176,15 +172,9 @@ static FORCE_INLINE int LZ4_decompress_generic(
 			    (offset >= 8) &&
 			    (dict == withPrefix64k || match >= lowPrefix)) {
 				/* Copy the match. */
-
 				LZ4_memcpy(op + 0, match + 0, 8);
 				LZ4_memcpy(op + 8, match + 8, 8);
 				LZ4_memcpy(op + 16, match + 16, 2);
-
-				memcpy(op + 0, match + 0, 8);
-				memcpy(op + 8, match + 8, 8);
-				memcpy(op + 16, match + 16, 2);
-
 				op += length + MINMATCH;
 				/* Both stages worked, load the next token. */
 				continue;
@@ -400,11 +390,7 @@ _copy_match:
 				while (op < copyEnd)
 					*op++ = *match++;
 			} else {
-
 				LZ4_memcpy(op, match, mlen);
-
-				memcpy(op, match, mlen);
-
 			}
 			op = copyEnd;
 			if (op == oend)
@@ -418,11 +404,7 @@ _copy_match:
 			op[2] = match[2];
 			op[3] = match[3];
 			match += inc32table[offset];
-
 			LZ4_memcpy(op + 4, match, 4);
-
-			memcpy(op + 4, match, 4);
-
 			match -= dec64table[offset];
 		} else {
 			LZ4_copy8(op, match);
