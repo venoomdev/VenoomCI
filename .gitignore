@@ -142,3 +142,5 @@ kernel/configs/android-*.cfg
 b
 /AnyKernel3
 build.log
+g
+build
