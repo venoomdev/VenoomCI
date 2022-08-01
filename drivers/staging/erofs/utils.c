@@ -143,7 +143,6 @@ repeat:
 		if (cleanup)
 			BUG_ON(cnt != 1);
 
-
 #ifndef EROFS_FS_HAS_MANAGED_CACHE
 		else if (cnt > 1)
 #else
@@ -166,15 +165,6 @@ skip:
 
 		erofs_workgroup_unfreeze(grp, 1);
 #endif
-
-		else if (cnt > 1)
-			continue;
-
-		if (radix_tree_delete(&sbi->workstn_tree,
-			grp->index) != grp)
-			continue;
-
-
 		/* (rarely) grabbed again when freeing */
 		erofs_workgroup_put(grp);
 
