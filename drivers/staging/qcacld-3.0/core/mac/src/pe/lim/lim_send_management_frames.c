@@ -2144,8 +2144,8 @@ lim_send_assoc_req_mgmt_frame(struct mac_context *mac_ctx,
 			(unsigned int) bssdescr->mdie[0],
 			(unsigned int) bssdescr->mdie[1],
 			(unsigned int) bssdescr->mdie[2]);
-		populate_mdie(mac_ctx, &frm->MobilityDomain,
-			pe_session->lim_join_req->bssDescription.mdie);
+//		populate_mdie(mac_ctx, &frm->MobilityDomain,
+//			pe_session->lim_join_req->bssDescription.mdie);
 
 		/*
 		 * IEEE80211-ai [13.2.4 FT initial mobility domain association
