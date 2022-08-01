@@ -99,7 +99,6 @@ int erofs_register_workgroup(struct super_block *sb,
 	return err;
 }
 
-
 extern void erofs_workgroup_free_rcu(struct erofs_workgroup *grp);
 
 int erofs_workgroup_put(struct erofs_workgroup *grp)
@@ -115,13 +114,10 @@ int erofs_workgroup_put(struct erofs_workgroup *grp)
 	return count;
 }
 
-
-
 unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 				       unsigned long nr_shrink,
 				       bool cleanup)
 {
-
 	pgoff_t first_index = 0;
 	void *batch[PAGEVEC_SIZE];
 	unsigned freed = 0;
@@ -191,9 +187,6 @@ skip:
 	if (i && nr_shrink)
 		goto repeat;
 	return freed;
-
-	return 0;
-
 }
 
 #endif
