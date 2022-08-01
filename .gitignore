@@ -138,3 +138,7 @@ kernel/configs/android-*.cfg
 
 # Tech package directories
 #techpack/
+/out
+b
+/AnyKernel3
+build.log
