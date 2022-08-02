@@ -9337,8 +9337,8 @@ reinit:
 		ufshcd_hba_stop(hba, false);
 		ufs_spin_unlock_irqrestore(hba->host->host_lock, flags);
 
-		ret = ufshcd_hba_enable(hba);
-		if (ret)
+		err = ufshcd_hba_enable(hba);
+		if (err)
 			goto out;
 
 		goto reinit;
