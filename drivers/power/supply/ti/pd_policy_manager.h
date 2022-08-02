@@ -83,7 +83,7 @@ enum pm_state {
 #define TAPER_VOL_HYS_30			30
 #define TAPER_WITH_IBUS_HYS			60
 #define TAPER_IBUS_THR			450
-#define MAX_THERMAL_LEVEL			13
+#define MAX_THERMAL_LEVEL			16
 #define MAX_THERMAL_LEVEL_FOR_DUAL_BQ			9
 
 #define FCC_MAX_MA_FOR_MASTER_BQ			6000
