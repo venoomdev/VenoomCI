@@ -87,3 +87,5 @@ obj-y				+= lyb_taskmmu.o
 
 obj-$(CONFIG_KINECTICS_XR_NORDIC) += kxrctrl/
 
+obj-$(CONFIG_KINECTICS_XR_NORDIC) += kxrctrl/
+

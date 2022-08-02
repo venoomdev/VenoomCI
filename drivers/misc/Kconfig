@@ -650,11 +650,13 @@ config QTI_MAXIM_FAN_CONTROLLER
 	  and exposes sysfs node to control different speeds of fan.
 
 
+
 config PERF_HELPER
 	tristate "Record perflock messages"
 	default y
 	help
 	  this module support record perf lock history and other perf messages.
+
 
 config KINECTICS_XR_NORDIC
 	tristate "Nordic Misc driver support in XR Reference devices"
@@ -664,6 +666,8 @@ config KINECTICS_XR_NORDIC
 	  code to power up the Nordic chip and initializes SPI interface. Also,
 	  this also parses the gpios and interrupts from device tree and sets
 	  the gpios and interrupt handler for handling the interrupt.
+
+
 
 
 source "drivers/misc/c2port/Kconfig"
