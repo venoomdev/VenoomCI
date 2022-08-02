@@ -64,6 +64,14 @@
 	add	$(BITS_PER_LONG/8), sp;		\
 	lfence;
 
+/* Sequence to mitigate PBRSB on eIBRS CPUs */
+#define __ISSUE_UNBALANCED_RET_GUARD(sp)	\
+	call	881f;				\
+	int3;					\
+881:						\
+	add	$(BITS_PER_LONG/8), sp;		\
+	lfence;
+
 #ifdef __ASSEMBLY__
 
 /*
