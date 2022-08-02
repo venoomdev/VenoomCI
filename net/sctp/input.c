@@ -1138,6 +1138,9 @@ static struct sctp_association *__sctp_rcv_asconf_lookup(
 		return NULL;
 
 	if (!af->from_addr_param(&paddr, param, peer_port, 0))
+
+	if (af->from_addr_param(&paddr, param, peer_port, 0))
+
 		return NULL;
 
 	return __sctp_lookup_association(net, laddr, &paddr, transportp);
