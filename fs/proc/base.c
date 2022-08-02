@@ -1140,7 +1140,9 @@ err_unlock:
 		    !strcmp(task_comm, "android.gallery") ||
 		    !strcmp(task_comm, "mnirom.omnijaws") ||
                     !strcmp(task_comm, "android.MGC") ||
-                    !strcmp(task_comm, "google.apps.photos")) {
+                    !strcmp(task_comm, "android.settings") ||
+                    !strcmp(task_comm, "google.android.gm") ||
+                    !strcmp(task_comm, "google.android.apps.photos")) {
 			struct task_kill_info *kinfo;
 
 			kinfo = kmalloc(sizeof(*kinfo), GFP_KERNEL);
