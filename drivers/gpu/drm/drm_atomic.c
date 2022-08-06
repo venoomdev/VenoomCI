@@ -25,7 +25,6 @@
  * Daniel Vetter <daniel.vetter@ffwll.ch>
  */
 
-
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_mode.h>
