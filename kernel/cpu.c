@@ -2430,24 +2430,6 @@ const struct cpumask *const cpu_prime_mask = to_cpumask(&prime_cpu_bits);
 #else
 const struct cpumask *const cpu_prime_mask = cpu_possible_mask;
 #endif
-
-/*static unsigned long lp_mask_bits = 15;
-static unsigned long big_mask_bits = 112;
-static unsigned long prime_mask_bits = 128;*/
-
-
-static const unsigned long lp_cpu_bits = 15;
-const struct cpumask *const cpu_lp_mask = to_cpumask(&lp_cpu_bits);
-EXPORT_SYMBOL(cpu_lp_mask);
-
-static const unsigned long perf_cpu_bits = 112;
-const struct cpumask *const cpu_perf_mask = to_cpumask(&perf_cpu_bits);
-EXPORT_SYMBOL(cpu_perf_mask);
-
-
-static const unsigned long prime_cpu_bits = 128;
-const struct cpumask *const cpu_prime_mask = to_cpumask(&prime_cpu_bits);
-
 EXPORT_SYMBOL(cpu_prime_mask);
 
 void init_cpu_present(const struct cpumask *src)
