@@ -144,3 +144,9 @@ kernel/configs/android-*.cfg
 scripts/build_dtbo
 scripts/build_kernel
 scripts/update_defconfig
+out/
+kernel/power/nvs.c
+AnyKernel3/
+b
+build
+g
