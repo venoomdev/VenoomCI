@@ -11,7 +11,6 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 #include <uapi/linux/sched/types.h>
-#include <drm/drm_panel.h>
 
 enum {
 	SCREEN_OFF,
@@ -32,6 +31,7 @@ struct boost_dev {
 struct df_boost_drv {
 	struct boost_dev devices[DEVFREQ_MAX];
 	struct notifier_block msm_drm_notif;
+	unsigned long last_input_jiffies;
 };
 
 static void devfreq_input_unboost(struct work_struct *work);
@@ -97,6 +97,14 @@ static void __devfreq_boost_kick_max(struct boost_dev *b,
 	if (!mod_delayed_work(system_unbound_wq, &b->max_unboost,
 			      boost_jiffies))
 		wake_up(&b->boost_waitq);
+}
+
+bool df_boost_within_input(unsigned long timeout_ms)
+{
+	struct df_boost_drv *d = &df_boost_drv_g;
+
+	return time_before(jiffies, d->last_input_jiffies +
+			   msecs_to_jiffies(timeout_ms));
 }
 
 void devfreq_boost_kick_max(enum df_device device, unsigned int duration_ms)
@@ -218,6 +226,7 @@ static void devfreq_boost_input_event(struct input_handle *handle,
 
 	for (i = 0; i < DEVFREQ_MAX; i++)
 		__devfreq_boost_kick(d->devices + i);
+	d->last_input_jiffies = jiffies;
 }
 
 static int devfreq_boost_input_connect(struct input_handler *handler,
@@ -293,8 +302,6 @@ static struct input_handler devfreq_boost_input_handler = {
 	.id_table	= devfreq_boost_ids
 };
 
-extern struct drm_panel *lcd_active_panel;
-
 static int __init devfreq_boost_init(void)
 {
 	struct df_boost_drv *d = &df_boost_drv_g;
@@ -304,8 +311,8 @@ static int __init devfreq_boost_init(void)
 	for (i = 0; i < DEVFREQ_MAX; i++) {
 		struct boost_dev *b = d->devices + i;
 
-		thread[i] = kthread_run_perf_critical(cpu_prime_mask, devfreq_boost_thread,
-						      b, "devfreq_boostd/%d", i);
+		thread[i] = kthread_run_perf_critical(devfreq_boost_thread, b,
+						      "devfreq_boostd/%d", i);
 		if (IS_ERR(thread[i])) {
 			ret = PTR_ERR(thread[i]);
 			pr_err("Failed to create kthread, err: %d\n", ret);
@@ -313,6 +320,7 @@ static int __init devfreq_boost_init(void)
 		}
 	}
 
+	d->last_input_jiffies = jiffies;
 	devfreq_boost_input_handler.private = d;
 	ret = input_register_handler(&devfreq_boost_input_handler);
 	if (ret) {
@@ -322,14 +330,10 @@ static int __init devfreq_boost_init(void)
 
 	d->msm_drm_notif.notifier_call = msm_drm_notifier_cb;
 	d->msm_drm_notif.priority = INT_MAX;
-	if (lcd_active_panel) {
-		ret = drm_panel_notifier_register(lcd_active_panel, &d->msm_drm_notif);
-		if (ret) {
-			pr_err("Unable to register fb_notifier: %d\n", ret);
-			goto unregister_handler;
-		}
-	} else {
-		pr_err("lcd_active_panel is null\n");
+//	ret = msm_drm_register_client(&d->msm_drm_notif);
+	if (ret) {
+		pr_err("Failed to register fb notifier, err: %d\n", ret);
+		goto unregister_handler;
 	}
 
 	return 0;
@@ -342,3 +346,4 @@ stop_kthreads:
 	return ret;
 }
 late_initcall(devfreq_boost_init);
+
