@@ -4437,7 +4437,7 @@ retry_cpuset:
 		}
 		if (!used_vmpressure)
 			used_vmpressure = vmpressure_inc_users(order);
-		wake_all_kswapds(order, ac);
+//		wake_all_kswapds(order, ac);
 	}
 
 	/*
@@ -6667,7 +6667,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat)
 {
 	enum zone_type j;
 	int nid = pgdat->node_id;
-	pgdat->kswapd_waiters = (atomic_t)ATOMIC_INIT(0);
+//	pgdat->kswapd_waiters = (atomic_t)ATOMIC_INIT(0);
 
 	pgdat_init_internals(pgdat);
 	pgdat->per_cpu_nodestats = &boot_nodestats;
