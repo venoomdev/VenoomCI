@@ -1766,30 +1766,26 @@ static int dsi_panel_parse_dfps_caps(struct dsi_panel *panel)
 		goto error;
 	}
 
-	dfps_caps->dfps_list_len = utils->count_u32_elems(utils->data,
-				  "qcom,dsi-supported-dfps-list");
-	if (dfps_caps->dfps_list_len < 1) {
-		DSI_ERR("[%s] dfps refresh list not present\n", name);
-		rc = -EINVAL;
-		goto error;
-	}
+//	dfps_caps->dfps_list_len = utils->count_u32_elems(utils->data,
+//				  "qcom,dsi-supported-dfps-list");
+//	if (dfps_caps->dfps_list_len < 1) {
+//		DSI_ERR("[%s] dfps refresh list not present\n", name);
+//		rc = -EINVAL;
+//		goto error;
+//	}
+	dfps_caps->dfps_list_len = 8;
 
 	dfps_caps->dfps_list = kcalloc(dfps_caps->dfps_list_len, sizeof(u32),
 			GFP_KERNEL);
-	if (!dfps_caps->dfps_list) {
-		rc = -ENOMEM;
-		goto error;
-	}
+	dfps_caps->dfps_list[0] = 144;
+	dfps_caps->dfps_list[1] = 130;
+	dfps_caps->dfps_list[2] = 120;
+	dfps_caps->dfps_list[3] = 90;
+        dfps_caps->dfps_list[4] = 75;
+        dfps_caps->dfps_list[5] = 60;
+        dfps_caps->dfps_list[6] = 50;
+        dfps_caps->dfps_list[7] = 30;
 
-	rc = utils->read_u32_array(utils->data,
-			"qcom,dsi-supported-dfps-list",
-			dfps_caps->dfps_list,
-			dfps_caps->dfps_list_len);
-	if (rc) {
-		DSI_ERR("[%s] dfps refresh rate list parse failed\n", name);
-		rc = -EINVAL;
-		goto error;
-	}
 	dfps_caps->dfps_support = true;
 
 	/* calculate max and min fps */

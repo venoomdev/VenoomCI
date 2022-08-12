@@ -59,11 +59,12 @@
 		qcom,mdss-dsi-pan-enable-smart-fps;
 		qcom,mdss-dsi-pan-fps-update =
 			"dfps_immediate_porch_mode_vfp";
-		qcom,dsi-supported-dfps-list = <120 90 60 50 30>;
+//		qcom,dsi-supported-dfps-list = <120 90 60 50 30>;
+		qcom,dsi-supported-dfps-list = <144 130 120 90 75 60 50 30>;
 
 		qcom,mdss-dsi-display-timings {
 			timing@0{
-				qcom,mdss-dsi-panel-framerate = <120>;
+				qcom,mdss-dsi-panel-framerate = <130>;
 				qcom,mdss-dsi-panel-width = <1080>;
 				qcom,mdss-dsi-panel-height = <2400>;
 				qcom,mdss-dsi-h-pulse-width = <4>;
