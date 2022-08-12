@@ -31,8 +31,8 @@ export KBUILD_LINKER_STRING
 #channel
 #export chat_id2="-1001608547174!"
 export chat_id="-1001551521202"
-export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc!"
-export DEF="vendor/alioth_defconfig"
+export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc"
+export DEF="alioth_defconfig"
 TC_DIR=/root/kernel/c
 GCC64_DIR="/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
 GCC32_DIR="/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
