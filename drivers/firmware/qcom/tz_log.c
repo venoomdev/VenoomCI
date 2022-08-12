@@ -1220,3 +1220,4 @@ module_exit(tz_log_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TZ Log driver");
 MODULE_ALIAS("platform:tz_log");
+
