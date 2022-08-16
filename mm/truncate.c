@@ -323,7 +323,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 	else
 		end = (lend + 1) >> PAGE_SHIFT;
 
-	pagevec_init(&pvec);
+//	pagevec_init(&pvec);
 	index = start;
 	while (index < end && pagevec_lookup_entries(&pvec, mapping, index,
 			min(end - index, (pgoff_t)PAGEVEC_SIZE),
@@ -539,7 +539,7 @@ unsigned long smb_invalidate_mapping_pages(
 	unsigned long count = 0;
 	int i;
 
-	pagevec_init(&pvec, 0);
+//	pagevec_init(&pvec, 0);
 	while (index <= end && pagevec_lookup_entries(&pvec, mapping, index,
 			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
 			indices)) {

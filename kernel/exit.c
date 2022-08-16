@@ -68,6 +68,10 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
+#ifdef CONFIG_CONTROL_CENTER
+#include <oneplus/control_center/control_center_helper.h>
+#endif
+
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
 	nr_threads--;
@@ -876,6 +880,10 @@ void __noreturn do_exit(long code)
 	exit_task_namespaces(tsk);
 	exit_task_work(tsk);
 	exit_thread(tsk);
+
+#ifdef CONFIG_CONTROL_CENTER
+	cc_tsk_free((void *) tsk);
+#endif
 
 	/*
 	 * Flush inherited counters to the parent - before the parent

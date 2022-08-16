@@ -30,6 +30,10 @@
 #include <linux/task_io_accounting.h>
 #include <linux/rseq.h>
 
+#ifdef CONFIG_CONTROL_CENTER
+#include <oneplus/control_center/control_center_helper.h>
+#endif
+
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
 struct backing_dev_info;
@@ -825,6 +829,7 @@ struct task_struct {
 
 	void				*stack;
 	atomic_t			usage;
+	int compensate_need;
 	/* Per task flags (PF_*), defined further below: */
 	unsigned int			flags;
 	unsigned int			ptrace;
@@ -1890,6 +1895,11 @@ static inline bool cpupri_check_rt(void)
 
 #ifndef cpu_relax_yield
 #define cpu_relax_yield() cpu_relax()
+#endif
+
+#ifdef CONFIG_CONTROL_CENTER
+extern void restore_user_nice_safe(struct task_struct *p);
+extern void set_user_nice_no_cache(struct task_struct *p, long nice);
 #endif
 
 extern int yield_to(struct task_struct *p, bool preempt);

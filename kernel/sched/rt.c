@@ -14,6 +14,12 @@
 
 #include "walt.h"
 
+#ifdef CONFIG_CONTROL_CENTER
+#include <linux/oem/control_center.h>
+#endif
+
+#include <linux/oem/im.h>
+
 #ifdef CONFIG_KPERFEVENTS
 #include <linux/kperfevents.h>
 #include <trace/events/kperfevents_sched.h>
@@ -1868,7 +1874,11 @@ static int rt_energy_aware_wake_cpu(struct task_struct *task)
 	sd = rcu_dereference(*per_cpu_ptr(&sd_asym_cpucapacity, cpu));
 	if (!sd)
 		goto unlock;
-
+#ifdef CONFIG_CONTROL_CENTER
+	boost_on_big = boost_on_big |
+		im_hwc(task) | // HWC select big core first
+		(im_sf(task) && ccdm_get_hint(CCDM_TB_PLACE_BOOST));
+#endif
 retry:
 	sg = sd->groups;
 	do {
