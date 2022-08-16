@@ -17,10 +17,6 @@
 #include "kgsl_trace.h"
 #include "kgsl_trace_power.h"
 
-#ifdef CONFIG_HOUSTON
-#include <oneplus/houston/houston_helper.h>
-#endif
-
 #define KGSL_PWRFLAGS_POWER_ON 0
 #define KGSL_PWRFLAGS_CLK_ON   1
 #define KGSL_PWRFLAGS_AXI_ON   2
@@ -2343,10 +2339,6 @@ int kgsl_pwrctrl_init(struct kgsl_device *device)
 
 error_cleanup_bus_ib:
 	kfree(pwr->bus_ib);
-
-#ifdef CONFIG_HOUSTON
-	ht_register_kgsl_pwrctrl(pwr);
-#endif
 error_cleanup_pcl:
 	_close_pcl(pwr);
 error_cleanup_gpu_cfg:
