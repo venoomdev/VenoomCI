@@ -26,6 +26,10 @@
 
 #include "walt.h"
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
+
 #ifdef CONFIG_SMP
 static inline bool task_fits_max(struct task_struct *p, int cpu);
 #endif /* CONFIG_SMP */
@@ -6991,6 +6995,13 @@ static int get_start_cpu(struct task_struct *p)
 
 	return start_cpu;
 }
+
+#ifdef CONFIG_HOUSTON
+	if (current->ravg.demand_scaled >= p->ravg.demand_scaled) {
+		/* add 'current' into RTG list */
+		ht_rtg_list_add_tail(current);
+	}
+#endif
 
 enum fastpaths {
 	NONE = 0,

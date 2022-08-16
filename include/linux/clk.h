@@ -790,6 +790,10 @@ static inline void clk_bulk_disable_unprepare(int num_clks,
 
 extern void clk_get_ddr_freq(u64 *val);
 
+#ifdef CONFIG_HOUSTON
+extern void clk_get_ddr_freq(u64 *val);
+#endif
+
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
 struct clk *of_clk_get(struct device_node *np, int index);
 struct clk *of_clk_get_by_name(struct device_node *np, const char *name);

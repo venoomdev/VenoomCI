@@ -113,6 +113,10 @@
 #include <oneplus/control_center/control_center_helper.h>
 #endif
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
+
 /*
  * Minimum number of threads to boot the kernel
  */

@@ -72,6 +72,10 @@
 #include <oneplus/control_center/control_center_helper.h>
 #endif
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
+
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
 	nr_threads--;
@@ -195,6 +199,9 @@ void release_task(struct task_struct *p)
 {
 	struct task_struct *leader;
 	int zap_leader;
+#ifdef CONFIG_HOUSTON
+	ht_rtg_list_del(p);
+#endif
 repeat:
 	/* don't need to get the RCU readlock here - the process is dead and
 	 * can't be modifying its own credentials. But shut RCU-lockdep up */
@@ -885,6 +892,9 @@ void __noreturn do_exit(long code)
 	cc_tsk_free((void *) tsk);
 #endif
 
+#ifdef CONFIG_HOUSTON
+	ht_perf_event_release(tsk);
+#endif
 	/*
 	 * Flush inherited counters to the parent - before the parent
 	 * gets woken up by child-exit notifications.

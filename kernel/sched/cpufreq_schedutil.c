@@ -22,6 +22,10 @@
 #include <oneplus/control_center/control_center_helper.h>
 #endif
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
+
 struct sugov_tunables {
 	struct gov_attr_set	attr_set;
 	unsigned int		up_rate_limit_us;
@@ -1419,7 +1423,11 @@ static int sugov_start(struct cpufreq_policy *policy)
 		cpufreq_add_update_util_hook(cpu, &sg_cpu->update_util,
 					     policy_is_shared(policy) ?
 							sugov_update_shared :
-							sugov_update_single);
+	
+#ifdef CONFIG_HOUSTON
+		ht_register_cpu_util(cpu, cpumask_first(policy->related_cpus),
+				&sg_cpu->util, &sg_policy->hispeed_util);
+#endif						sugov_update_single);
 	}
 #ifdef CONFIG_CONTROL_CENTER
 	policy->cc_enable = true;

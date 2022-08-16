@@ -28,6 +28,9 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
+#ifdef CONFIG_HOUSTON
+#include <oneplus/houston/houston_helper.h>
+#endif
 #include <linux/oem/im.h>
 
 #undef CREATE_TRACE_POINTS
@@ -4319,6 +4322,9 @@ static void __sched notrace __schedule(bool preempt)
 		++*switch_count;
 
 		trace_sched_switch(preempt, prev, next);
+#ifdef CONFIG_HOUSTON
+		ht_sched_switch_update(prev, next);
+#endif
 
 		/* Also unlocks the rq: */
 		rq = context_switch(rq, prev, next, &rf);
