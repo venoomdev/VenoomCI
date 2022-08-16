@@ -116,10 +116,10 @@ struct scan_control {
 	s8 order;
 
 	/* Scan (total_size >> priority) pages at once */
-	s8 priority;
+//	s8 priority;
 
 	/* The highest zone to isolate pages for reclaim from */
-	s8 reclaim_idx;
+//	s8 reclaim_idx;
 
 	/* This context's GFP mask */
 	gfp_t gfp_mask;
