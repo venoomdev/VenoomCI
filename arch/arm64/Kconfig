@@ -1711,5 +1711,3 @@ endif
 if ARCH_QCOM
 source "techpack/Kconfig"
 endif
-
-source "coretech/Kconfig"
