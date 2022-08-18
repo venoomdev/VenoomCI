@@ -1664,7 +1664,7 @@ static long ht_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long __us
 		cl.min = cli.cmin;
 		cl.max = cli.cmax;
 		cl.sum = cli.sum;
-		cl.avg = cli.cnt? cli.sum/cli.c 0;
+		cl.avg = cli.cnt? cli.sum/cli.cnt: 0;
 		cl.iowait_min = cli.iowait_min;
 		cl.iowait_max = cli.iowait_max;
 		cl.iowait_sum = cli.iowait_sum;
@@ -1954,7 +1954,7 @@ static int fps_sync_init(void)
 	cdev_init(&cdev, &ht_ctl_fops);
 	cdev.owner = THIS_MODULE;
 	rc = cdev_add(&cdev, MKDEV(MAJOR(ht_ctl_dev), 0), 1);
-	if (rc < 0) {
+if (rc < 0) {
 		ht_loge("cdev_add failed %d\n", rc);
 		goto exit_destroy_device;
 	}
@@ -2123,7 +2123,7 @@ void ht_rtg_list_add_tail(struct task_struct *task)
 
 	/* if calling too close, ignore it */
 	if (time < task->rtg_ts2 ||
-		time - task->rtg_ts2 <= 1000 /* 1 */)
+		time - task->rtg_ts2 <= 1000 /* 1 ms */)
 		return;
 
 	task->rtg_ts2 = time;

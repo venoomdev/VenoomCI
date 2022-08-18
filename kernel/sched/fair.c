@@ -6996,12 +6996,12 @@ static int get_start_cpu(struct task_struct *p)
 	return start_cpu;
 }
 
-#ifdef CONFIG_HOUSTON
-	if (current->ravg.demand_scaled >= p->ravg.demand_scaled) {
-		/* add 'current' into RTG list */
-		ht_rtg_list_add_tail(current);
-	}
-#endif
+//#ifdef CONFIG_HOUSTON
+//	if (current->ravg.demand_scaled >= p->ravg.demand_scaled) {
+//		/* add 'current' into RTG list */
+//		ht_rtg_list_add_tail(current);
+//	}
+//#endif
 
 enum fastpaths {
 	NONE = 0,
