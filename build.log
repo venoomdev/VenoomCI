@@ -1,0 +1,185 @@
+make[1]: Entering directory '/root/kernel/ven/out'
+  GEN     ./Makefile
+scripts/kconfig/conf  --syncconfig Kconfig
+  GEN     ./Makefile
+  Using .. as source for kernel
+  CALL    ../scripts/checksyscalls.sh
+  CHK     include/generated/compile.h
+  GZIP    kernel/config_data.gz
+  CHK     kernel/kheaders_data.tar.xz
+  CC      techpack/data/drivers/rmnet/perf/rmnet_perf_opt.o
+  CC      techpack/audio/ipc/apr.o
+  CC      techpack/audio/ipc/apr_v2.o
+  CC      drivers/input/touchscreen/focaltech_spi/focaltech_core.o
+  CC      drivers/input/touchscreen/focaltech_spi/focaltech_spi.o
+  CC      drivers/input/touchscreen/focaltech_spi/focaltech_point_report_check.o
+  CC      drivers/input/touchscreen/focaltech_spi/focaltech_flash.o
+  CC      techpack/audio/ipc/apr_tal_rpmsg.o
+  CC      drivers/input/touchscreen/focaltech_spi/focaltech_flash/focaltech_upgrade_ft3658u.o
+  DTC     arch/arm64/boot/dts/vendor/qcom/kona.dtb
+  CC      drivers/ptp/ptp_clock.o
+  CC      drivers/platform/msm/gsi/gsi.o
+  CC      drivers/pwm/core.o
+  DTC     arch/arm64/boot/dts/vendor/qcom/kona-v2.dtb
+  CC      drivers/platform/msm/usb_bam.o
+  CC      drivers/platform/msm/qcom-geni-se.o
+  DTC     arch/arm64/boot/dts/vendor/qcom/kona-v2.1.dtb
+  CC      drivers/platform/msm/sps/sps_bam.o
+  CC      drivers/power/supply/maxim/ds28e16.o
+  CC      drivers/platform/msm/sps/sps.o
+  CC      drivers/platform/msm/ipa/ipa_clients/ipa_usb.o
+  CC      drivers/platform/msm/sps/sps_map.o
+  CC      drivers/platform/msm/ipa/ipa_clients/odu_bridge.o
+  CC      drivers/platform/msm/ipa/ipa_clients/ipa_mhi_client.o
+  CC      drivers/platform/msm/ipa/ipa_clients/ipa_uc_offload.o
+  CC      drivers/platform/msm/sps/sps_mem.o
+  CC      drivers/platform/msm/sps/sps_rm.o
+  CC      drivers/platform/msm/ipa/ipa_clients/ipa_wdi3.o
+  CC      drivers/platform/msm/ipa/ipa_api.o
+  CC      drivers/platform/msm/ipa/ipa_clients/ipa_gsb.o
+  CC      drivers/platform/msm/ipa/ipa_rm.o
+  CC      drivers/platform/msm/ipa/ipa_clients/ipa_wigig.o
+  CC      drivers/platform/msm/ipa/ipa_clients/rndis_ipa.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipahal/ipahal.o
+  CC      drivers/power/supply/qcom/battery.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa.o
+  CC      drivers/ptp/ptp_chardev.o
+  CC      drivers/ptp/ptp_sysfs.o
+  CC      drivers/power/supply/qcom/qpnp-smb5.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_hdr.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_flt.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_rt.o
+  CC      drivers/pwm/sysfs.o
+  CC      drivers/pwm/pwm-qti-lpg.o
+  CC      drivers/power/supply/qcom/smb5-lib.o
+  CC      drivers/reset/core.o
+  CC      drivers/regulator/core.o
+../drivers/input/touchscreen/focaltech_spi/focaltech_flash.c:50:10: fatal error: 'include/firmware/fw_ft3658_k11.i' file not found
+#include FTS_UPGRADE_FW_FILE
+         ^~~~~~~~~~~~~~~~~~~
+../drivers/input/touchscreen/focaltech_spi/focaltech_config.h:265:50: note: expanded from macro 'FTS_UPGRADE_FW_FILE'
+#define FTS_UPGRADE_FW_FILE                      "include/firmware/fw_ft3658_k11.i"
+                                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1 error generated.
+make[5]: *** [../scripts/Makefile.build:339: drivers/input/touchscreen/focaltech_spi/focaltech_flash.o] Error 1
+make[5]: *** Waiting for unfinished jobs....
+error: write on a pipe with no reader
+drivers/input/touchscreen/focaltech_spi/.tmp_focaltech_point_report_check.o: no symbols
+  CC      drivers/rpmsg/rpmsg_core.o
+  CC      drivers/regulator/dummy.o
+  CC      drivers/rtc/rtc-lib.o
+  CC      drivers/regulator/fixed-helper.o
+  CC      drivers/rpmsg/rpmsg_char.o
+  CC      drivers/rpmsg/qcom_glink_native.o
+  CC      drivers/platform/msm/ipa/ipa_rm_resource.o
+  CC      drivers/rpmsg/qcom_glink_smem.o
+  AR      drivers/power/supply/maxim/built-in.a
+make[4]: *** [../scripts/Makefile.build:642: drivers/input/touchscreen/focaltech_spi] Error 2
+make[3]: *** [../scripts/Makefile.build:642: drivers/input/touchscreen] Error 2
+make[2]: *** [../scripts/Makefile.build:642: drivers/input] Error 2
+make[2]: *** Waiting for unfinished jobs....
+  CC      drivers/regulator/helpers.o
+  CC      drivers/rpmsg/qcom_glink_spss.o
+  CC      drivers/regulator/devres.o
+  CC      drivers/power/supply/qcom/pmic-voter.o
+  CC      drivers/power/supply/ti/bq2597x_charger.o
+  CC      drivers/regulator/of_regulator.o
+  AR      techpack/audio/ipc/built-in.a
+  CC      drivers/rtc/hctosys.o
+  CC      drivers/regulator/fixed.o
+  CC      drivers/regulator/proxy-consumer.o
+error: write on a pipe with no reader
+  CC      drivers/power/supply/qcom/storm-watch.o
+  CC      drivers/power/supply/qcom/schgm-flash.o
+  AR      techpack/audio/built-in.a
+error: write on a pipe with no reader
+  DTC     arch/arm64/boot/dts/vendor/qcom/alioth-sm8250-overlay.dtbo
+  AR      drivers/ptp/built-in.a
+  CC      drivers/regulator/qcom_pm8008-regulator.o
+  CC      drivers/rtc/systohc.o
+  CC      drivers/regulator/qpnp-lcdb-regulator.o
+error: write on a pipe with no reader
+error: write on a pipe with no reader
+  AR      techpack/data/drivers/rmnet/perf/built-in.a
+  CC      drivers/rtc/class.o
+  AR      techpack/data/built-in.a
+  CC      drivers/platform/msm/ipa/ipa_v3/ipahal/ipahal_reg.o
+  AR      techpack/built-in.a
+  CC      drivers/power/supply/qcom/qpnp-qnovo5.o
+error: write on a pipe with no reader
+  AR      drivers/pwm/built-in.a
+error: write on a pipe with no reader
+error: write on a pipe with no reader
+error: write on a pipe with no reader
+error: write on a pipe with no reader
+  AR      drivers/platform/msm/gsi/built-in.a
+  CC      drivers/power/supply/qcom/qpnp-fg-gen4.o
+  CC      drivers/rtc/interface.o
+  CC      drivers/regulator/qpnp-amoled-regulator.o
+  AR      drivers/platform/msm/sps/built-in.a
+  CC      drivers/power/supply/ti/pd_policy_manager.o
+  CC      drivers/power/supply/qcom/fg-memif.o
+error: write on a pipe with no reader
+  CC      drivers/regulator/refgen.o
+  AR      drivers/reset/hisilicon/built-in.a
+  CC      drivers/power/supply/qcom/fg-util.o
+  CC      drivers/regulator/rpmh-regulator.o
+  AR      drivers/reset/built-in.a
+  CC      drivers/power/supply/qcom/fg-alg.o
+  CC      drivers/rtc/nvmem.o
+error: write on a pipe with no reader
+  CC      drivers/rtc/rtc-dev.o
+  CC      drivers/power/supply/qcom/hl6111r.o
+  CC      drivers/regulator/stub-regulator.o
+  CC      drivers/rtc/rtc-proc.o
+  CC      drivers/rtc/rtc-sysfs.o
+  CC      drivers/platform/msm/ipa/ipa_rm_inactivity_timer.o
+  CC      drivers/rtc/rtc-pm8xxx.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipahal/ipahal_fltrt.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipahal/ipahal_hw_stats.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipahal/ipahal_nat.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_dp.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_client.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_utils.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_nat.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_intf.o
+  CC      drivers/platform/msm/ipa/ipa_v3/teth_bridge.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_interrupts.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_uc.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_uc_wdi.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_dma.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_uc_mhi.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_mhi.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_uc_ntn.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_hw_stats.o
+error: write on a pipe with no reader
+error: write on a pipe with no reader
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_pm.o
+  AR      drivers/platform/msm/ipa/ipa_clients/built-in.a
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_wdi3_i.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_odl.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_wigig_i.o
+  DTBOIMG arch/arm64/boot/dtbo.img
+  CC      drivers/platform/msm/ipa/ipa_v3/rmnet_ipa.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_qmi_service_v01.o
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_qmi_service.o
+  CC      drivers/platform/msm/ipa/ipa_v3/rmnet_ipa_fd_ioctl.o
+  AR      drivers/rpmsg/built-in.a
+  CC      drivers/platform/msm/ipa/ipa_v3/ipa_mpm.o
+  AR      drivers/power/supply/ti/built-in.a
+error: write on a pipe with no reader
+error: write on a pipe with no reader
+  AR      drivers/rtc/built-in.a
+  AR      drivers/regulator/built-in.a
+  AR      drivers/power/supply/qcom/built-in.a
+  AR      drivers/power/supply/built-in.a
+  AR      drivers/power/built-in.a
+  AR      drivers/platform/msm/ipa/ipa_v3/ipahal/built-in.a
+error: write on a pipe with no reader
+  AR      drivers/platform/msm/ipa/ipa_v3/built-in.a
+  AR      drivers/platform/msm/ipa/built-in.a
+  AR      drivers/platform/msm/built-in.a
+  AR      drivers/platform/built-in.a
+make[1]: *** [/root/kernel/ven/Makefile:1224: drivers] Error 2
+make[1]: Leaving directory '/root/kernel/ven/out'
+make: *** [Makefile:146: sub-make] Error 2
