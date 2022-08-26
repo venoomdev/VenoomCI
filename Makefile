@@ -696,6 +696,16 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, int-in-bool-context)
 KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
 
 ifeq ($(CONFIG_CC_OPTIMIZE_FOR_SIZE), y)
+alioth_flags := := -mcpu=cortex-a77 \
+		 -mllvm -polly \
+		 -mllvm -polly-run-inliner \
+		 -mllvm -polly-optimizer=isl \
+		 -mllvm -polly-enable-simplify \
+		 -mllvm -polly-vectorizer=polly \
+		 -mllvm -polly-detect-keep-going \
+		 -mllvm -polly-code-generation=full \
+		 -mllvm -polly-isl-arg=--no-schedule-serialize-sccs
+
 KBUILD_CFLAGS   += -Os
 KBUILD_AFLAGS   += -Os
 KBUILD_LDFLAGS  += -Os
