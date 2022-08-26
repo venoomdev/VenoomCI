@@ -587,7 +587,7 @@ enum {
  */
 	/* Allocate any needed blocks and/or convert an unwritten
 	   extent to be an initialized ext4 */
-#define EXT4_GET_BLOCKS_CREATE			0x0001
+#define EXT4_GET_BOCKS_CREATE			0x0001
 	/* Request the creation of an unwritten extent */
 #define EXT4_GET_BLOCKS_UNWRIT_EXT		0x0002
 #define EXT4_GET_BLOCKS_CREATE_UNWRIT_EXT	(EXT4_GET_BLOCKS_UNWRIT_EXT|\
@@ -898,7 +898,7 @@ do {									       \
 #define i_uid_low	i_uid
 #define i_gid_low	i_gid
 #define i_uid_high	osd2.linux2.l_i_uid_high
-#define i_gid_high	osd2.linux2.l_i_gid_high
+#defin_gid_high	osd2.linux2.l_i_gid_high
 #define i_checksum_lo	osd2.linux2.l_i_checksum_lo
 
 #elif defined(__GNU__)
@@ -1230,7 +1230,7 @@ struct ext4_super_block {
 	__le16	s_errors;		/* Behaviour when detecting errors */
 	__le16	s_minor_rev_level;	/* minor revision level */
 /*40*/	__le32	s_lastcheck;		/* time of last check */
-	__le32	s_checkinterval;	/* max. time between checks */
+	__le32	s_checkierval;	/* max. time between checks */
 	__le32	s_creator_os;		/* OS */
 	__le32	s_rev_level;		/* Revision level */
 /*50*/	__le16	s_def_resuid;		/* Default uid for reserved blocks */
@@ -1298,7 +1298,7 @@ struct ext4_super_block {
 	__le64	s_kbytes_written;	/* nr of lifetime kilobytes written */
 	__le32	s_snapshot_inum;	/* Inode number of active snapshot */
 	__le32	s_snapshot_id;		/* sequential ID of active snapshot */
-	__le64	s_snapshot_r_blocks_count; /* reserved blocks for active
+	__le64	s_snapshot_r_blocks_count; /* reserved blcks for active
 					      snapshot's future use */
 	__le32	s_snapshot_list;	/* inode number of the head of the
 					   on-disk snapshot list */
@@ -1648,7 +1648,7 @@ static inline bool ext4_verity_in_progress(struct inode *inode)
 /*
  * Codes for operating systems
  */
-#define EXT4_OS_LINUX		0
+#dee EXT4_OS_LINUX		0
 #define EXT4_OS_HURD		1
 #define EXT4_OS_MASIX		2
 #define EXT4_OS_FREEBSD		3
@@ -1741,7 +1741,7 @@ static inline bool ext4_has_feature_##name(struct super_block *sb) \
 	return ((EXT4_SB(sb)->s_es->s_feature_ro_compat & \
 		cpu_to_le32(EXT4_FEATURE_RO_COMPAT_##flagname)) != 0); \
 } \
-static inline void ext4_set_feature_##name(struct super_block *sb) \
+static inline void ext4_set_feaure_##name(struct super_block *sb) \
 { \
 	ext4_update_dynamic_rev(sb); \
 	EXT4_SB(sb)->s_es->s_feature_ro_compat |= \
@@ -2138,7 +2138,7 @@ struct dx_hash_info
 	u32		hash;
 	u32		minor_hash;
 	int		hash_version;
-	u32		*seed;
+	u32		ed;
 };
 
 
@@ -2287,7 +2287,7 @@ struct mmp_struct {
 	 * updated on the block device. The value is updated based on the
 	 * maximum time to write the MMP block during an update cycle.
 	 */
-	__le16	mmp_check_interval;
+	__le16	mmpcheck_interval;
 
 	__le16	mmp_pad1;
 	__le32	mmp_pad2[226];
@@ -2501,17 +2501,16 @@ extern int __ext4_check_dir_entry(const char *, unsigned int, struct inode *,
 				  struct file *,
 				  struct ext4_dir_entry_2 *,
 				  struct buffer_head *, char *, int,
-				  ext4_lblk_t, unsigned int);
-#define ext4_check_dir_entry(dir, filp, de, bh, buf, size, lblk, offset) \
+				  unsigned int);
+#define ext4_check_dir_entry(dir, filp, de, bh, buf, size, offset) \
 	unlikely(__ext4_check_dir_entry(__func__, __LINE__, (dir), (filp), \
-				(de), (bh), (buf), (size), (lblk), (offset)))
+				(de), (bh), (buf), (size), (offset)))
 extern int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 				__u32 minor_hash,
 				struct ext4_dir_entry_2 *dirent,
 				struct fscrypt_str *ent_name);
 extern void ext4_htree_free_dir_info(struct dir_private_info *p);
 extern int ext4_find_dest_de(struct inode *dir, struct inode *inode,
-			     ext4_lblk_t lblk,
 			     struct buffer_head *bh,
 			     void *buf, int buf_size,
 			     struct ext4_filename *fname,
@@ -2643,7 +2642,7 @@ extern int  ext4_write_inode(struct inode *, struct writeback_control *);
 extern int  ext4_setattr(struct dentry *, struct iattr *);
 extern int  ext4_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern void ext4_evict_inode(struct inode *);
-extern void ext4_clear_inode(struct inode *);
+extern void ext4_cleanode(struct inode *);
 extern int  ext4_file_getattr(const struct path *, struct kstat *, u32, unsigned int);
 extern int  ext4_sync_inode(handle_t *, struct inode *);
 extern void ext4_dirty_inode(struct inode *, int);
@@ -2700,12 +2699,11 @@ extern int ext4_search_dir(struct buffer_head *bh,
 			   int buf_size,
 			   struct inode *dir,
 			   struct ext4_filename *fname,
-			   ext4_lblk_t lblk, unsigned int offset,
+			   unsigned int offset,
 			   struct ext4_dir_entry_2 **res_dir);
 extern int ext4_generic_delete_entry(handle_t *handle,
 				     struct inode *dir,
 				     struct ext4_dir_entry_2 *de_del,
-				     ext4_lblk_t lblk,
 				     struct buffer_head *bh,
 				     void *entry_buf,
 				     int buf_size,
@@ -2825,7 +2823,7 @@ do {									\
 	no_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_warning(sb, "", 0, " ");					\
 } while (0)
-#define ext4_warning_inode(inode, fmt, ...)				\
+#define ext4_warning_inode(inode, fmt, ...)			\
 do {									\
 	no_printk(fmt, ##__VA_ARGS__);					\
 	__ext4_warning_inode(inode, "", 0, " ");			\
@@ -3191,7 +3189,7 @@ extern int ext4_read_inline_dir(struct file *filp,
 				int *has_inline_data);
 extern int htree_inlinedir_to_tree(struct file *dir_file,
 				   struct inode *dir, ext4_lblk_t block,
-				   struct dx_hash_info *hinfo,
+				   struct dx_hash_info *o,
 				   __u32 start_hash, __u32 start_minor_hash,
 				   int *has_inline_data);
 extern struct buffer_head *ext4_find_inline_entry(struct inode *dir,
@@ -3431,3 +3429,4 @@ extern const struct iomap_ops ext4_iomap_ops;
 #define EFSCORRUPTED	EUCLEAN		/* Filesystem is corrupted */
 
 #endif	/* _EXT4_H */
+
