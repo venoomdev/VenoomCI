@@ -144,3 +144,11 @@ kernel/configs/android-*.cfg
 scripts/build_dtbo
 scripts/build_kernel
 scripts/update_defconfig
+
+out/
+build
+AnyKernel3/
+b
+caf
+g
+build.log
