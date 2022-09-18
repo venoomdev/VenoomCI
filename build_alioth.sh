@@ -2,10 +2,10 @@
 #set -e
 ## Copy this script inside the kernel directory
 KERNEL_DEFCONFIG=vendor/alioth_defconfig
-export PATH="/home/rohail/kernel/proton-clang/bin:$PATH"
+export PATH="/home/rohail/kernel/proton/bin:$PATH"
 export ARCH=arm64
 export SUBARCH=arm64
-export KBUILD_COMPILER_STRING="$(/home/rohail/kernel/proton-clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
+export KBUILD_COMPILER_STRING="$(/home/rohail/kernel/proton/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
 
 if ! [ -d "/home/rohail/kernel/proton-clang" ]; then
 echo "Proton clang not found! Cloning..."
