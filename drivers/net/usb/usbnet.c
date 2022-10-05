@@ -1622,6 +1622,8 @@ void usbnet_disconnect (struct usb_interface *intf)
 
 
 
+
+
 	while ((urb = usb_get_from_anchor(&dev->deferred))) {
 		dev_kfree_skb(urb->context);
 		kfree(urb->sg);
