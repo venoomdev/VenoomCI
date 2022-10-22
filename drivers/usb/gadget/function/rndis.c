@@ -638,7 +638,6 @@ static int rndis_set_response(struct rndis_params *params,
 	if ((BufLength > RNDIS_MAX_TOTAL_SIZE) ||
 
 	    (BufOffset > RNDIS_MAX_TOTAL_SIZE) ||
-
 	    (BufOffset + 8 >= RNDIS_MAX_TOTAL_SIZE))
 		    return -EINVAL;
 
