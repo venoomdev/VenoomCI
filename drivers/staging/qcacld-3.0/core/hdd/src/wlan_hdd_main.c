@@ -7171,8 +7171,8 @@ void hdd_set_netdev_flags(struct hdd_adapter *adapter)
 	if (cdp_cfg_get(soc, cfg_dp_tso_enable) && enable_csum)
 		adapter->dev->features |= TSO_FEATURE_FLAGS;
 
-//	if (cdp_cfg_get(soc, cfg_dp_sg_enable))
-//		adapter->dev->features |= NETIF_F_SG;
+	if (cdp_cfg_get(soc, cfg_dp_sg_enable))
+		adapter->dev->features |= NETIF_F_SG;
 
 	adapter->dev->features |= NETIF_F_RXCSUM;
 	temp = (uint64_t)adapter->dev->features;

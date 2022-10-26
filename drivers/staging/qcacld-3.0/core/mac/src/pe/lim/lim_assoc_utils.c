@@ -1547,7 +1547,7 @@ static bool lim_check_valid_mcs_for_nss(struct pe_session *session,
  * only the rates
  *
  * Return: none
-
+ */
 static void lim_remove_membership_selectors(tSirMacRateSet *rate_set)
 {
 	int i, selector_count = 0;
@@ -1572,7 +1572,6 @@ static void lim_remove_membership_selectors(tSirMacRateSet *rate_set)
 	}
 	rate_set->numRates -= selector_count;
 }
-*/
 
 QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 				      struct supported_rates *pRates,
@@ -1623,8 +1622,8 @@ QDF_STATUS lim_populate_peer_rate_set(struct mac_context *mac,
 	} else
 		tempRateSet2.numRates = 0;
 
-//	lim_remove_membership_selectors(&tempRateSet);
-//	lim_remove_membership_selectors(&tempRateSet2);
+	lim_remove_membership_selectors(&tempRateSet);
+	lim_remove_membership_selectors(&tempRateSet2);
 
 	if ((tempRateSet.numRates + tempRateSet2.numRates) >
 	    WLAN_SUPPORTED_RATES_IE_MAX_LEN) {
@@ -1833,8 +1832,8 @@ QDF_STATUS lim_populate_matching_rate_set(struct mac_context *mac_ctx,
 		temp_rate_set2.numRates = 0;
 	}
 
-//	lim_remove_membership_selectors(&temp_rate_set);
-//	lim_remove_membership_selectors(&temp_rate_set2);
+	lim_remove_membership_selectors(&temp_rate_set);
+	lim_remove_membership_selectors(&temp_rate_set2);
 
 	/*
 	 * absolute sum of both num_rates should be less than 12. following
