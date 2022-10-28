@@ -140,3 +140,10 @@ kernel/configs/android-*.cfg
 #techpack/
 out/
 /nanotap
+kernel/power/nvs.c
+g
+b
+build.log
+16
+caf
+build
