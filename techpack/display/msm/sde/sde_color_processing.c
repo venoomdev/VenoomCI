@@ -1701,7 +1701,7 @@ static int sde_cp_crtc_set_pu_features(struct drm_crtc *crtc, bool *need_flush)
 
 	/* early return if not a partial update frame or no change in rois */
 	if ((sde_crtc_state->user_roi_list.num_rects == 0) &&
-		(sde_crtc_state->cached_user_roi_list.num_rects == 0)) {
+	(sde_crtc_state->cached_user_roi_list.num_rects == 0)) {
 		DRM_DEBUG_DRIVER("no partial update required\n");
 		return 0;
 	} else if (sde_crtc_state->user_roi_list.num_rects == 0) {
