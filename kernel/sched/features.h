@@ -13,14 +13,6 @@
 #define SCHED_FEAT_START_DEBIT 1
 
 /*
- * Use arch dependent cpu capacity functions
- */
-
-SCHED_FEAT(ARCH_CAPACITY, true)
-
-SCHED_FEAT(ARCH_POWER, true)
-
-/*
  * Prefer to schedule the task we woke last (assuming it failed
  * wakeup-preemption), since its likely going to consume data we
  * touched, increases cache locality.
