@@ -53,8 +53,6 @@ struct dsi_display *primary_display;
 
 static unsigned int cur_refresh_rate = 60;
 
-static unsigned int cur_refresh_rate = 60;
-
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
 {
