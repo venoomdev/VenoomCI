@@ -34,6 +34,5 @@ make -j$(nproc --all) O=out \
                       CC=clang \
                       CROSS_COMPILE=aarch64-linux-gnu- \
                       NM=llvm-nm \
-                      OBJCOPY=llvm-objcopy \
                       OBJDUMP=llvm-objdump \
                       STRIP=llvm-strip
