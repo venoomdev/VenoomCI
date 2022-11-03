@@ -2,12 +2,12 @@
 #set -e
 ## Copy this script inside the kernel directory
 KERNEL_DEFCONFIG=vendor/alioth_defconfig
-export PATH="/root/rohail/kernel/clang/bin:$PATH"
+export PATH="/root/rohail33/kernel/clang/bin:$PATH"
 export ARCH=arm64
 export SUBARCH=arm64
-export KBUILD_COMPILER_STRING="$(/root/rohail/kernel/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
+export KBUILD_COMPILER_STRING="$(/root/rohail33/kernel/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
 
-if ! [ -d "/root/rohail/kernel/clang" ]; then
+if ! [ -d "/root/rohail33/kernel/clang" ]; then
 echo "Proton clang not found! Cloning..."
 if ! git clone -q https://gitlab.com/ZyCromerZ/clang.git --depth=1 --single-branch /home/rohail/kernel/proton-clang; then
 echo "Cloning failed! Aborting..."
@@ -33,7 +33,6 @@ make -j$(nproc --all) O=out \
                       ARCH=arm64 \
                       CC=clang \
                       CROSS_COMPILE=aarch64-linux-gnu- \
-                      CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
                       NM=llvm-nm \
                       OBJCOPY=llvm-objcopy \
                       OBJDUMP=llvm-objdump \
