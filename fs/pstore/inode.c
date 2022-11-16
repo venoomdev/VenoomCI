@@ -2,6 +2,7 @@
  * Persistent Storage - ramfs parts.
  *
  * Copyright (C) 2010 Intel Corporation <tony.luck@intel.com>
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
@@ -102,11 +103,11 @@ static void *pstore_ftrace_seq_next(struct seq_file *s, void *v, loff_t *pos)
 	struct pstore_private *ps = s->private;
 	struct pstore_ftrace_seq_data *data = v;
 
+	(*pos)++;
 	data->off += REC_SIZE;
 	if (data->off + REC_SIZE > ps->total_size)
 		return NULL;
 
-	(*pos)++;
 	return data;
 }
 
@@ -115,6 +116,9 @@ static int pstore_ftrace_seq_show(struct seq_file *s, void *v)
 	struct pstore_private *ps = s->private;
 	struct pstore_ftrace_seq_data *data = v;
 	struct pstore_ftrace_record *rec;
+
+	if (!data)
+		return 0;
 
 	rec = (struct pstore_ftrace_record *)(ps->record->buf + data->off);
 

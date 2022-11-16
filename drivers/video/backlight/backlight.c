@@ -119,9 +119,7 @@ static void backlight_generate_event(struct backlight_device *bd,
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
 	sysfs_notify(&bd->dev.kobj, NULL, "actual_brightness");
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	sysfs_notify(&bd->dev.kobj, NULL, "brightness");
-#endif
 }
 
 static ssize_t bl_power_show(struct device *dev, struct device_attribute *attr,
@@ -183,15 +181,15 @@ int backlight_device_set_brightness(struct backlight_device *bd,
 		if (brightness > bd->props.max_brightness)
 			rc = -EINVAL;
 		else {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-			if ((!bd->use_count && brightness) || (bd->use_count && !brightness)) {
-				pr_info("%s: set brightness to %lu\n", __func__, brightness);
+			if ((!bd->use_count && brightness) ||
+					(bd->use_count && !brightness)) {
+				pr_info("%s: set brightness to %lu\n",
+					__func__, brightness);
 				if (!bd->use_count)
 					bd->use_count++;
 				else
 					bd->use_count--;
 			}
-#endif
 			pr_debug("set brightness to %lu\n", brightness);
 			bd->props.brightness = brightness;
 			rc = backlight_update_status(bd);
@@ -217,12 +215,6 @@ static ssize_t brightness_store(struct device *dev,
 		return rc;
 
 	bd->usr_brightness_req = brightness;
-#ifndef CONFIG_THERMAL_DIMMING
-	brightness = (brightness <= bd->thermal_brightness_limit) ?
-				bd->usr_brightness_req :
-				bd->thermal_brightness_limit;
-#endif
-
 	rc = backlight_device_set_brightness(bd, brightness);
 
 	return rc ? rc : count;
@@ -305,7 +297,6 @@ static void bl_device_release(struct device *dev)
 	kfree(bd);
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static ssize_t brightness_clone_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -327,9 +318,8 @@ static ssize_t brightness_clone_store(struct device *dev,
 		return rc;
 
 	bd->props.brightness_clone_backup = brightness;
-	brightness = (brightness <= bd->thermal_brightness_clone_limit) ?
-				brightness : bd->thermal_brightness_clone_limit;
 	bd->props.brightness_clone = brightness;
+
 	envp[0] = "SOURCE=sysfs";
 	envp[1] = NULL;
 	kobject_uevent_env(&bd->dev.kobj, KOBJ_CHANGE, envp);
@@ -339,7 +329,6 @@ static ssize_t brightness_clone_store(struct device *dev,
 }
 
 static DEVICE_ATTR_RW(brightness_clone);
-#endif
 
 static struct attribute *bl_device_attrs[] = {
 	&dev_attr_bl_power.attr,
@@ -347,9 +336,7 @@ static struct attribute *bl_device_attrs[] = {
 	&dev_attr_actual_brightness.attr,
 	&dev_attr_max_brightness.attr,
 	&dev_attr_type.attr,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	&dev_attr_brightness_clone.attr,
-#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(bl_device);
@@ -407,16 +394,11 @@ static int bd_cdev_set_cur_brightness(struct thermal_cooling_device *cdev,
 		return 0;
 
 	bd->thermal_brightness_limit = brightness_lvl;
-#ifdef CONFIG_THERMAL_DIMMING
-	sysfs_notify(&cdev->device.kobj, NULL, "cur_state");
-	pr_info("thermal dimming:set thermal_brightness_limit to %d\n", bd->thermal_brightness_limit);
-#else
 	brightness_lvl = (bd->usr_brightness_req
 				<= bd->thermal_brightness_limit) ?
 				bd->usr_brightness_req :
 				bd->thermal_brightness_limit;
 	backlight_device_set_brightness(bd, brightness_lvl);
-#endif
 
 	return 0;
 }
@@ -736,12 +718,6 @@ struct backlight_device *of_find_backlight(struct device *dev)
 			of_node_put(np);
 			if (!bd)
 				return ERR_PTR(-EPROBE_DEFER);
-			/*
-			 * Note: gpio_backlight uses brightness as
-			 * power state during probe
-			 */
-			if (!bd->props.brightness)
-				bd->props.brightness = bd->props.max_brightness;
 		}
 	}
 

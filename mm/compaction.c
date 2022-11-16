@@ -23,6 +23,11 @@
 #include <linux/freezer.h>
 #include <linux/page_owner.h>
 #include <linux/psi.h>
+#include <drm/drm_notifier_mi.h>
+#include <linux/moduleparam.h>
+#include <linux/time.h>
+#include <linux/workqueue.h>
+#include <drm/drm_panel.h>
 #include "internal.h"
 
 #ifdef CONFIG_COMPACTION
@@ -984,7 +989,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		VM_BUG_ON_PAGE(PageCompound(page), page);
 
 		/* Successfully isolated */
-		del_page_from_lru_list(page, lruvec, page_lru(page));
+		del_page_from_lru_list(page, lruvec);
 		inc_node_page_state(page,
 				NR_ISOLATED_ANON + page_is_file_cache(page));
 
@@ -2405,6 +2410,56 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
 	return rc;
 }
 
+static struct workqueue_struct *compaction_wq;
+static struct delayed_work compaction_work;
+static bool screen_on = true;
+static int compaction_timeout_ms = 900000;
+module_param_named(compaction_forced_timeout_ms,
+		     compaction_timeout_ms, int, 0644);
+static int compaction_soff_delay_ms = 3000;
+module_param_named(compaction_screen_off_delay_ms,
+		     compaction_soff_delay_ms, int, 0644);
+static unsigned long compaction_forced_timeout;
+
+
+static int mi_drm_notifier_callback(struct notifier_block *self,
+				       unsigned long event, void *data)
+{
+	struct mi_drm_notifier *evdata = data;
+	int *blank;
+
+	if (event != MI_DRM_EVENT_BLANK && event != MI_DRM_EARLY_EVENT_BLANK)
+		goto out;
+
+	if (!evdata || !evdata->data)
+		goto out;
+
+	blank = evdata->data;
+	switch (*blank) {
+	case MI_DRM_BLANK_POWERDOWN:
+		if (!screen_on)
+			goto out;
+		screen_on = false;
+		if (time_after(jiffies, compaction_forced_timeout) && !delayed_work_busy(&compaction_work)) {
+			compaction_forced_timeout = jiffies + msecs_to_jiffies(compaction_timeout_ms);
+			queue_delayed_work(compaction_wq, &compaction_work,
+					   msecs_to_jiffies(compaction_soff_delay_ms));
+		}
+		break;
+	case MI_DRM_BLANK_UNBLANK:
+		if (screen_on)
+			goto out;
+		screen_on = true;
+		break;
+	}
+
+out:
+	return NOTIFY_OK;
+}
+
+static struct notifier_block compaction_notifier_block = {
+	.notifier_call = mi_drm_notifier_callback,
+};
 
 /* Compact all zones within a node */
 static void compact_node(int nid)
@@ -2446,6 +2501,28 @@ static void compact_nodes(void)
 
 	for_each_online_node(nid)
 		compact_node(nid);
+}
+
+void zram_compact(void);
+
+static void do_compaction(struct work_struct *work)
+{
+	/* Return early if the screen is on */
+	if (screen_on)
+		return;
+
+	pr_info("Scheduled memory compaction is starting\n");
+
+	/* Do full compaction */
+	compact_nodes();
+
+	/* Do ZRAM compaction */
+	zram_compact();
+
+	/* Force compaction timeout */
+	compaction_forced_timeout = jiffies + msecs_to_jiffies(compaction_timeout_ms);
+
+	pr_info("Scheduled memory compaction is completed\n");
 }
 
 /* The written value is actually unused, all memory is compacted */
@@ -2740,5 +2817,20 @@ static int __init kcompactd_init(void)
 	return 0;
 }
 subsys_initcall(kcompactd_init)
+
+static int  __init scheduled_compaction_init(void)
+{
+	compaction_wq = create_freezable_workqueue("compaction_wq");
+
+	if (!compaction_wq)
+		return -EFAULT;
+
+	INIT_DELAYED_WORK(&compaction_work, do_compaction);
+
+	mi_drm_register_client(&compaction_notifier_block);
+
+	return 0;
+}
+late_initcall(scheduled_compaction_init);
 
 #endif /* CONFIG_COMPACTION */

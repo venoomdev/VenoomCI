@@ -3,6 +3,7 @@
  * drivers/staging/android/ion/ion_mem_pool.c
  *
  * Copyright (C) 2011 Google, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/list.h>
@@ -178,7 +179,6 @@ struct page *ion_page_pool_alloc_pool_only(struct ion_page_pool *pool)
 	return page;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 void ion_page_pool_prealloc(struct ion_page_pool *pool, unsigned int reserve)
 {
 	unsigned int i;
@@ -191,7 +191,6 @@ void ion_page_pool_prealloc(struct ion_page_pool *pool, unsigned int reserve)
 		ion_page_pool_add(pool, page);
 	}
 }
-#endif
 
 void ion_page_pool_free(struct ion_page_pool *pool, struct page *page)
 {

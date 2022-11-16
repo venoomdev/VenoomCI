@@ -45,7 +45,6 @@ struct ds28e16_data {
 	int version;
 	int cycle_count;
 	bool batt_verified;
-
 	struct delayed_work	battery_verify_work;
 	struct power_supply *verify_psy;
 	struct power_supply_desc verify_psy_d;

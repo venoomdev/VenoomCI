@@ -5,6 +5,7 @@
  *               does not allow adding attributes.
  *
  * Copyright (c) 2004 Jon Smirl <jonsmirl@gmail.com>
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (c) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2003-2004 IBM Corp.
  *
@@ -21,12 +22,12 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drmP.h>
 #include "drm_internal.h"
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #include "drm_internal_mi.h"
-#endif
+
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
+
 
 /**
  * DOC: overview
@@ -47,9 +48,7 @@ static struct device_type drm_sysfs_device_minor = {
 };
 
 struct class *drm_class;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 struct device *connector_kdev;
-#endif
 
 static char *drm_devnode(struct device *dev, umode_t *mode)
 {
@@ -235,7 +234,6 @@ static ssize_t modes_show(struct device *device,
 	return written;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static ssize_t disp_param_store(struct device *device,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count)
@@ -444,13 +442,11 @@ static ssize_t hw_vsync_info_show(struct device *device,
 	struct drm_connector *connector = to_drm_connector(device);
 	return dsi_display_get_hw_vsync_info(connector, buf);
 }
-#endif
 
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
 static DEVICE_ATTR_RO(modes);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static DEVICE_ATTR_RW(disp_param);
 static DEVICE_ATTR_RW(mipi_reg);
 static DEVICE_ATTR_RO(oled_pmic_id);
@@ -464,14 +460,12 @@ static DEVICE_ATTR_RO(smart_fps_value);
 static DEVICE_ATTR_RO(complete_commit_time);
 static DEVICE_ATTR_RW(thermal_hbm_disabled);
 static DEVICE_ATTR_RO(hw_vsync_info);
-#endif
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
 	&dev_attr_enabled.attr,
 	&dev_attr_dpms.attr,
 	&dev_attr_modes.attr,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	&dev_attr_disp_param.attr,
 	&dev_attr_mipi_reg.attr,
 	&dev_attr_oled_pmic_id.attr,
@@ -485,7 +479,6 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_complete_commit_time.attr,
 	&dev_attr_thermal_hbm_disabled.attr,
 	&dev_attr_hw_vsync_info.attr,
-#endif
 	NULL
 };
 
@@ -526,10 +519,8 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	DRM_DEBUG("adding \"%s\" to sysfs\n",
 		  connector->name);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (!connector_kdev)
 		connector_kdev = connector->kdev;
-#endif
 
 	if (IS_ERR(connector->kdev)) {
 		DRM_ERROR("failed to register connector device: %ld\n", PTR_ERR(connector->kdev));

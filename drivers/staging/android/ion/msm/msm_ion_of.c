@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/err.h>
@@ -69,15 +70,17 @@ static struct ion_heap_desc ion_heap_meta[] = {
 		.name   = ION_AUDIO_HEAP_NAME,
 	},
 	{
+		.id     = ION_VIDEO_HEAP_ID,
+		.name   = ION_VIDEO_HEAP_NAME,
+	},
+	{
 		.id	= ION_SECURE_CARVEOUT_HEAP_ID,
 		.name	= ION_SECURE_CARVEOUT_HEAP_NAME,
 	},
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	{
 		.id = ION_CAMERA_HEAP_ID,
 		.name = ION_CAMERA_HEAP_NAME,
-	},
-#endif
+	}
 };
 #endif
 
@@ -98,9 +101,7 @@ static struct heap_types_info {
 	MAKE_HEAP_TYPE_MAPPING(SECURE_DMA),
 	MAKE_HEAP_TYPE_MAPPING(SYSTEM_SECURE),
 	MAKE_HEAP_TYPE_MAPPING(HYP_CMA),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	MAKE_HEAP_TYPE_MAPPING(CAMERA),
-#endif
 };
 
 static int msm_ion_get_heap_type_from_dt_node(struct device_node *node,
@@ -376,6 +377,7 @@ static struct platform_driver msm_ion_driver = {
 	.driver = {
 		.name = "ion-msm",
 		.of_match_table = msm_ion_match_table,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 

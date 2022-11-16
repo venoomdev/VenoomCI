@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #ifndef __FG_CORE_H__
@@ -85,16 +86,12 @@
 
 #define FULL_CAPACITY			100
 #define FULL_SOC_RAW			255
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define FULL_SOC_REPORT_THR		250
-#endif
 
 #define DEBUG_BATT_SOC			67
 #define BATT_MISS_SOC			50
 #define ESR_SOH_SOC			50
 #define EMPTY_SOC			0
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define VBAT_CRITICAL_LOW_THR		2800
 #define EMPTY_DEBOUNCE_TIME_COUNT_MAX		5
 
@@ -105,7 +102,6 @@
 #define EMPTY_REPORT_SOC		1
 
 #define CRITICAL_HIGH_TEMP			580
-#endif
 
 enum prof_load_status {
 	PROFILE_MISSING,
@@ -342,21 +338,15 @@ struct fg_batt_props {
 	char		*batt_profile;
 	int		float_volt_uv;
 	int		vbatt_full_mv;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int		ffc_vbatt_full_mv;
-#endif
 	int		fastchg_curr_ma;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int		nom_cap_uah;
-#endif
 	int		*therm_coeffs;
 	int		therm_ctr_offset;
 	int		therm_pull_up_kohms;
 	int		*rslow_normal_coeffs;
 	int		*rslow_low_coeffs;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int		ffc_term_curr_ma;
-#endif
 };
 
 struct fg_cyc_ctr_data {
@@ -440,7 +430,6 @@ static const struct fg_pt fg_tsmc_osc_table[] = {
 	{  90,		444992 },
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define BATT_MA_AVG_SAMPLES		8
 struct batt_params {
 	bool		update_now;
@@ -460,7 +449,6 @@ struct batt_params {
 	int		batt_temp;
 	struct timespec	last_soc_change_time;
 };
-#endif
 
 struct fg_memif {
 	struct fg_dma_address	*addr_map;
@@ -481,10 +469,8 @@ struct fg_dev {
 	struct power_supply	*dc_psy;
 	struct power_supply	*parallel_psy;
 	struct power_supply	*pc_port_psy;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #ifdef CONFIG_BATT_VERIFY_BY_DS28E16
 	struct power_supply *max_verify_psy;
-#endif
 #endif
 	struct fg_irq_info	*irqs;
 	struct votable		*awake_votable;
@@ -502,9 +488,7 @@ struct fg_dev {
 	struct mutex		sram_rw_lock;
 	struct mutex		charge_full_lock;
 	struct mutex		qnovo_esr_ctrl_lock;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct timespec	scale_soc_change_time;
-#endif
 	spinlock_t		suspend_lock;
 	spinlock_t		awake_lock;
 	u32			batt_soc_base;
@@ -512,9 +496,7 @@ struct fg_dev {
 	u32			mem_if_base;
 	u32			rradc_base;
 	u32			wa_flags;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int			cycle_count;
-#endif
 	u32			esr_wakeup_ms;
 	u32			awake_status;
 	int			batt_id_ohms;
@@ -544,18 +526,14 @@ struct fg_dev {
 	bool			twm_state;
 	bool			use_dma;
 	bool			qnovo_enable;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool			empty_restart_fg;
 	bool			report_full;
 	bool			profile_already_find;
 	bool			input_present;
 	bool			shutdown_delay;
-#endif
 	enum fg_version		version;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct batt_params	param;
 	struct delayed_work	soc_monitor_work;
-#endif
 	bool			suspended;
 	struct completion	soc_update;
 	struct completion	soc_ready;
@@ -563,13 +541,11 @@ struct fg_dev {
 	struct work_struct	status_change_work;
 	struct work_struct	esr_sw_work;
 	struct delayed_work	sram_dump_work;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct delayed_work	empty_restart_fg_work;
 	int			fake_temp;
 	int			fake_authentic;
 	int			fake_chip_ok;
 	int			maxim_cycle_count;
-#endif
 	struct work_struct	esr_filter_work;
 	struct alarm		esr_filter_alarm;
 	ktime_t			last_delta_temp_time;
@@ -683,4 +659,5 @@ extern int fg_lerp(const struct fg_pt *pts, size_t tablesize, s32 input,
 			s32 *output);
 void fg_stay_awake(struct fg_dev *fg, int awake_reason);
 void fg_relax(struct fg_dev *fg, int awake_reason);
+extern int fg_dma_mem_req(struct fg_dev *fg, bool request);
 #endif

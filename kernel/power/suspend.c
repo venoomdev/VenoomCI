@@ -34,6 +34,13 @@
 #include <linux/moduleparam.h>
 #include <linux/wakeup_reason.h>
 
+#ifdef CONFIG_PM_SLEEP_MONITOR
+#include <linux/sched/debug.h>
+#include <linux/kthread.h>
+#include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
+#endif
+
 #include "power.h"
 
 const char * const pm_labels[] = {
@@ -70,12 +77,141 @@ bool pm_suspend_via_s2idle(void)
 }
 EXPORT_SYMBOL_GPL(pm_suspend_via_s2idle);
 
+#ifdef CONFIG_PM_SLEEP_MONITOR
+/* Suspend monitor thread toggle reason */
+enum toggle_reason {
+	TOGGLE_NONE,
+	TOGGLE_START,
+	TOGGLE_STOP,
+};
+
+#define SUSPEND_TIMER_TIMEOUT_MS 30000
+static struct task_struct *ksuspend_mon_tsk;
+static DECLARE_WAIT_QUEUE_HEAD(power_suspend_waitqueue);
+static enum toggle_reason suspend_mon_toggle;
+static DEFINE_MUTEX(suspend_mon_lock);
+
+static void start_suspend_mon(void)
+{
+	mutex_lock(&suspend_mon_lock);
+	suspend_mon_toggle = TOGGLE_START;
+	mutex_unlock(&suspend_mon_lock);
+	wake_up(&power_suspend_waitqueue);
+}
+
+static void stop_suspend_mon(void)
+{
+	mutex_lock(&suspend_mon_lock);
+	suspend_mon_toggle = TOGGLE_STOP;
+	mutex_unlock(&suspend_mon_lock);
+	wake_up(&power_suspend_waitqueue);
+}
+
+static void suspend_timeout(int timeout_count)
+{
+	char *null_pointer = NULL;
+
+	pr_info("Suspend monitor timeout (timer is %d seconds)\n",
+		(SUSPEND_TIMER_TIMEOUT_MS/1000));
+
+	show_state_filter(TASK_UNINTERRUPTIBLE);
+
+	if (timeout_count < 2)
+		return;
+
+	if (is_console_suspended())
+		resume_console();
+
+	pr_info("Trigger a panic\n");
+
+	/* Trigger a NULL pointer dereference */
+	*null_pointer = 'a';
+
+	/* Should not reach here */
+	pr_err("Trigger panic failed!\n");
+}
+
+static int suspend_monitor_kthread(void *arg)
+{
+	long err;
+	struct sched_param param = {.sched_priority
+		= MAX_RT_PRIO-1};
+	static int timeout_count;
+	static long timeout;
+
+	pr_info("Init ksuspend_mon thread\n");
+
+	sched_setscheduler(current, SCHED_FIFO, &param);
+
+	timeout_count = 0;
+	timeout = MAX_SCHEDULE_TIMEOUT;
+
+	do {
+		/* Wait suspend timer timeout */
+		err = wait_event_interruptible_timeout(
+			power_suspend_waitqueue,
+			(suspend_mon_toggle != TOGGLE_NONE),
+			timeout);
+
+		mutex_lock(&suspend_mon_lock);
+		/* suspend monitor state change */
+		if (suspend_mon_toggle != TOGGLE_NONE) {
+			if (suspend_mon_toggle == TOGGLE_START) {
+				timeout = msecs_to_jiffies(
+					SUSPEND_TIMER_TIMEOUT_MS);
+				pr_info("Start suspend monitor\n");
+			} else if (suspend_mon_toggle == TOGGLE_STOP) {
+				timeout = MAX_SCHEDULE_TIMEOUT;
+				timeout_count = 0;
+				pr_info("Stop suspend monitor\n");
+			}
+			suspend_mon_toggle = TOGGLE_NONE;
+			mutex_unlock(&suspend_mon_lock);
+			continue;
+		}
+		mutex_unlock(&suspend_mon_lock);
+
+		/* suspend monitor event handler */
+		if (err == 0) {
+			timeout_count++;
+			suspend_timeout(timeout_count);
+		} else if (err == -ERESTARTSYS) {
+			pr_info("Exit ksuspend_mon!");
+			break;
+		}
+	} while (1);
+
+	return 0;
+}
+
+static void init_suspend_monitor_thread(void)
+{
+	int ret;
+
+	ksuspend_mon_tsk = kthread_create(suspend_monitor_kthread,
+		NULL, "ksuspend_mon");
+	if (IS_ERR(ksuspend_mon_tsk)) {
+		ret = PTR_ERR(ksuspend_mon_tsk);
+		ksuspend_mon_tsk = NULL;
+		pr_err("Create suspend_monitor_kthread failed!"
+			" ret = %d\n", ret);
+		return;
+	}
+
+	suspend_mon_toggle = TOGGLE_NONE;
+	wake_up_process(ksuspend_mon_tsk);
+
+	return;
+}
+#endif
+
 void s2idle_set_ops(const struct platform_s2idle_ops *ops)
 {
 	lock_system_sleep();
 	s2idle_ops = ops;
 	unlock_system_sleep();
 }
+EXPORT_SYMBOL_GPL(s2idle_set_ops);
 
 static void s2idle_begin(void)
 {
@@ -85,6 +221,10 @@ static void s2idle_begin(void)
 static void s2idle_enter(void)
 {
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, true);
+
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	stop_suspend_mon();
+#endif
 
 	raw_spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
@@ -110,6 +250,10 @@ static void s2idle_enter(void)
  out:
 	s2idle_state = S2IDLE_STATE_NONE;
 	raw_spin_unlock_irq(&s2idle_lock);
+
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	start_suspend_mon();
+#endif
 
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, false);
 }
@@ -155,6 +299,7 @@ static void s2idle_loop(void)
 			break;
 
 		pm_wakeup_clear(false);
+		clear_wakeup_reasons();
 	}
 
 	pm_pr_dbg("resume from suspend-to-idle\n");
@@ -193,6 +338,9 @@ void __init pm_states_init(void)
 	 * initialize mem_sleep_states[] accordingly here.
 	 */
 	mem_sleep_states[PM_SUSPEND_TO_IDLE] = mem_sleep_labels[PM_SUSPEND_TO_IDLE];
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	init_suspend_monitor_thread();
+#endif
 }
 
 static int __init mem_sleep_default_setup(char *str)
@@ -368,6 +516,7 @@ static int suspend_prepare(suspend_state_t state)
 	if (!error)
 		return 0;
 
+	log_suspend_abort_reason("One or more tasks refusing to freeze");
 	suspend_stats.failed_freeze++;
 	dpm_save_failed_step(SUSPEND_FREEZE);
  Finish:
@@ -397,7 +546,6 @@ void __weak arch_suspend_enable_irqs(void)
  */
 static int suspend_enter(suspend_state_t state, bool *wakeup)
 {
-	char suspend_abort[MAX_SUSPEND_ABORT_LEN];
 	int error, last_dev;
 
 	error = platform_suspend_prepare(state);
@@ -409,8 +557,8 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
 		last_dev %= REC_FAILED_NUM;
 		pr_err("late suspend of devices failed\n");
-		log_suspend_abort_reason("%s device failed to power down",
-			suspend_stats.failed_devs[last_dev]);
+		log_suspend_abort_reason("late suspend of %s device failed",
+					 suspend_stats.failed_devs[last_dev]);
 		goto Platform_finish;
 	}
 	error = platform_suspend_prepare_late(state);
@@ -428,7 +576,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		last_dev %= REC_FAILED_NUM;
 		pr_err("noirq suspend of devices failed\n");
 		log_suspend_abort_reason("noirq suspend of %s device failed",
-			suspend_stats.failed_devs[last_dev]);
+					 suspend_stats.failed_devs[last_dev]);
 		goto Platform_early_resume;
 	}
 	error = platform_suspend_prepare_noirq(state);
@@ -449,6 +597,10 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 
 	system_state = SYSTEM_SUSPEND;
 
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	stop_suspend_mon();
+#endif
+
 	error = syscore_suspend();
 	if (!error) {
 		*wakeup = pm_wakeup_pending();
@@ -459,15 +611,16 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 			trace_suspend_resume(TPS("machine_suspend"),
 				state, false);
 		} else if (*wakeup) {
-			pm_get_active_wakeup_sources(suspend_abort,
-				MAX_SUSPEND_ABORT_LEN);
-			log_suspend_abort_reason(suspend_abort);
 			error = -EBUSY;
 		}
 		syscore_resume();
 	}
 
 	system_state = SYSTEM_RUNNING;
+
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	start_suspend_mon();
+#endif
 
 	arch_suspend_enable_irqs();
 	BUG_ON(irqs_disabled());
@@ -496,7 +649,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
  */
 int suspend_devices_and_enter(suspend_state_t state)
 {
-	int error, last_dev;
+	int error;
 	bool wakeup = false;
 
 	if (!sleep_state_supported(state))
@@ -512,11 +665,9 @@ int suspend_devices_and_enter(suspend_state_t state)
 	suspend_test_start();
 	error = dpm_suspend_start(PMSG_SUSPEND);
 	if (error) {
-		last_dev = suspend_stats.last_failed_dev + REC_FAILED_NUM - 1;
-		last_dev %= REC_FAILED_NUM;
 		pr_err("Some devices failed to suspend, or early wake event detected\n");
-		log_suspend_abort_reason("%s device failed to suspend, or early wake event detected",
-			suspend_stats.failed_devs[last_dev]);
+		log_suspend_abort_reason(
+				"Some devices failed to suspend, or early wake event detected");
 		goto Recover_platform;
 	}
 	suspend_test_finish("suspend devices");
@@ -634,6 +785,11 @@ int pm_suspend(suspend_state_t state)
 		return -EINVAL;
 
 	pr_info("suspend entry (%s)\n", mem_sleep_labels[state]);
+
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	start_suspend_mon();
+#endif
+
 	error = enter_state(state);
 	if (error) {
 		suspend_stats.fail++;
@@ -641,6 +797,11 @@ int pm_suspend(suspend_state_t state)
 	} else {
 		suspend_stats.success++;
 	}
+
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	stop_suspend_mon();
+#endif
+
 	pr_info("suspend exit\n");
 	return error;
 }

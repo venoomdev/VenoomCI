@@ -2,6 +2,7 @@
  * MIPI DSI Bus
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Andrzej Hajda <a.hajda@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -284,12 +285,10 @@ int mipi_dsi_dcs_set_pixel_format(struct mipi_dsi_device *dsi, u8 format);
 int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline);
 int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 					u16 brightness);
-int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
-					u16 *brightness);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 int mipi_dsi_dcs_set_display_brightness_big_endian(struct mipi_dsi_device *dsi,
 					u16 brightness);
-#endif
+int mipi_dsi_dcs_get_display_brightness(struct mipi_dsi_device *dsi,
+					u16 *brightness);
 
 /**
  * struct mipi_dsi_driver - DSI driver

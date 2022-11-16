@@ -5,6 +5,8 @@
  *
  *  Copyright (C) 1991-2002  Linus Torvalds
  */
+#include <linux/lrng.h>
+
 #include "sched.h"
 
 #include <linux/nospec.h>
@@ -30,7 +32,7 @@
 
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
-#if defined(CONFIG_SCHED_DEBUG) && defined(CONFIG_JUMP_LABEL)
+#ifdef CONFIG_SCHED_DEBUG
 /*
  * Debugging: various feature bits
  *
@@ -248,8 +250,9 @@ static enum hrtimer_restart hrtick(struct hrtimer *timer)
 static void __hrtick_restart(struct rq *rq)
 {
 	struct hrtimer *timer = &rq->hrtick_timer;
+	ktime_t time = rq->hrtick_time;
 
-	hrtimer_start_expires(timer, HRTIMER_MODE_ABS_PINNED);
+	hrtimer_start(timer, time, HRTIMER_MODE_ABS_PINNED);
 }
 
 /*
@@ -274,7 +277,6 @@ static void __hrtick_start(void *arg)
 void hrtick_start(struct rq *rq, u64 delay)
 {
 	struct hrtimer *timer = &rq->hrtick_timer;
-	ktime_t time;
 	s64 delta;
 
 	/*
@@ -282,9 +284,7 @@ void hrtick_start(struct rq *rq, u64 delay)
 	 * doesn't make sense and can cause timer DoS.
 	 */
 	delta = max_t(s64, delay, 10000LL);
-	time = ktime_add_ns(timer->base->get_time(), delta);
-
-	hrtimer_set_expires(timer, time);
+	rq->hrtick_time = ktime_add_ns(timer->base->get_time(), delta);
 
 	if (rq == this_rq()) {
 		__hrtick_restart(rq);
@@ -1197,17 +1197,8 @@ static void uclamp_fork(struct task_struct *p)
 		return;
 
 	for_each_clamp_id(clamp_id) {
-		unsigned int clamp_value = uclamp_none(clamp_id);
-
-		/* By default, RT tasks always get 100% boost */
-		if (sched_feat(SUGOV_RT_MAX_FREQ) &&
-			       unlikely(rt_task(p) &&
-			       clamp_id == UCLAMP_MIN)) {
-
-			clamp_value = uclamp_none(UCLAMP_MAX);
-		}
-
-		uclamp_se_set(&p->uclamp_req[clamp_id], clamp_value, false);
+		uclamp_se_set(&p->uclamp_req[clamp_id],
+			      uclamp_none(clamp_id), false);
 	}
 }
 
@@ -1660,7 +1651,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 	if (queued)
 		enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
 	if (running)
-		set_curr_task(rq, p);
+		set_next_task(rq, p);
 }
 
 /*
@@ -2267,6 +2258,8 @@ ttwu_stat(struct task_struct *p, int cpu, int wake_flags)
 {
 	struct rq *rq;
 
+	add_sched_randomness(p, cpu);
+
 	if (!schedstat_enabled())
 		return;
 
@@ -2489,6 +2482,9 @@ out:
 
 bool cpus_share_cache(int this_cpu, int that_cpu)
 {
+	if (this_cpu == that_cpu)
+		return true;
+
 	return per_cpu(sd_llc_id, this_cpu) == per_cpu(sd_llc_id, that_cpu);
 }
 #endif /* CONFIG_SMP */
@@ -3078,6 +3074,7 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	 * Silence PROVE_RCU.
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	rseq_migrate(p);
 	/*
 	 * We're setting the CPU for the first time, we don't migrate,
 	 * so use __set_task_cpu().
@@ -3144,6 +3141,7 @@ void wake_up_new_task(struct task_struct *p)
 	 * as we're not fully set-up yet.
 	 */
 	p->recent_used_cpu = task_cpu(p);
+	rseq_migrate(p);
 	__set_task_cpu(p, select_task_rq(p, task_cpu(p), SD_BALANCE_FORK, 0, 1));
 #endif
 	rq = __task_rq_lock(p, &rf);
@@ -3444,7 +3442,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 		/* Task is done with its stack. */
 		put_task_stack(prev);
 
-		put_task_struct(prev);
+		put_task_struct_rcu_user(prev);
 	}
 
 	tick_nohz_task_switch();
@@ -3547,8 +3545,10 @@ context_switch(struct rq *rq, struct task_struct *prev,
 		next->active_mm = oldmm;
 		mmgrab(oldmm);
 		enter_lazy_tlb(oldmm, next);
-	} else
+	} else {
 		switch_mm_irqs_off(oldmm, mm, next);
+		lru_gen_use_mm(mm);
+	}
 
 	if (!prev->mm) {
 		prev->active_mm = NULL;
@@ -3823,6 +3823,14 @@ void scheduler_tick(void)
 
 	if (curr->sched_class == &fair_sched_class)
 		check_for_migration(rq, curr);
+
+#ifdef CONFIG_SMP
+	rq_lock(rq, &rf);
+	if (idle_cpu(cpu) && is_reserved(cpu) && !rq->active_balance)
+		clear_reserved(cpu);
+	rq_unlock(rq, &rf);
+#endif
+
 }
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -4127,7 +4135,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 
 		p = fair_sched_class.pick_next_task(rq, prev, rf);
 		if (unlikely(p == RETRY_TASK))
-			goto again;
+			goto restart;
 
 		/* Assumes fair_sched_class->next == idle_sched_class */
 		if (unlikely(!p))
@@ -4136,14 +4144,28 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 		return p;
 	}
 
-again:
+restart:
+#ifdef CONFIG_SMP
+	/*
+	 * We must do the balancing pass before put_next_task(), such
+	 * that when we release the rq->lock the task is in the same
+	 * state as before we took rq->lock.
+	 *
+	 * We can terminate the balance pass as soon as we know there is
+	 * a runnable task of @class priority or higher.
+	 */
+	for_class_range(class, prev->sched_class, &idle_sched_class) {
+		if (class->balance(rq, prev, rf))
+			break;
+	}
+#endif
+
+	put_prev_task(rq, prev);
+
 	for_each_class(class) {
-		p = class->pick_next_task(rq, prev, rf);
-		if (p) {
-			if (unlikely(p == RETRY_TASK))
-				goto again;
+		p = class->pick_next_task(rq, NULL, NULL);
+		if (p)
 			return p;
-		}
 	}
 
 	/* The idle class should always have a runnable task: */
@@ -4638,7 +4660,8 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	 */
 	if (dl_prio(prio)) {
 		if (!dl_prio(p->normal_prio) ||
-		    (pi_task && dl_entity_preempt(&pi_task->dl, &p->dl))) {
+		    (pi_task && dl_prio(pi_task->prio) &&
+		     dl_entity_preempt(&pi_task->dl, &p->dl))) {
 			p->dl.dl_boosted = 1;
 			queue_flag |= ENQUEUE_REPLENISH;
 		} else
@@ -4663,7 +4686,7 @@ void rt_mutex_setprio(struct task_struct *p, struct task_struct *pi_task)
 	if (queued)
 		enqueue_task(rq, p, queue_flag);
 	if (running)
-		set_curr_task(rq, p);
+		set_next_task(rq, p);
 
 	check_class_changed(rq, p, prev_class, oldprio);
 out_unlock:
@@ -4730,7 +4753,7 @@ void set_user_nice(struct task_struct *p, long nice)
 			resched_curr(rq);
 	}
 	if (running)
-		set_curr_task(rq, p);
+		set_next_task(rq, p);
 out_unlock:
 	task_rq_unlock(rq, p, &rf);
 }
@@ -4875,7 +4898,8 @@ static void __setscheduler_params(struct task_struct *p,
 	if (policy == SETPARAM_POLICY)
 		policy = p->policy;
 
-	p->policy = policy;
+	/* Replace SCHED_FIFO with SCHED_RR to reduce latency */
+	p->policy = policy == SCHED_FIFO ? SCHED_RR : policy;
 
 	if (dl_policy(policy))
 		__setparam_dl(p, attr);
@@ -5061,8 +5085,8 @@ recheck:
 	 * Changing the policy of the stop threads its a very bad idea:
 	 */
 	if (p == rq->stop) {
-		task_rq_unlock(rq, p, &rf);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto unlock;
 	}
 
 	/*
@@ -5080,8 +5104,8 @@ recheck:
 			goto change;
 
 		p->sched_reset_on_fork = reset_on_fork;
-		task_rq_unlock(rq, p, &rf);
-		return 0;
+		retval = 0;
+		goto unlock;
 	}
 change:
 
@@ -5094,8 +5118,8 @@ change:
 		if (rt_bandwidth_enabled() && rt_policy(policy) &&
 				task_group(p)->rt_bandwidth.rt_runtime == 0 &&
 				!task_group_is_autogroup(task_group(p))) {
-			task_rq_unlock(rq, p, &rf);
-			return -EPERM;
+			retval = -EPERM;
+			goto unlock;
 		}
 #endif
 #ifdef CONFIG_SMP
@@ -5110,8 +5134,8 @@ change:
 			 */
 			if (!cpumask_subset(span, &p->cpus_allowed) ||
 			    rq->rd->dl_bw.bw == 0) {
-				task_rq_unlock(rq, p, &rf);
-				return -EPERM;
+				retval = -EPERM;
+				goto unlock;
 			}
 		}
 #endif
@@ -5130,8 +5154,8 @@ change:
 	 * is available.
 	 */
 	if ((dl_policy(policy) || dl_task(p)) && sched_dl_overflow(p, policy, attr)) {
-		task_rq_unlock(rq, p, &rf);
-		return -EBUSY;
+		retval = -EBUSY;
+		goto unlock;
 	}
 
 	p->sched_reset_on_fork = reset_on_fork;
@@ -5173,7 +5197,7 @@ change:
 		enqueue_task(rq, p, queue_flags);
 	}
 	if (running)
-		set_curr_task(rq, p);
+		set_next_task(rq, p);
 
 	check_class_changed(rq, p, prev_class, oldprio);
 
@@ -5189,6 +5213,10 @@ change:
 	preempt_enable();
 
 	return 0;
+
+unlock:
+	task_rq_unlock(rq, p, &rf);
+	return retval;
 }
 
 static int _sched_setscheduler(struct task_struct *p, int policy,
@@ -5682,6 +5710,7 @@ out_put_task:
 	put_task_struct(p);
 	return retval;
 }
+EXPORT_SYMBOL_GPL(sched_setaffinity);
 
 char sched_lib_name[LIB_PATH_LENGTH];
 unsigned int sched_lib_mask_force;
@@ -6294,6 +6323,11 @@ void show_state_filter(unsigned long state_filter)
 		debug_show_all_locks();
 }
 
+int show_state_filter_single(unsigned long state_filter)
+{
+return 0;
+}
+
 /**
  * init_idle - set up an idle thread for a given CPU
  * @idle: task in question
@@ -6451,7 +6485,7 @@ void sched_setnuma(struct task_struct *p, int nid)
 	if (queued)
 		enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
 	if (running)
-		set_curr_task(rq, p);
+		set_next_task(rq, p);
 	task_rq_unlock(rq, p, &rf);
 }
 #endif /* CONFIG_NUMA_BALANCING */
@@ -6466,13 +6500,14 @@ void idle_task_exit(void)
 	struct mm_struct *mm = current->active_mm;
 
 	BUG_ON(cpu_online(smp_processor_id()));
+	BUG_ON(current != this_rq()->idle);
 
 	if (mm != &init_mm) {
 		switch_mm(mm, &init_mm, current);
-		current->active_mm = &init_mm;
 		finish_arch_post_lock_switch();
 	}
-	mmdrop(mm);
+
+	/* finish_cpu(), as ran on the BP, will clean up the active_mm state */
 }
 
 /*
@@ -6491,21 +6526,22 @@ static void calc_load_migrate(struct rq *rq)
 		atomic_long_add(delta, &calc_load_tasks);
 }
 
-static void put_prev_task_fake(struct rq *rq, struct task_struct *prev)
+static struct task_struct *__pick_migrate_task(struct rq *rq)
 {
+	const struct sched_class *class;
+	struct task_struct *next;
+
+	for_each_class(class) {
+		next = class->pick_next_task(rq, NULL, NULL);
+		if (next) {
+			next->sched_class->put_prev_task(rq, next);
+			return next;
+		}
+	}
+
+	/* The idle class should always have a runnable task */
+	BUG();
 }
-
-static const struct sched_class fake_sched_class = {
-	.put_prev_task = put_prev_task_fake,
-};
-
-static struct task_struct fake_task = {
-	/*
-	 * Avoid pull_{rt,dl}_task()
-	 */
-	.prio = MAX_PRIO + 1,
-	.sched_class = &fake_sched_class,
-};
 
 /*
  * Remove a task from the runqueue and pretend that it's migrating. This
@@ -6585,12 +6621,7 @@ static void migrate_tasks(struct rq *dead_rq, struct rq_flags *rf,
 		if (rq->nr_running == 1)
 			break;
 
-		/*
-		 * pick_next_task() assumes pinned rq->lock:
-		 */
-		next = pick_next_task(rq, &fake_task, rf);
-		BUG_ON(!next);
-		put_prev_task(rq, next);
+		next = __pick_migrate_task(rq);
 
 		if (!migrate_pinned_tasks && next->flags & PF_KTHREAD &&
 			!cpumask_intersects(&avail_cpus, &next->cpus_allowed)) {
@@ -7635,8 +7666,15 @@ void sched_move_task(struct task_struct *tsk)
 
 	if (queued)
 		enqueue_task(rq, tsk, queue_flags);
-	if (running)
-		set_curr_task(rq, tsk);
+	if (running) {
+		set_next_task(rq, tsk);
+		/*
+		 * After changing group, the running task may have joined a
+		 * throttled one but it's still the running task. Trigger a
+		 * resched to make sure that task can still run.
+		 */
+		resched_curr(rq);
+	}
 
 	task_rq_unlock(rq, tsk, &rf);
 }

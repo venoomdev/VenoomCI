@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #define pr_fmt(fmt) "QCOM-BATT: %s: " fmt, __func__
@@ -77,9 +78,7 @@ struct pl_data {
 	struct power_supply	*dc_psy;
 	struct power_supply	*cp_master_psy;
 	struct power_supply	*cp_slave_psy;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct power_supply	*wireless_psy;
-#endif
 	int			charge_type;
 	int			total_settled_ua;
 	int			pl_settled_ua;
@@ -1188,7 +1187,7 @@ stepper_exit:
 	cp_configure_ilim(chip, FCC_VOTER, chip->slave_fcc_ua / 2);
 
 	if (reschedule_ms) {
-		schedule_delayed_work(&chip->fcc_stepper_work,
+		queue_delayed_work(system_power_efficient_wq, &chip->fcc_stepper_work,
 				msecs_to_jiffies(reschedule_ms));
 		pr_debug("Rescheduling FCC_STEPPER work\n");
 		return;
@@ -1209,7 +1208,6 @@ static bool is_batt_available(struct pl_data *chip)
 	return true;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static bool is_wireless_available(struct pl_data *chip)
 {
 	if (!chip->wireless_psy)
@@ -1220,7 +1218,6 @@ static bool is_wireless_available(struct pl_data *chip)
 
 	return true;
 }
-#endif
 
 #define PARALLEL_FLOAT_VOLTAGE_DELTA_UV 50000
 static int pl_fv_vote_callback(struct votable *votable, void *data,
@@ -1274,7 +1271,6 @@ static int pl_fv_vote_callback(struct votable *votable, void *data,
 				if (rc < 0)
 					pr_err("Couldn't set force recharge rc=%d\n",
 							rc);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 			} else if (is_wireless_available(chip)) {
 				rc = power_supply_get_property(chip->wireless_psy,
 				POWER_SUPPLY_PROP_WIRELESS_POWER_GOOD_EN,
@@ -1288,7 +1284,6 @@ static int pl_fv_vote_callback(struct votable *votable, void *data,
 						pr_err("Couldn't set force recharge rc=%d\n",
 								rc);
 				}
-#endif
 			}
 		}
 	}
@@ -1333,7 +1328,7 @@ static int usb_icl_vote_callback(struct votable *votable, void *data,
 	if (icl_ua <= 1400000)
 		vote(chip->pl_enable_votable_indirect, USBIN_I_VOTER, false, 0);
 	else
-		schedule_delayed_work(&chip->status_change_work,
+		queue_delayed_work(system_power_efficient_wq, &chip->status_change_work,
 						msecs_to_jiffies(PL_DELAY_MS));
 
 	/* rerun AICL */
@@ -1483,7 +1478,7 @@ static int pl_disable_vote_callback(struct votable *votable,
 			if (chip->step_fcc) {
 				vote(chip->pl_awake_votable, FCC_STEPPER_VOTER,
 					true, 0);
-				schedule_delayed_work(&chip->fcc_stepper_work,
+				queue_delayed_work(system_power_efficient_wq, &chip->fcc_stepper_work,
 					0);
 			}
 		} else {
@@ -1600,7 +1595,7 @@ static int pl_disable_vote_callback(struct votable *votable,
 			if (chip->step_fcc) {
 				vote(chip->pl_awake_votable, FCC_STEPPER_VOTER,
 					true, 0);
-				schedule_delayed_work(&chip->fcc_stepper_work,
+				queue_delayed_work(system_power_efficient_wq, &chip->fcc_stepper_work,
 					0);
 			}
 		}
@@ -1637,7 +1632,7 @@ static int pl_awake_vote_callback(struct votable *votable,
 	struct pl_data *chip = data;
 
 	if (awake)
-		__pm_stay_awake(chip->pl_ws);
+		__pm_wakeup_event(chip->pl_ws, 500);
 	else
 		__pm_relax(chip->pl_ws);
 
@@ -1947,7 +1942,7 @@ static int pl_notifier_call(struct notifier_block *nb,
 	if ((strcmp(psy->desc->name, "parallel") == 0)
 	    || (strcmp(psy->desc->name, "battery") == 0)
 	    || (strcmp(psy->desc->name, "main") == 0))
-		schedule_delayed_work(&chip->status_change_work, 0);
+		queue_delayed_work(system_power_efficient_wq, &chip->status_change_work, 0);
 
 	return NOTIFY_OK;
 }

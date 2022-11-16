@@ -88,4 +88,4 @@ obj-$(CONFIG_CHARGER_CROS_USBPD)	+= cros_usbpd-charger.o
 obj-$(CONFIG_ARCH_QCOM)		+= qcom/
 obj-$(CONFIG_ARCH_QCOM)         += ti/
 obj-$(CONFIG_ARCH_QCOM)         += maxim/
-obj-$(CONFIG_MACH_XIAOMI_CAS)	+= cas_qcom/
+obj-$(CONFIG_ARCH_CAS_QCOM)	+= cas_qcom/

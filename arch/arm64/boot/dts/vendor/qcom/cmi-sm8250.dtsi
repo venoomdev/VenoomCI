@@ -1,11 +1,30 @@
 /*
-this file is for attribution only of umi
-And public attribution of xiaomi platforms(like J1 and so and)
+this file is for attribution only of cmi
 */
 
 #include "cmi-pinctrl.dtsi"
 #include "xiaomi-sm8250-common.dtsi"
 #include "cmi-audio-overlay.dtsi"
+
+// SLPI Memory Region
+&pil_slpi_mem {
+	reg = <0x0 0x88c00000 0x0 0x1500000>;
+};
+
+// ADSP Memory Region
+&pil_adsp_mem {
+	reg = <0x0 0x8a100000 0x0 0x2500000>;
+};
+
+// SPSS Memory Region
+&pil_spss_mem {
+	reg = <0x0 0x8c600000 0x0 0x100000>;
+};
+
+// CDSP Memory Region
+&cdsp_secure_heap {
+	reg = <0x0 0x8c700000 0x0 0x4600000>;
+};
 
 &qupv3_se15_i2c {
 	status = "ok";
@@ -29,6 +48,10 @@ And public attribution of xiaomi platforms(like J1 and so and)
 &dsi_sim_vid {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_vci>;
 	qcom,platform-reset-gpio = <&tlmm 12 0>;
+};
+
+&usb1 {
+        extcon = <&extcon_usb1>;
 };
 
 &sde_dsi {

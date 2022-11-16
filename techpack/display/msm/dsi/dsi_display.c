@@ -14,6 +14,7 @@
 #include "msm_mmu.h"
 #include "dsi_display.h"
 #include "dsi_panel.h"
+#include "dsi_panel_mi.h"
 #include "dsi_ctrl.h"
 #include "dsi_ctrl_hw.h"
 #include "dsi_drm.h"
@@ -48,7 +49,7 @@ static const struct of_device_id dsi_display_dt_match[] = {
 	{}
 };
 
-struct dsi_display *primary_display;
+static unsigned int cur_refresh_rate = 60;
 
 static void dsi_display_mask_ctrl_error_interrupts(struct dsi_display *display,
 			u32 mask, bool enable)
@@ -1088,8 +1089,11 @@ int dsi_display_set_power(struct drm_connector *connector,
 		mi_cfg->in_aod = true;
 		mi_drm_notifier_call_chain(MI_DRM_EARLY_EVENT_BLANK, &notify_data);
 		rc = dsi_panel_set_lp2(display->panel);
-		if (mi_cfg->unset_doze_brightness)
-			dsi_panel_set_doze_brightness(display->panel,
+		if (mi_cfg->last_bl_level>70)
+			mi_cfg->unset_doze_brightness=DOZE_BRIGHTNESS_HBM;
+		else
+			mi_cfg->unset_doze_brightness=DOZE_BRIGHTNESS_LBM;
+		dsi_panel_set_doze_brightness(display->panel,
 				mi_cfg->unset_doze_brightness, true);
 		mi_drm_notifier_call_chain(MI_DRM_EVENT_BLANK, &notify_data);
 		break;
@@ -5126,36 +5130,6 @@ static struct attribute_group dynamic_dsi_clock_fs_attrs_group = {
 	.attrs = dynamic_dsi_clock_fs_attrs,
 };
 
-static ssize_t sysfs_fod_ui_read(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	struct dsi_display *display;
-	bool status;
-
-	display = dev_get_drvdata(dev);
-	if (!display) {
-		pr_err("Invalid display\n");
-		return -EINVAL;
-	}
-
-	status = atomic_read(&display->fod_ui);
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", status);
-}
-
-static DEVICE_ATTR(fod_ui, 0444,
-			sysfs_fod_ui_read,
-			NULL);
-
-static struct attribute *display_fs_attrs[] = {
-	&dev_attr_fod_ui.attr,
-	NULL,
-};
-
-static struct attribute_group display_fs_attrs_group = {
-	.attrs = display_fs_attrs,
-};
-
 static int dsi_display_sysfs_init(struct dsi_display *display)
 {
 	int rc = 0;
@@ -5164,10 +5138,6 @@ static int dsi_display_sysfs_init(struct dsi_display *display)
 	if (display->panel->panel_mode == DSI_OP_CMD_MODE)
 		rc = sysfs_create_group(&dev->kobj,
 			&dynamic_dsi_clock_fs_attrs_group);
-
-	rc = sysfs_create_group(&dev->kobj, &display_fs_attrs_group);
-	if (rc)
-		pr_err("failed to create display device attributes");
 
 	return rc;
 
@@ -5181,18 +5151,8 @@ static int dsi_display_sysfs_deinit(struct dsi_display *display)
 		sysfs_remove_group(&dev->kobj,
 			&dynamic_dsi_clock_fs_attrs_group);
 
-	sysfs_remove_group(&dev->kobj,
-		&display_fs_attrs_group);
-
 	return 0;
 
-}
-
-void dsi_display_set_fod_ui(struct dsi_display *display, bool status)
-{
-	struct device *dev = &display->pdev->dev;
-	atomic_set(&display->fod_ui, status);
-	sysfs_notify(&dev->kobj, NULL, "fod_ui");
 }
 
 /**
@@ -5271,8 +5231,6 @@ static int dsi_display_bind(struct device *dev,
 		DSI_ERR("[%s] sysfs init failed, rc=%d\n", display->name, rc);
 		goto error;
 	}
-
-	atomic_set(&display->fod_ui, false);
 
 	memset(&info, 0x0, sizeof(info));
 
@@ -5617,7 +5575,6 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 	display->panel_node = panel_node;
 	display->pdev = pdev;
 	display->boot_disp = boot_disp;
-	display->is_prim_display = true;
 
 	dsi_display_parse_cmdline_topology(display, index);
 
@@ -6266,7 +6223,10 @@ int dsi_display_get_info(struct drm_connector *connector,
 	info->max_width = 1920;
 	info->max_height = 1080;
 	info->qsync_min_fps =
-		display->panel->qsync_min_fps;
+		display->panel->qsync_caps.qsync_min_fps;
+	info->has_qsync_min_fps_list =
+		(display->panel->qsync_caps.qsync_min_fps_list_len > 0) ?
+		true : false;
 
 	switch (display->panel->panel_mode) {
 	case DSI_OP_VIDEO_MODE:
@@ -6621,7 +6581,6 @@ int dsi_display_get_modes(struct dsi_display *display,
 exit:
 	*out_modes = display->modes;
 	rc = 0;
-	primary_display = display;
 
 error:
 	if (rc)
@@ -6710,6 +6669,25 @@ int dsi_display_get_default_lms(void *dsi_display, u32 *num_lm)
 	mutex_unlock(&display->display_lock);
 
 	return rc;
+}
+
+int dsi_display_get_qsync_min_fps(void *display_dsi, u32 mode_fps)
+{
+	struct dsi_display *display = (struct dsi_display *)display_dsi;
+	struct dsi_panel *panel;
+	u32 i;
+
+	if (display == NULL || display->panel == NULL)
+		return -EINVAL;
+
+	panel = display->panel;
+	for (i = 0; i < panel->dfps_caps.dfps_list_len; i++) {
+		if (panel->dfps_caps.dfps_list[i] == mode_fps)
+			return panel->qsync_caps.qsync_min_fps_list[i];
+	}
+	SDE_EVT32(mode_fps);
+	DSI_DEBUG("Invalid mode_fps %d\n", mode_fps);
+	return -EINVAL;
 }
 
 int dsi_display_find_mode(struct dsi_display *display,
@@ -6957,9 +6935,9 @@ int dsi_display_set_mode(struct dsi_display *display,
 		goto error;
 	}
 
-	DSI_INFO("mdp_transfer_time_us=%d us\n",
+	DSI_DEBUG("mdp_transfer_time_us=%d us\n",
 			adj_mode.priv_info->mdp_transfer_time_us);
-	DSI_INFO("hactive= %d,vactive= %d,fps=%d\n",
+	DSI_DEBUG("hactive= %d,vactive= %d,fps=%d\n",
 			timing.h_active, timing.v_active,
 			timing.refresh_rate);
 
@@ -7548,7 +7526,7 @@ static int dsi_display_qsync(struct dsi_display *display, bool enable)
 	int i;
 	int rc = 0;
 
-	if (!display->panel->qsync_min_fps) {
+	if (!display->panel->qsync_caps.qsync_min_fps) {
 		DSI_ERR("%s:ERROR: qsync set, but no fps\n", __func__);
 		return 0;
 	}
@@ -7576,7 +7554,7 @@ static int dsi_display_qsync(struct dsi_display *display, bool enable)
 	}
 
 exit:
-	SDE_EVT32(enable, display->panel->qsync_min_fps, rc);
+	SDE_EVT32(enable, display->panel->qsync_caps.qsync_min_fps, rc);
 	mutex_unlock(&display->display_lock);
 	return rc;
 }
@@ -7752,6 +7730,11 @@ int dsi_display_pre_commit(void *display,
 	return rc;
 }
 
+unsigned int dsi_panel_get_refresh_rate(void)
+{
+	return READ_ONCE(cur_refresh_rate);
+}
+
 int dsi_display_enable(struct dsi_display *display)
 {
 	int rc = 0;
@@ -7815,12 +7798,21 @@ int dsi_display_enable(struct dsi_display *display)
 			}
 		}
 
+		if (display->panel->mi_cfg.is_tddi_flag) {
+			rc = dsi_panel_lockdowninfo_param_read(display->panel);
+			if (!rc) {
+				DSI_ERR("[%s] failed to read lockdowninfo para, rc=%d\n",
+					display->name, rc);
+			}
+		}
+
 		return 0;
 	}
 
 	mutex_lock(&display->display_lock);
 
 	mode = display->panel->cur_mode;
+	WRITE_ONCE(cur_refresh_rate, mode->timing.refresh_rate);
 
 	if (mode->dsi_mode_flags & DSI_MODE_FLAG_DMS) {
 		rc = dsi_panel_post_switch(display->panel);
@@ -8151,10 +8143,6 @@ int dsi_display_unprepare(struct dsi_display *display)
 
 	SDE_EVT32(SDE_EVTLOG_FUNC_EXIT);
 	return rc;
-}
-
-struct dsi_display *get_main_display(void) {
-	return primary_display;
 }
 
 static int __init dsi_display_register(void)

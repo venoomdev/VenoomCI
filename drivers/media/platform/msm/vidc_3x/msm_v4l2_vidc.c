@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -334,7 +334,6 @@ static int msm_vidc_initialize_core(struct platform_device *pdev,
 		init_completion(&core->completions[i]);
 	}
 
-	INIT_DELAYED_WORK(&core->fw_unload_work, msm_vidc_fw_unload_handler);
 	return rc;
 }
 
@@ -614,9 +613,10 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	list_add_tail(&core->list, &vidc_driver->cores);
 	mutex_unlock(&vidc_driver->lock);
 
+#ifdef CONFIG_DEBUG_FS
 	core->debugfs_root = msm_vidc_debugfs_init_core(
 		core, vidc_driver->debugfs_root);
-
+#endif
 	vidc_driver->platform_version =
 		msm_vidc_read_efuse_version(pdev,
 			core->resources.pf_ver_tbl, "efuse");

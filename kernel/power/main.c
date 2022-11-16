@@ -19,6 +19,12 @@
 
 #include "power.h"
 
+extern u64 sum_wakeup_time;
+extern u64 sum_wakeup_times;
+extern u64 last_wake_time;
+extern void exclude_screen_on_time(void);
+extern void reset_all_statistics(void);
+
 #ifdef CONFIG_PM_SLEEP
 
 void lock_system_sleep(void)
@@ -534,7 +540,71 @@ void __pm_pr_dbg(bool defer, const char *fmt, ...)
 static inline void pm_print_times_init(void) {}
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 
+#ifdef CONFIG_PM_SLEEP_MONITOR
+/* If set, devices will stuck at suspend for verification */
+static bool pm_hang_enabled;
+
+static int pm_notify_test(struct notifier_block *nb,
+			     unsigned long mode, void *_unused)
+{
+	pr_info("Jump into infinite loop now\n");
+
+	/* Suspend thread stuck at a loop forever */
+	for(;;)
+		;
+
+	pr_info("Fail to stuck at loop\n");
+
+	return 0;
+}
+
+static struct notifier_block pm_notify_nb = {
+	.notifier_call = pm_notify_test,
+};
+
+static ssize_t pm_hang_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
+{
+	return snprintf(buf, 10, "%d\n", pm_hang_enabled);
+}
+
+static ssize_t pm_hang_store(struct kobject *kobj, struct kobj_attribute *attr,
+			      const char *buf, size_t n)
+{
+	unsigned long val;
+	int result;
+
+	if (kstrtoul(buf, 10, &val))
+		return -EINVAL;
+
+	if (val > 1)
+		return -EINVAL;
+
+	pm_hang_enabled = !!val;
+
+	if (pm_hang_enabled == true) {
+
+		result = register_pm_notifier(&pm_notify_nb);
+		if (result)
+			pr_warn("Can not register suspend notifier, return %d\n",
+				result);
+
+	} else {
+
+		result = unregister_pm_notifier(&pm_notify_nb);
+		if (result)
+			pr_warn("Can not unregister suspend notifier, return %d\n",
+				result);
+	}
+
+	return n;
+}
+
+power_attr(pm_hang);
+#endif
+
 struct kobject *power_kobj;
+EXPORT_SYMBOL_GPL(power_kobj);
 
 /**
  * state - control system sleep states.
@@ -627,6 +697,70 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(state);
+
+static ssize_t sum_wakeup_time_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
+{
+	return snprintf(buf, 20, "%llu\n", sum_wakeup_time/1000);
+}
+
+static ssize_t sum_wakeup_time_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t n)
+{
+	int error;
+	return error ? error : n;
+}
+
+power_attr_tmp(sum_wakeup_time);
+
+static ssize_t last_wake_time_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
+{
+	return snprintf(buf, 20, "%llu\n", last_wake_time);
+}
+
+static ssize_t last_wake_time_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t n)
+{
+	int error;
+	return error ? error : n;
+}
+
+power_attr_tmp(last_wake_time);
+
+static ssize_t wake_times_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
+{
+	return snprintf(buf, 20, "%llu\n", sum_wakeup_times);
+}
+
+static ssize_t wake_times_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t n)
+{
+	int error;
+	return error ? error : n;
+}
+
+power_attr_tmp(wake_times);
+
+static ssize_t screen_off_flag_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t screen_off_flag_store(struct kobject *kobj, struct kobj_attribute *attr, const char *buf, size_t n)
+{
+	int val = -1;
+
+	val = simple_strtol(buf, NULL, 10);
+	if (val == 111)
+		exclude_screen_on_time();
+	else if (val == 222)
+		reset_all_statistics();
+	return n;
+}
+
+power_attr_tmp(screen_off_flag);
 
 #ifdef CONFIG_PM_SLEEP
 /*
@@ -867,10 +1001,17 @@ static struct attribute * g[] = {
 	&pm_wakeup_irq_attr.attr,
 	&pm_debug_messages_attr.attr,
 #endif
+#ifdef CONFIG_PM_SLEEP_MONITOR
+	&pm_hang_attr.attr,
+#endif
 #endif
 #ifdef CONFIG_FREEZER
 	&pm_freeze_timeout_attr.attr,
 #endif
+	&wake_times_attr.attr,
+	&last_wake_time_attr.attr,
+	&sum_wakeup_time_attr.attr,
+	&screen_off_flag_attr.attr,
 	NULL,
 };
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/module.h>
@@ -20,9 +21,8 @@
 #include <linux/usb/phy.h>
 #include <linux/reset.h>
 #include <linux/debugfs.h>
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+/* add for get hw country */
 #include <soc/qcom/socinfo.h>
-#endif
 
 #define USB2_PHY_USB_PHY_UTMI_CTRL0		(0x3c)
 #define OPMODE_MASK				(0x3 << 3)
@@ -109,10 +109,8 @@ struct msm_hsphy {
 	int			*param_override_seq;
 	int			param_override_seq_cnt;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int			*global_param_override_seq;
 	int			global_param_override_seq_cnt;
-#endif
 
 	void __iomem		*phy_rcal_reg;
 	u32			rcal_mask;
@@ -130,9 +128,7 @@ struct msm_hsphy {
 	u8			param_ovrd2;
 	u8			param_ovrd3;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	uint32_t hw_country;
-#endif
 };
 
 static void msm_hsphy_enable_clocks(struct msm_hsphy *phy, bool on)
@@ -401,13 +397,11 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 		hsusb_phy_write_seq(phy->base, phy->param_override_seq,
 				phy->param_override_seq_cnt, 0);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	/* set parameter ovrride  if needed */
 	if (phy->hw_country == (uint32_t)CountryGlobal
 			&& phy->global_param_override_seq)
 		hsusb_phy_write_seq(phy->base, phy->global_param_override_seq,
 				phy->global_param_override_seq_cnt, 0);
-#endif
 
 	if (phy->pre_emphasis) {
 		u8 val = TXPREEMPAMPTUNE0(phy->pre_emphasis) &
@@ -496,14 +490,13 @@ static int msm_hsphy_set_suspend(struct usb_phy *uphy, int suspend)
 	}
 
 	if (suspend) { /* Bus suspend */
-		if (phy->cable_connected ||
-			(phy->phy.flags & PHY_HOST_MODE)) {
-			/* Enable auto-resume functionality only when
-			 * there is some peripheral connected and real
-			 * bus suspend happened
+		if (phy->cable_connected) {
+			/* Enable auto-resume functionality only during host
+			 * mode bus suspend with some peripheral connected.
 			 */
-			if ((phy->phy.flags & PHY_HSFS_MODE) ||
-				(phy->phy.flags & PHY_LS_MODE)) {
+			if ((phy->phy.flags & PHY_HOST_MODE) &&
+				((phy->phy.flags & PHY_HSFS_MODE) ||
+				(phy->phy.flags & PHY_LS_MODE))) {
 				/* Enable auto-resume functionality by pulsing
 				 * signal
 				 */
@@ -668,6 +661,13 @@ static int msm_hsphy_dpdm_regulator_disable(struct regulator_dev *rdev)
 	mutex_lock(&phy->phy_lock);
 	if (phy->dpdm_enable) {
 		if (!phy->cable_connected) {
+			/*
+			 * Phy reset is needed in case multiple instances
+			 * of HSPHY exists with shared power supplies. This
+			 * reset is to bring out the PHY from high-Z state
+			 * and avoid extra current consumption.
+			 */
+			msm_hsphy_reset(phy);
 			ret = msm_hsphy_enable_power(phy, false);
 			if (ret < 0) {
 				mutex_unlock(&phy->phy_lock);
@@ -845,7 +845,6 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 		}
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	phy->global_param_override_seq_cnt = of_property_count_elems_of_size(
 					dev->of_node,
 					"qcom,global-param-override-seq",
@@ -873,7 +872,6 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-#endif
 
 	ret = of_property_read_u32_array(dev->of_node, "qcom,vdd-voltage-level",
 					 (u32 *) phy->vdd_levels,
@@ -905,9 +903,8 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 		goto err_ret;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	phy->hw_country = get_hw_country_version();
-#endif
+	dev_err(dev, "phy hw_country: %d\n", phy->hw_country);
 
 	mutex_init(&phy->phy_lock);
 	platform_set_drvdata(pdev, phy);
@@ -952,9 +949,7 @@ static int msm_hsphy_remove(struct platform_device *pdev)
 	msm_hsphy_enable_clocks(phy, false);
 	msm_hsphy_enable_power(phy, false);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	kfree(phy);
-#endif
 
 	return 0;
 }

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -270,18 +271,8 @@ void drm_bridge_post_disable(struct drm_bridge *bridge)
 	if (!bridge)
 		return;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	if (bridge->is_dsi_drm_bridge)
-		mutex_lock(&bridge->lock);
-#endif
-
 	if (bridge->funcs->post_disable)
 		bridge->funcs->post_disable(bridge);
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	if (bridge->is_dsi_drm_bridge)
-		mutex_unlock(&bridge->lock);
-#endif
 
 	drm_bridge_post_disable(bridge->next);
 }
@@ -331,18 +322,8 @@ void drm_bridge_pre_enable(struct drm_bridge *bridge)
 
 	drm_bridge_pre_enable(bridge->next);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	if (bridge->is_dsi_drm_bridge)
-		mutex_lock(&bridge->lock);
-#endif
-
 	if (bridge->funcs->pre_enable)
 		bridge->funcs->pre_enable(bridge);
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	if (bridge->is_dsi_drm_bridge)
-		mutex_unlock(&bridge->lock);
-#endif
 }
 EXPORT_SYMBOL(drm_bridge_pre_enable);
 

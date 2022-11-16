@@ -1,6 +1,5 @@
 /*
  * Copyright 2015-2018 NXP Semiconductors
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +25,7 @@
 #define AFE_PARAM_ID_TFADSP_RX_SET_BYPASS		(0x1000B923)
 
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+#ifdef AUDIO_SM8250_FLAG
 #define TFA_USING_PRIMARY_MI2S
 #else
 #define TFA_USING_SECONDARY_MI2S

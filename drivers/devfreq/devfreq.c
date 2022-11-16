@@ -313,10 +313,15 @@ int update_devfreq(struct devfreq *devfreq)
 	if (!devfreq->governor)
 		return -EINVAL;
 
-	/* Reevaluate the proper frequency */
-	err = devfreq->governor->get_target_freq(devfreq, &freq);
-	if (err)
-		return err;
+	if (devfreq->max_boost) {
+		/* Use the max freq for max boosts */
+		freq = ULONG_MAX;
+	} else {
+		/* Reevaluate the proper frequency */
+		err = devfreq->governor->get_target_freq(devfreq, &freq);
+		if (err)
+			return err;
+	}
 
 	/*
 	 * Adjust the frequency with user freq, QoS and available freq.
@@ -543,8 +548,6 @@ static int devfreq_notifier_call(struct notifier_block *nb, unsigned long type,
 	mutex_lock(&devfreq->lock);
 
 	devfreq->scaling_min_freq = find_available_min_freq(devfreq);
-	if (!devfreq->scaling_min_freq)
-		goto out;
 
 	devfreq->scaling_max_freq = find_available_max_freq(devfreq);
 	if (!devfreq->scaling_max_freq) {
@@ -1078,6 +1081,10 @@ static ssize_t governor_store(struct device *dev, struct device_attribute *attr,
 	}
 
 	mutex_lock(&df->event_lock);
+	if (df->dev_suspended) {
+		ret = -EINVAL;
+		goto gov_stop_out;
+	}
 	if (df->governor) {
 		ret = df->governor->event_handler(df, DEVFREQ_GOV_STOP, NULL);
 		if (ret) {
@@ -1213,6 +1220,10 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	struct devfreq *df = to_devfreq(dev);
 	unsigned long value;
 	int ret;
+	
+	/* Minfreq is managed by devfreq_boost */
+	if (df->is_boost_device)
+		return count;
 
 	ret = sscanf(buf, "%lu", &value);
 	if (ret != 1)
@@ -1253,7 +1264,7 @@ static ssize_t min_freq_show(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%lu\n", MAX(df->scaling_min_freq, df->min_freq));
 }
 
-static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
+static ssize_t __maybe_unused max_freq_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
 {
 	struct devfreq *df = to_devfreq(dev);
@@ -1299,7 +1310,7 @@ static ssize_t max_freq_show(struct device *dev, struct device_attribute *attr,
 
 	return sprintf(buf, "%lu\n", MIN(df->scaling_max_freq, df->max_freq));
 }
-static DEVICE_ATTR_RW(max_freq);
+static DEVICE_ATTR_RO(max_freq);
 
 static ssize_t available_frequencies_show(struct device *d,
 					  struct device_attribute *attr,

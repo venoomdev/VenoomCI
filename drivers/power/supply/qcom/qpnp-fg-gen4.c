@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2020 The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #define pr_fmt(fmt)	"FG: %s: " fmt, __func__
@@ -20,9 +21,8 @@
 #include "fg-core.h"
 #include "fg-reg.h"
 #include "fg-alg.h"
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+/* add for get hw country */
 #include <soc/qcom/socinfo.h>
-#endif
 
 #define FG_GEN4_DEV_NAME	"qcom,fg-gen4"
 #define TTF_AWAKE_VOTER		"fg_ttf_awake"
@@ -206,9 +206,7 @@
 #define FIRST_LOG_CURRENT_v2_WORD	471
 #define FIRST_LOG_CURRENT_v2_OFFSET	0
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define DEFAULT_FFC_TERM_CURRENT	1000
-#endif
 static struct fg_irq_info fg_irqs[FG_GEN4_IRQ_MAX];
 
 /* DT parameters for FG device */
@@ -221,26 +219,21 @@ struct fg_dt_props {
 	bool	multi_profile_load;
 	bool	esr_calib_dischg;
 	bool	soc_hi_res;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool	sun_profile_only;
 	bool	j3s_batt_profile;
-#endif
+	bool	k11a_batt_profile;
 	bool	soc_scale_mode;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool	fg_increase_100soc_time;
 	bool	shutdown_delay_enable;
 	bool	cutoff_voltage_adjust_enable;
 	int	*dec_rate_seq;
 	int	dec_rate_len;
-#endif
 	int	cutoff_volt_mv;
 	int	empty_volt_mv;
 	int	sys_min_volt_mv;
 	int	cutoff_curr_ma;
 	int	sys_term_curr_ma;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int	ffc_sys_term_curr_ma;
-#endif
 	int	delta_soc_thr;
 	int	vbatt_scale_thr_mv;
 	int	scale_timer_ms;
@@ -269,10 +262,8 @@ struct fg_dt_props {
 	int	ki_coeff_hi_chg;
 	int	ki_coeff_lo_med_chg_thr_ma;
 	int	ki_coeff_med_hi_chg_thr_ma;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int	ffc_ki_coeff_lo_med_chg_thr_ma;
 	int	ffc_ki_coeff_med_hi_chg_thr_ma;
-#endif
 	int	ki_coeff_cutoff_gain;
 	int	ki_coeff_full_soc_dischg[2];
 	int	ki_coeff_soc[KI_COEFF_SOC_LEVELS];
@@ -341,9 +332,7 @@ struct fg_gen4_chip {
 	int			scale_timer;
 	int			current_now;
 	int			calib_level;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int			vbat_critical_low_count;
-#endif
 	bool			first_profile_load;
 	bool			ki_coeff_dischg_en;
 	bool			slope_limit_en;
@@ -358,10 +347,8 @@ struct fg_gen4_chip {
 	bool			vbatt_low;
 	bool			chg_term_good;
 	bool			soc_scale_mode;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool			fastcharge_mode_enabled;
 	int                     hw_country;
-#endif
 };
 
 struct bias_config {
@@ -370,13 +357,11 @@ struct bias_config {
 	int	bias_kohms;
 };
 
-static int fg_gen4_debug_mask;
+static int fg_gen4_debug_mask = 0;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static bool is_batt_vendor_gyb;
 static bool is_batt_vendor_nvt;
 static bool is_low_temp_flag;
-#endif
 
 static bool fg_profile_dump;
 static ssize_t profile_dump_show(struct device *dev, struct device_attribute
@@ -852,12 +837,10 @@ static int fg_gen4_get_battery_temp(struct fg_dev *fg, int *val)
 	int rc = 0;
 	u16 buf;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (fg->fake_temp != -EINVAL) {
 		*val = fg->fake_temp;
 		return 0;
 	}
-#endif
 
 	rc = fg_sram_read(fg, BATT_TEMP_WORD, BATT_TEMP_OFFSET, (u8 *)&buf,
 			2, FG_IMA_DEFAULT);
@@ -1024,12 +1007,10 @@ static int fg_gen4_get_prop_capacity(struct fg_dev *fg, int *val)
 	struct fg_gen4_chip *chip = container_of(fg, struct fg_gen4_chip, fg);
 	int rc, msoc;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (!chip->dt.shutdown_delay_enable) {
 		*val = 1;
 		return 0;
 	}
-#endif
 
 	if (is_debug_batt_id(fg)) {
 		*val = DEBUG_BATT_SOC;
@@ -1056,10 +1037,8 @@ static int fg_gen4_get_prop_capacity(struct fg_dev *fg, int *val)
 		return 0;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (fg->empty_restart_fg && (msoc == 0))
 		msoc = EMPTY_REPORT_SOC;
-#endif
 
 	if (chip->soc_scale_mode) {
 		mutex_lock(&chip->soc_scale_lock);
@@ -1093,13 +1072,6 @@ static int fg_gen4_get_prop_capacity_raw(struct fg_gen4_chip *chip, int *val)
 		return rc;
 	}
 
-	if (!is_input_present(fg)) {
-		rc = fg_gen4_get_prop_capacity(fg, val);
-		if (!rc)
-			*val = *val * 100;
-		return rc;
-	}
-
 	rc = fg_get_sram_prop(&chip->fg, FG_SRAM_MONOTONIC_SOC, val);
 	if (rc < 0) {
 		pr_err("Error in getting MONOTONIC_SOC, rc=%d\n", rc);
@@ -1112,7 +1084,7 @@ static int fg_gen4_get_prop_capacity_raw(struct fg_gen4_chip *chip, int *val)
 	return 0;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 static int fg_gen4_get_prop_soc_decimal_rate(struct fg_gen4_chip *chip, int *val)
 {
 	struct fg_dev *fg = &chip->fg;
@@ -1152,7 +1124,6 @@ static int fg_gen4_get_prop_soc_decimal(struct fg_gen4_chip *chip, int *val)
 	*val = soc_decimal;
 	return rc;
 }
-#endif
 
 static inline void get_esr_meas_current(int curr_ma, u8 *val)
 {
@@ -1214,9 +1185,8 @@ static int fg_gen4_get_power(struct fg_gen4_chip *chip, int *val, bool average)
 	return 0;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define LOW_TEMP_CUTOFF_VOL_MV  3200
-#endif
+#define NORMAL_TEMP_CUTOFF_VOL_MV 3400
 
 static int fg_gen4_get_prop_soc_scale(struct fg_gen4_chip *chip)
 {
@@ -1977,14 +1947,12 @@ static int fg_gen4_get_batt_profile_dt_props(struct fg_gen4_chip *chip,
 		fg->bp.fastchg_curr_ma = -EINVAL;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	rc = of_property_read_u32(profile_node, "qcom,ffc-term-current-ma",
 			&fg->bp.ffc_term_curr_ma);
 	if (rc < 0) {
 		pr_err("battery system current unavailable, rc:%d\n", rc);
 		fg->bp.ffc_term_curr_ma = -DEFAULT_FFC_TERM_CURRENT;
 	}
-#endif
 
 	rc = of_property_read_u32(profile_node, "qcom,fg-cc-cv-threshold-mv",
 			&fg->bp.vbatt_full_mv);
@@ -1993,7 +1961,6 @@ static int fg_gen4_get_batt_profile_dt_props(struct fg_gen4_chip *chip,
 		fg->bp.vbatt_full_mv = -EINVAL;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	rc = of_property_read_u32(profile_node, "qcom,fg-ffc-cc-cv-threshold-mv",
 			&fg->bp.ffc_vbatt_full_mv);
 	if (rc < 0) {
@@ -2007,7 +1974,6 @@ static int fg_gen4_get_batt_profile_dt_props(struct fg_gen4_chip *chip,
 		pr_err("battery nominal capacity unavailable, rc:%d\n", rc);
 		fg->bp.nom_cap_uah = -EINVAL;
 	}
-#endif
 
 	if (of_find_property(profile_node, "qcom,therm-coefficients", &len)) {
 		len /= sizeof(u32);
@@ -2102,7 +2068,6 @@ static int fg_gen4_get_batt_profile_dt_props(struct fg_gen4_chip *chip,
 int retry_batt_profile;
 #define BATT_PROFILE_RETRY_COUNT_MAX 5
 #endif
-
 static int fg_gen4_get_batt_profile(struct fg_dev *fg)
 {
 	struct fg_gen4_chip *chip = container_of(fg, struct fg_gen4_chip, fg);
@@ -2117,16 +2082,12 @@ static int fg_gen4_get_batt_profile(struct fg_dev *fg)
 		return -ENXIO;
 	}
 
-	if (chip->dt.multi_profile_load)
+	if (chip->dt.multi_profile_load) {
 		profile_node = of_batterydata_get_best_aged_profile(batt_node,
 					fg->batt_id_ohms / 1000,
 					chip->batt_age_level, &avail_age_level);
-#ifndef CONFIG_BATT_VERIFY_BY_DS28E16
-	else
-		profile_node = of_batterydata_get_best_profile(batt_node,
-					fg->batt_id_ohms / 1000, NULL);
-#else
-	else {
+	} else {
+#ifdef CONFIG_BATT_VERIFY_BY_DS28E16
 		profile_node = ERR_PTR(-ENXIO);
 		/* if cmdline battery profile vendor is passed to fg driver, use cmdline result */
 		if (is_batt_vendor_gyb && !fg->profile_already_find) {
@@ -2146,8 +2107,13 @@ static int fg_gen4_get_batt_profile(struct fg_dev *fg)
 		if ((chip->ds_romid[0] == 0x9F) && ((chip->ds_romid[5] & 0xF0) == 0xF0)
 				&& (chip->ds_romid[6] == 04) && !fg->profile_already_find) {
 			if ((chip->ds_page0[0] == 'C') || (chip->ds_page0[0] == 'V')) {
-				profile_node = of_batterydata_get_best_profile(batt_node,
+				if (chip->dt.k11a_batt_profile) {
+					profile_node = of_batterydata_get_best_profile(batt_node,
+							fg->batt_id_ohms / 1000, "K11A_GY_4520mah");
+				} else {
+					profile_node = of_batterydata_get_best_profile(batt_node,
 						fg->batt_id_ohms / 1000, "j2gybm4n_4780mah");
+				}
 			} else if ((chip->ds_page0[0] == 'N') || (chip->ds_page0[0] == 'A')) {
 				profile_node = of_batterydata_get_best_profile(batt_node,
 					fg->batt_id_ohms / 1000, "j2nvtbm4n_4780mah");
@@ -2158,7 +2124,14 @@ static int fg_gen4_get_batt_profile(struct fg_dev *fg)
 				else
 					profile_node = of_batterydata_get_best_profile(batt_node,
 						fg->batt_id_ohms / 1000, "j11sun_4700mah");
-			} else {
+			} else if (chip->ds_page0[0] == 'U') {
+				if (chip->dt.k11a_batt_profile)
+					profile_node = of_batterydata_get_best_profile(batt_node,
+							fg->batt_id_ohms / 1000, "K11A_FMT_4520mah");
+				else
+					profile_node = of_batterydata_get_best_profile(batt_node,
+							fg->batt_id_ohms / 1000, "K11A_FMT_4520mah");
+			}  else {
 				retry_batt_profile++;
 			}
 		} else if (!fg->profile_already_find) {
@@ -2182,6 +2155,10 @@ static int fg_gen4_get_batt_profile(struct fg_dev *fg)
 					pr_warn("verifty battery fail. use default profile j3ssun_5000mah\n");
 					profile_node = of_batterydata_get_best_profile(batt_node,
 						fg->batt_id_ohms / 1000, "j3ssun_5000mah");
+				} else if (chip->dt.k11a_batt_profile) {
+					pr_warn("verifty battery fail. use default profile k11a_fmt_4520mah\n");
+					profile_node = of_batterydata_get_best_profile(batt_node,
+						fg->batt_id_ohms / 1000, "K11A_FMT_4520mah");
 				} else {
 					pr_warn("verifty battery fail. use default profile j11sun_4700mah\n");
 					profile_node = of_batterydata_get_best_profile(batt_node,
@@ -2189,8 +2166,12 @@ static int fg_gen4_get_batt_profile(struct fg_dev *fg)
 				}
 			}
 		}
-	}
+#else
+		profile_node = of_batterydata_get_best_profile(batt_node,
+					fg->batt_id_ohms / 1000, NULL);
 #endif
+	}
+
 	if (IS_ERR(profile_node))
 		return PTR_ERR(profile_node);
 
@@ -2449,6 +2430,7 @@ static bool is_profile_load_required(struct fg_gen4_chip *chip)
 			fg->profile_load_status = PROFILE_SKIPPED;
 			return false;
 		}
+
 		profiles_same = memcmp(chip->batt_profile, buf,
 					PROFILE_COMP_LEN) == 0;
 		if (profiles_same) {
@@ -2791,10 +2773,7 @@ done:
 
 	batt_psy_initialized(fg);
 	fg_notify_charger(fg);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	power_supply_changed(fg->fg_psy);
-#endif
-
 	schedule_delayed_work(&chip->ttf->ttf_work, msecs_to_jiffies(10000));
 	fg_dbg(fg, FG_STATUS, "profile loaded successfully");
 out:
@@ -3058,10 +3037,8 @@ static int fg_gen4_adjust_recharge_soc(struct fg_gen4_chip *chip)
 	if (is_input_present(fg)) {
 		if (fg->charge_done) {
 			if (!fg->recharge_soc_adjusted) {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 				if (fg->health == POWER_SUPPLY_HEALTH_GOOD)
 					return 0;
-#endif
 				/* Get raw monotonic SOC for calculation */
 				rc = fg_get_msoc(fg, &msoc);
 				if (rc < 0) {
@@ -3180,12 +3157,8 @@ static int fg_gen4_charge_full_update(struct fg_dev *fg)
 		msoc, bsoc, fg->health, fg->charge_status,
 		fg->charge_full);
 	if (fg->charge_done && !fg->charge_full) {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (msoc >= 99 && (fg->health != POWER_SUPPLY_HEALTH_WARM ||
 					fg->health != POWER_SUPPLY_HEALTH_OVERHEAT)) {
-#else
-		if (msoc >= 99 && fg->health == POWER_SUPPLY_HEALTH_GOOD) {
-#endif
 			fg_dbg(fg, FG_STATUS, "Setting charge_full to true\n");
 			fg->charge_full = true;
 		} else {
@@ -3515,10 +3488,8 @@ static int fg_gen4_enter_soc_scale(struct fg_gen4_chip *chip)
 	}
 
 	/* Set entry FVS SOC equal to current H/W reported SOC */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (chip->dt.fg_increase_100soc_time)
 		soc = fg->param.smooth_batt_soc;
-#endif
 	chip->soc_scale_msoc = chip->prev_soc_scale_msoc = soc;
 	chip->scale_timer = chip->dt.scale_timer_ms;
 	/*
@@ -3584,10 +3555,7 @@ static void fg_gen4_exit_soc_scale(struct fg_gen4_chip *chip)
 static int fg_gen4_validate_soc_scale_mode(struct fg_gen4_chip *chip)
 {
 	struct fg_dev *fg = &chip->fg;
-	int rc;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	int vbatt_scale_mv;
-#endif
+	int rc, vbatt_scale_mv;
 
 	if (!chip->dt.soc_scale_mode)
 		return 0;
@@ -3603,22 +3571,15 @@ static int fg_gen4_validate_soc_scale_mode(struct fg_gen4_chip *chip)
 		pr_err("Failed to get msoc rc=%d\n", rc);
 		goto fail_soc_scale;
 	}
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (is_low_temp_flag)
 		vbatt_scale_mv = 3400;
 	else
 		vbatt_scale_mv = chip->dt.vbatt_scale_thr_mv;
 	pr_info("get vbatt_scale_mv = %d, current now = %d\n", vbatt_scale_mv, chip->current_now);
-#endif
 	if (!chip->soc_scale_mode && fg->charge_status ==
 		POWER_SUPPLY_STATUS_DISCHARGING &&
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		chip->current_now  > 0 &&
 		chip->vbatt_avg < vbatt_scale_mv) {
-#else
-		chip->vbatt_avg < chip->dt.vbatt_scale_thr_mv) {
-#endif
 		rc = fg_gen4_enter_soc_scale(chip);
 		if (rc < 0) {
 			pr_err("Failed to enter SOC scale mode\n");
@@ -3629,7 +3590,6 @@ static int fg_gen4_validate_soc_scale_mode(struct fg_gen4_chip *chip)
 		 * Stay in SOC scale mode till H/W SOC catch scaled SOC
 		 * while charging.
 		 */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (chip->dt.fg_increase_100soc_time) {
 			fg->param.batt_soc = chip->soc_scale_msoc - 3;
 			if (fg->param.batt_soc < 0) {
@@ -3638,10 +3598,10 @@ static int fg_gen4_validate_soc_scale_mode(struct fg_gen4_chip *chip)
 			}
 			fg->param.smooth_batt_soc = chip->soc_scale_msoc;
 			fg_gen4_exit_soc_scale(chip);
-		} else
-#endif
-		if (chip->msoc_actual >= chip->soc_scale_msoc)
-			fg_gen4_exit_soc_scale(chip);
+		} else {
+			if (chip->msoc_actual >= chip->soc_scale_msoc)
+				fg_gen4_exit_soc_scale(chip);
+		}
 	}
 
 	return 0;
@@ -3794,7 +3754,11 @@ static irqreturn_t fg_vbatt_low_irq_handler(int irq, void *data)
 
 	if (vbatt_mv < chip->dt.cutoff_volt_mv) {
 		if (chip->dt.rapid_soc_dec_en) {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+			/*
+			 * Set vbat_low debounce window to avoid shutdown in low temperature and high
+			 * current scene, we set the counter to maxium 5, if fg_vbatt_low_irq trigger
+			 * exceed 5 times, decrease soc to 0% very rapidly.
+			 */
 			chip->vbat_critical_low_count++;
 			if (chip->vbat_critical_low_count < EMPTY_DEBOUNCE_TIME_COUNT_MAX
 					&& vbatt_mv > VBAT_CRITICAL_LOW_THR) {
@@ -3803,7 +3767,6 @@ static irqreturn_t fg_vbatt_low_irq_handler(int irq, void *data)
 					power_supply_changed(fg->batt_psy);
 				return IRQ_HANDLED;
 			}
-#endif
 			/*
 			 * Set this flag so that slope limiter coefficient
 			 * cannot be configured during rapid SOC decrease.
@@ -4310,7 +4273,6 @@ static enum alarmtimer_restart fg_soc_scale_timer(struct alarm *alarm,
 	return ALARMTIMER_NORESTART;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static int calculate_delta_time(struct timespec *time_stamp, int *delta_time_s)
 {
 	struct timespec now_time;
@@ -4360,19 +4322,15 @@ unchanged:
 				fg->param.batt_ma, fg->param.batt_ma_avg);
 	return fg->param.batt_ma_avg;
 }
-#endif
 
 static void soc_scale_work(struct work_struct *work)
 {
 	struct fg_gen4_chip *chip = container_of(work, struct fg_gen4_chip,
 						soc_scale_work);
 	struct fg_dev *fg = &chip->fg;
-	int soc, soc_thr_percent, rc;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct timespec last_change_time = fg->scale_soc_change_time;
-	int soc_changed, time_since_last_change_sec;
+	int soc, soc_thr_percent, rc, soc_changed, time_since_last_change_sec;
 	int delta_time = 0;
-#endif
 
 	if (!chip->soc_scale_mode)
 		return;
@@ -4427,7 +4385,6 @@ static void soc_scale_work(struct work_struct *work)
 		 * timer resolution to catch up the rate of decrement
 		 * of SOC.
 		 */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		calculate_delta_time(&last_change_time, &time_since_last_change_sec);
 		calculate_average_current(chip);
 		/* Calculated average current > 700mA */
@@ -4440,19 +4397,12 @@ static void soc_scale_work(struct work_struct *work)
 			delta_time = 0;
 		soc_changed = min(1, delta_time);
 		fg_dbg(fg, FG_FVSS, "get delta_time = %d, soc_changed =%d, time_since_last_change_sec = %d\n", delta_time, soc_changed, time_since_last_change_sec);
-#endif
-		chip->soc_scale_msoc = chip->prev_soc_scale_msoc -
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-					soc_changed;
-#else
-					soc_thr_percent;
-#endif
+
+		chip->soc_scale_msoc = chip->prev_soc_scale_msoc - soc_changed;
 		chip->scale_timer = chip->dt.scale_timer_ms /
 				(chip->prev_soc_scale_msoc - soc);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (chip->prev_soc_scale_msoc != chip->soc_scale_msoc)
 			fg->scale_soc_change_time = last_change_time;
-#endif
 	}
 
 	if (chip->soc_scale_msoc < 0)
@@ -4465,9 +4415,7 @@ static void soc_scale_work(struct work_struct *work)
 	}
 
 	chip->prev_soc_scale_msoc = chip->soc_scale_msoc;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	fg->param.batt_soc = chip->soc_scale_msoc;
-#endif
 
 	fg_dbg(fg, FG_FVSS, "Calculated SOC=%d SOC reported=%d timer resolution=%d\n",
 		soc, chip->soc_scale_msoc, chip->scale_timer);
@@ -4506,6 +4454,7 @@ static void pl_enable_work(struct work_struct *work)
 }
 
 #ifdef CONFIG_BATT_VERIFY_BY_DS28E16
+
 static int battery_authentic_period_ms = 1000;
 #define BATTERY_AUTHENTIC_COUNT_MAX 5
 int retry_battery_authentic_result;
@@ -4700,19 +4649,18 @@ static int sync_cycle_count(struct fg_gen4_chip *chip)
 
 	return 0;
 }
+
 #endif
+
 
 static void status_change_work(struct work_struct *work)
 {
 	struct fg_dev *fg = container_of(work,
 			struct fg_dev, status_change_work);
 	struct fg_gen4_chip *chip = container_of(fg, struct fg_gen4_chip, fg);
-	int rc, batt_soc, batt_temp;
+	int rc, batt_soc, batt_temp, msoc_raw;
 	bool input_present, qnovo_en;
 	u32 batt_soc_cp;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	int msoc_raw;
-#endif
 
 	if (fg->battery_missing) {
 		pm_relax(fg->dev);
@@ -4740,7 +4688,6 @@ static void status_change_work(struct work_struct *work)
 
 	get_batt_psy_props(fg);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (fg->charge_done && !fg->report_full) {
 		fg->report_full = true;
 	} else if (!fg->charge_done && fg->report_full) {
@@ -4750,7 +4697,6 @@ static void status_change_work(struct work_struct *work)
 		if (msoc_raw < FULL_SOC_REPORT_THR - 4)
 			fg->report_full = false;
 	}
-#endif
 
 	rc = fg_get_sram_prop(fg, FG_SRAM_BATT_SOC, &batt_soc);
 	if (rc < 0) {
@@ -4765,9 +4711,7 @@ static void status_change_work(struct work_struct *work)
 	}
 
 	input_present = is_input_present(fg);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	fg->input_present = input_present;
-#endif
 	qnovo_en = is_qnovo_en(fg);
 	cycle_count_update(chip->counter, (u32)batt_soc >> 24,
 		fg->charge_status, fg->charge_done, input_present);
@@ -5016,7 +4960,6 @@ static struct attribute *fg_attrs[] = {
 };
 ATTRIBUTE_GROUPS(fg);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static int fg_gen4_set_vbatt_full_vol(struct fg_dev *fg, bool enable_ffc)
 {
 	int rc;
@@ -5117,14 +5060,11 @@ static int fg_gen4_set_ki_coeff_curr(struct fg_dev *fg, bool enable_ffc)
 
 	return rc;
 }
-#endif
+
 
 /* All power supply functions here */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define SHUTDOWN_DELAY_VOL	3300
 #define SHUTDOWN_DELAY_VOL_lOW_TEMP	3100
-#endif
-
 static int fg_psy_get_property(struct power_supply *psy,
 				       enum power_supply_property psp,
 				       union power_supply_propval *pval)
@@ -5133,12 +5073,11 @@ static int fg_psy_get_property(struct power_supply *psy,
 	struct fg_dev *fg = &chip->fg;
 	int rc = 0, val;
 	int64_t temp;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int vbatt_uv;
 	int shutdown_voltage;
+	int capacity_major, capacity_minor;
 	static bool shutdown_delay_cancel;
 	static bool last_shutdown_delay;
-#endif
 
 #ifdef CONFIG_BATT_VERIFY_BY_DS28E16
 	union power_supply_propval b_val = {0,};
@@ -5208,16 +5147,13 @@ static int fg_psy_get_property(struct power_supply *psy,
 		break;
 #endif
 	case POWER_SUPPLY_PROP_CAPACITY:
-		rc = fg_gen4_get_prop_capacity(fg, &pval->intval);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-		//Using smooth battery capacity.
-		if (fg->param.batt_soc >= 0 && !chip->rapid_soc_dec_en && !chip->soc_scale_mode)
-			pval->intval = fg->param.batt_soc;
+		rc = fg_gen4_get_prop_capacity_raw(chip, &pval->intval);
+		capacity_major = pval->intval / 100;
+		capacity_minor = pval->intval % 100;
+		if (capacity_minor >= 50)
+			capacity_major++;
 
-		if (chip->dt.fg_increase_100soc_time) {
-			if (fg->param.smooth_batt_soc >= 0 && !chip->rapid_soc_dec_en && !chip->soc_scale_mode)
-				pval->intval = fg->param.smooth_batt_soc;
-		}
+		pval->intval = capacity_major;
 
 		//shutdown delay feature
 		if (chip->dt.shutdown_delay_enable) {
@@ -5252,27 +5188,22 @@ static int fg_psy_get_property(struct power_supply *psy,
 					power_supply_changed(fg->fg_psy);
 			}
 		}
-#endif
 		break;
 	case POWER_SUPPLY_PROP_REAL_CAPACITY:
 		rc = fg_gen4_get_prop_real_capacity(fg, &pval->intval);
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_SHUTDOWN_DELAY:
 		pval->intval = fg->shutdown_delay;
 		break;
-#endif
 	case POWER_SUPPLY_PROP_CAPACITY_RAW:
 		rc = fg_gen4_get_prop_capacity_raw(chip, &pval->intval);
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_SOC_DECIMAL:
 		rc = fg_gen4_get_prop_soc_decimal(chip, &pval->intval);
 		break;
 	case POWER_SUPPLY_PROP_SOC_DECIMAL_RATE:
 		rc = fg_gen4_get_prop_soc_decimal_rate(chip, &pval->intval);
 		break;
-#endif
 	case POWER_SUPPLY_PROP_CC_SOC:
 		rc = fg_get_sram_prop(&chip->fg, FG_SRAM_CC_SOC, &val);
 		if (rc < 0) {
@@ -5333,17 +5264,13 @@ static int fg_psy_get_property(struct power_supply *psy,
 			pval->intval = (int)temp;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (-EINVAL != fg->bp.nom_cap_uah) {
 			pval->intval = fg->bp.nom_cap_uah * 1000;
 		} else {
-#endif
-		rc = fg_gen4_get_nominal_capacity(chip, &temp);
-		if (!rc)
-			pval->intval = (int)temp;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+			rc = fg_gen4_get_nominal_capacity(chip, &temp);
+			if (!rc)
+				pval->intval = (int)temp;
 		}
-#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
 		rc = fg_gen4_get_charge_counter(chip, &pval->intval);
@@ -5416,7 +5343,6 @@ static int fg_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CALIBRATE:
 		pval->intval = chip->calib_level;
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 		pval->intval = chip->fastcharge_mode_enabled;
 		break;
@@ -5438,9 +5364,8 @@ static int fg_psy_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_KI_COEFF_CURRENT:
 		pval->intval = chip->dt.ffc_ki_coeff_med_hi_chg_thr_ma;
 		break;
-#endif
 	default:
-		pr_err("unsupported property %d\n", psp);
+		pr_debug("unsupported property %d\n", psp);
 		rc = -EINVAL;
 		break;
 	}
@@ -5496,11 +5421,9 @@ static int fg_psy_set_property(struct power_supply *psy,
 			return -EINVAL;
 		}
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_TEMP:
 		fg->fake_temp = pval->intval;
 		break;
-#endif
 	case POWER_SUPPLY_PROP_ESR_ACTUAL:
 		chip->esr_actual = pval->intval;
 		break;
@@ -5538,7 +5461,6 @@ static int fg_psy_set_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CALIBRATE:
 		rc = fg_gen4_set_calibrate_level(chip, pval->intval);
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 		chip->fastcharge_mode_enabled = pval->intval;
 		break;
@@ -5562,7 +5484,6 @@ static int fg_psy_set_property(struct power_supply *psy,
 		fg->fake_chip_ok = !!pval->intval;
 		break;
 #endif
-#endif
 	default:
 		break;
 	}
@@ -5583,7 +5504,6 @@ static int fg_property_is_writeable(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CLEAR_SOH:
 	case POWER_SUPPLY_PROP_BATT_AGE_LEVEL:
 	case POWER_SUPPLY_PROP_CALIBRATE:
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_FASTCHARGE_MODE:
 	case POWER_SUPPLY_PROP_SYS_TERMINATION_CURRENT:
 	case POWER_SUPPLY_PROP_VBATT_FULL_VOL:
@@ -5592,7 +5512,6 @@ static int fg_property_is_writeable(struct power_supply *psy,
 #ifdef CONFIG_BATT_VERIFY_BY_DS28E16
 	case POWER_SUPPLY_PROP_AUTHENTIC:
 	case POWER_SUPPLY_PROP_CHIP_OK:
-#endif
 #endif
 		return 1;
 	default:
@@ -5612,14 +5531,10 @@ static enum power_supply_property fg_psy_props[] = {
 #endif
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_REAL_CAPACITY,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_PROP_SHUTDOWN_DELAY,
-#endif
 	POWER_SUPPLY_PROP_CAPACITY_RAW,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_PROP_SOC_DECIMAL,
 	POWER_SUPPLY_PROP_SOC_DECIMAL_RATE,
-#endif
 	POWER_SUPPLY_PROP_CC_SOC,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -5639,9 +5554,7 @@ static enum power_supply_property fg_psy_props[] = {
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_CHARGE_COUNTER_SHADOW,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
-#endif
 	POWER_SUPPLY_PROP_CYCLE_COUNTS,
 	POWER_SUPPLY_PROP_SOC_REPORTING_READY,
 	POWER_SUPPLY_PROP_CLEAR_SOH,
@@ -5658,7 +5571,6 @@ static enum power_supply_property fg_psy_props[] = {
 	POWER_SUPPLY_PROP_POWER_AVG,
 	POWER_SUPPLY_PROP_SCALE_MODE_EN,
 	POWER_SUPPLY_PROP_CALIBRATE,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_PROP_FASTCHARGE_MODE,
 	POWER_SUPPLY_PROP_FFC_TERMINATION_CURRENT,
 	POWER_SUPPLY_PROP_SYS_TERMINATION_CURRENT,
@@ -5666,7 +5578,6 @@ static enum power_supply_property fg_psy_props[] = {
 	POWER_SUPPLY_PROP_VBATT_FULL_VOL,
 	POWER_SUPPLY_PROP_FFC_VBATT_FULL_VOL,
 	POWER_SUPPLY_PROP_KI_COEFF_CURRENT,
-#endif
 };
 
 static const struct power_supply_desc fg_psy_desc = {
@@ -6479,7 +6390,6 @@ static int fg_parse_ki_coefficients(struct fg_dev *fg)
 	of_property_read_u32(node, "qcom,ki-coeff-chg-med-hi-thresh-ma",
 		&chip->dt.ki_coeff_med_hi_chg_thr_ma);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	chip->dt.ffc_ki_coeff_lo_med_chg_thr_ma = -EINVAL;
 	of_property_read_u32(node, "qcom,ffc-ki-coeff-chg-low-med-thresh-ma",
 		&chip->dt.ffc_ki_coeff_lo_med_chg_thr_ma);
@@ -6487,7 +6397,6 @@ static int fg_parse_ki_coefficients(struct fg_dev *fg)
 	chip->dt.ffc_ki_coeff_med_hi_chg_thr_ma = -EINVAL;
 	of_property_read_u32(node, "qcom,ffc-ki-coeff-chg-med-hi-thresh-ma",
 		&chip->dt.ffc_ki_coeff_med_hi_chg_thr_ma);
-#endif
 
 	chip->dt.ki_coeff_lo_med_dchg_thr_ma = 50;
 	of_property_read_u32(node, "qcom,ki-coeff-dischg-low-med-thresh-ma",
@@ -6636,11 +6545,8 @@ static int fg_parse_esr_cal_params(struct fg_dev *fg)
 }
 
 #define BTEMP_DELTA_LOW			0
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+/* set BTEMP_DELTA_HIGH to 10 to avoid batt-temp-delta irq wakeup frequently */
 #define BTEMP_DELTA_HIGH		10
-#else
-#define BTEMP_DELTA_HIGH		3
-#endif
 
 static void fg_gen4_parse_batt_temp_dt(struct fg_gen4_chip *chip)
 {
@@ -6865,11 +6771,7 @@ static int fg_gen4_parse_child_nodes_dt(struct fg_gen4_chip *chip)
 #define DEFAULT_ESR_PULSE_THRESH_MA	47
 #define DEFAULT_ESR_MEAS_CURR_MA	120
 #define DEFAULT_SCALE_VBATT_THR_MV	3400
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define DEFAULT_SCALE_ALARM_TIMER_MS	20000
-#else
-#define DEFAULT_SCALE_ALARM_TIMER_MS	10000
-#endif
 #define DEFAULT_BATT_ID_PULLUP_KOHMS	100
 
 static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
@@ -6877,10 +6779,7 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	struct fg_dev *fg = &chip->fg;
 	struct device_node *node = fg->dev->of_node;
 	u32 temp;
-	int rc;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	int size;
-#endif
+	int rc, size;
 
 	if (!node)  {
 		dev_err(fg->dev, "device tree node missing\n");
@@ -6924,13 +6823,11 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	chip->dt.cutoff_volt_mv = DEFAULT_CUTOFF_VOLT_MV;
 	of_property_read_u32(node, "qcom,fg-cutoff-voltage",
 				&chip->dt.cutoff_volt_mv);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	rc = of_property_read_u32(node, "qcom,fg-cutoff-voltage-global", &temp);
 	if (chip->hw_country == CountryGlobal && !rc) {
 		chip->dt.cutoff_volt_mv = temp;
 		pr_err("Global cutoff_volt=%d\n", chip->dt.cutoff_volt_mv);
 	}
-#endif
 
 	chip->dt.cutoff_curr_ma = DEFAULT_CUTOFF_CURR_MA;
 	of_property_read_u32(node, "qcom,fg-cutoff-current",
@@ -6944,11 +6841,9 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	of_property_read_u32(node, "qcom,fg-sys-term-current",
 				&chip->dt.sys_term_curr_ma);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	chip->dt.ffc_sys_term_curr_ma = -EINVAL;
 	of_property_read_u32(node, "qcom,fg-ffc-sys-term-current",
 				&chip->dt.ffc_sys_term_curr_ma);
-#endif
 
 	chip->dt.delta_soc_thr = DEFAULT_DELTA_SOC_THR;
 	of_property_read_u32(node, "qcom,fg-delta-soc-thr",
@@ -6960,7 +6855,6 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	size = 0;
 	of_get_property(node, "qcom,soc_decimal_rate", &size);
 	if (size) {
@@ -6981,7 +6875,6 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 			pr_err("error allocating memory for dec_rate_seq\n");
 		}
 	}
-#endif
 
 	chip->dt.esr_timer_chg_fast[TIMER_RETRY] = -EINVAL;
 	chip->dt.esr_timer_chg_fast[TIMER_MAX] = -EINVAL;
@@ -7016,12 +6909,10 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	chip->dt.force_load_profile = of_property_read_bool(node,
 					"qcom,fg-force-load-profile");
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	chip->dt.shutdown_delay_enable = of_property_read_bool(node,
 					"qcom,shutdown-delay-enable");
 	chip->dt.cutoff_voltage_adjust_enable = of_property_read_bool(node,
 					"qcom,cutoff-voltage-adjust-enable");
-#endif
 
 	fg_gen4_parse_cl_params_dt(chip);
 	fg_gen4_parse_batt_temp_dt(chip);
@@ -7086,13 +6977,12 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	chip->dt.multi_profile_load = of_property_read_bool(node,
 					"qcom,multi-profile-load");
 	chip->dt.soc_hi_res = of_property_read_bool(node, "qcom,soc-hi-res");
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	chip->dt.sun_profile_only = of_property_read_bool(node, "qcom,sun-profile-only");
 	chip->dt.j3s_batt_profile = of_property_read_bool(node, "qcom,j3s-batt-profile");
+	chip->dt.k11a_batt_profile = of_property_read_bool(node, "qcom,k11a-batt-profile");
 
 	chip->dt.fg_increase_100soc_time = of_property_read_bool(node, "qcom,fg-increase-100soc-time");
 	fg->param.smooth_batt_flag = of_property_read_bool(node, "qcom,fg-increase-100soc-time-2");
-#endif
 
 	chip->dt.sys_min_volt_mv = DEFAULT_SYS_MIN_VOLT_MV;
 	of_property_read_u32(node, "qcom,fg-sys-min-voltage",
@@ -7104,7 +6994,6 @@ static int fg_gen4_parse_dt(struct fg_gen4_chip *chip)
 	return 0;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define SCALE_SOC 3
 #define DETAL_SOC 1
 //#define FFC_SYS_TERMI_CURRENT -1280000
@@ -7357,9 +7246,10 @@ static void soc_monitor_work(struct work_struct *work)
 		if (fg->param.batt_temp < LOW_DISCHARGE_TEMP_TRH ) {
 			chip->dt.cutoff_volt_mv = LOW_TEMP_CUTOFF_VOL_MV;
 			is_low_temp_flag = true;
-		} else
+		} else {
+			chip->dt.cutoff_volt_mv	= NORMAL_TEMP_CUTOFF_VOL_MV;
 			is_low_temp_flag = false;
-
+		}
 		fg_dynamic_set_cutoff_voltage(fg, chip->dt.cutoff_volt_mv);
 		if (rc < 0)
 			pr_err("fg_dynamic_set_cutoff_voltage set failed\n");
@@ -7384,8 +7274,6 @@ static void soc_monitor_work(struct work_struct *work)
 			msecs_to_jiffies(MONITOR_SOC_WAIT_PER_MS));
 	}
 }
-#endif
-
 static void fg_gen4_cleanup(struct fg_gen4_chip *chip)
 {
 	struct fg_dev *fg = &chip->fg;
@@ -7399,9 +7287,7 @@ static void fg_gen4_cleanup(struct fg_gen4_chip *chip)
 	cancel_delayed_work_sync(&fg->profile_load_work);
 	cancel_delayed_work_sync(&fg->sram_dump_work);
 	cancel_work_sync(&chip->pl_current_en_work);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	cancel_delayed_work_sync(&fg->empty_restart_fg_work);
-#endif
 
 	power_supply_unreg_notifier(&fg->nb);
 	debugfs_remove_recursive(fg->dfs_root);
@@ -7425,7 +7311,6 @@ static void fg_gen4_cleanup(struct fg_gen4_chip *chip)
 	dev_set_drvdata(fg->dev, NULL);
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define IBAT_OLD_WORD		317
 #define IBAT_OLD_OFFSET		0
 #define BATT_CURRENT_NUMR		488281
@@ -7454,7 +7339,7 @@ int fg_get_batt_isense(struct fg_dev *fg, int *val)
 
 	return 0;
 }
-#endif
+
 
 static void fg_gen4_post_init(struct fg_gen4_chip *chip)
 {
@@ -7502,14 +7387,11 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	fg->charge_status = -EINVAL;
 	fg->online_status = -EINVAL;
 	fg->batt_id_ohms = -EINVAL;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	fg->cycle_count = INT_MIN;
-#endif
 	chip->ki_coeff_full_soc[0] = -EINVAL;
 	chip->ki_coeff_full_soc[1] = -EINVAL;
 	chip->esr_soh_cycle_count = -EINVAL;
 	chip->calib_level = -EINVAL;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	fg->param.batt_soc = -EINVAL;
 	fg->fake_temp = -EINVAL;
 	fg->fake_authentic = -EINVAL;
@@ -7529,7 +7411,6 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	retry_ds_romid = 0;
 	retry_ds_status = 0;
 	retry_ds_page0 = 0;
-#endif
 #endif
 	chip->soh = -EINVAL;
 	fg->regmap = dev_get_regmap(fg->dev->parent, NULL);
@@ -7553,7 +7434,6 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&fg->sram_dump_work, sram_dump_work);
 	INIT_DELAYED_WORK(&chip->pl_enable_work, pl_enable_work);
 	INIT_WORK(&chip->pl_current_en_work, pl_current_en_work);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	INIT_DELAYED_WORK(&fg->soc_monitor_work, soc_monitor_work);
 	INIT_DELAYED_WORK(&fg->empty_restart_fg_work, empty_restart_fg_work);
 #ifdef CONFIG_BATT_VERIFY_BY_DS28E16
@@ -7561,7 +7441,6 @@ static int fg_gen4_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&chip->ds_romid_work, ds_romid_work);
 	INIT_DELAYED_WORK(&chip->ds_status_work, ds_status_work);
 	INIT_DELAYED_WORK(&chip->ds_page0_work, ds_page0_work);
-#endif
 #endif
 
 	fg->awake_votable = create_votable("FG_WS", VOTE_SET_ANY,
@@ -7616,10 +7495,8 @@ static int fg_gen4_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	chip->hw_country = get_hw_country_version();
 	dev_err(fg->dev, "hw_country: %d\n", chip->hw_country);
-#endif
 
 	rc = fg_gen4_parse_dt(chip);
 	if (rc < 0) {
@@ -7678,14 +7555,12 @@ static int fg_gen4_probe(struct platform_device *pdev)
 				PTR_ERR(fg->fg_psy));
 		goto exit;
 	}
-
 #ifdef CONFIG_BATT_VERIFY_BY_DS28E16
 	if (chip->battery_authentic_result != true) {
 		schedule_delayed_work(&chip->battery_authentic_work,
 				msecs_to_jiffies(0));
 	}
 #endif
-
 	fg->nb.notifier_call = fg_notifier_cb;
 	rc = power_supply_reg_notifier(&fg->nb);
 	if (rc < 0) {
@@ -7753,8 +7628,6 @@ static int fg_gen4_probe(struct platform_device *pdev)
 		schedule_delayed_work(&fg->profile_load_work, 0);
 
 	fg_gen4_post_init(chip);
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (chip->dt.fg_increase_100soc_time) {
 		schedule_delayed_work(&fg->soc_monitor_work,
 			msecs_to_jiffies(0));
@@ -7773,8 +7646,6 @@ static int fg_gen4_probe(struct platform_device *pdev)
 			&& (msoc == 0) && (batt_temp >= TEMP_THR_RESTART_FG))
 		schedule_delayed_work(&fg->empty_restart_fg_work,
 				msecs_to_jiffies(RESTART_FG_START_WORK_MS));
-#endif
-
 	pr_debug("FG GEN4 driver probed successfully\n");
 	return 0;
 exit:
@@ -7794,10 +7665,7 @@ static void fg_gen4_shutdown(struct platform_device *pdev)
 {
 	struct fg_gen4_chip *chip = dev_get_drvdata(&pdev->dev);
 	struct fg_dev *fg = &chip->fg;
-	int rc, bsoc;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	int msoc;
-#endif
+	int rc, bsoc, msoc;
 
 	fg_unregister_interrupts(fg, chip, FG_GEN4_IRQ_MAX);
 
@@ -7817,7 +7685,6 @@ static void fg_gen4_shutdown(struct platform_device *pdev)
 		return;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	rc = fg_gen4_get_prop_capacity(fg, &msoc);
 	if (rc < 0) {
 		pr_err("Error in getting capacity, rc=%d\n", rc);
@@ -7826,9 +7693,6 @@ static void fg_gen4_shutdown(struct platform_device *pdev)
 
 	/* if msoc is 100% when shutdown, write full soc for next reboot */
 	if (fg->charge_full || (msoc == 100)) {
-#else
-	if (fg->charge_full) {
-#endif
 		/* We need 2 most significant bytes here */
 		bsoc = (u32)bsoc >> 16;
 
@@ -7862,23 +7726,18 @@ static int fg_gen4_resume(struct device *dev)
 {
 	struct fg_gen4_chip *chip = dev_get_drvdata(dev);
 	struct fg_dev *fg = &chip->fg;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int val = 0;
 	if (!fg->input_present)
 	fg_get_batt_isense(fg, &val);
-#endif
 
 	schedule_delayed_work(&chip->ttf->ttf_work, 0);
 	if (fg_sram_dump)
 		schedule_delayed_work(&fg->sram_dump_work,
 				msecs_to_jiffies(fg_sram_dump_period_ms));
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	fg->param.update_now = true;
 	schedule_delayed_work(&fg->soc_monitor_work,
 				msecs_to_jiffies(MONITOR_SOC_WAIT_MS));
-#endif
-
 	return 0;
 }
 
@@ -7903,7 +7762,6 @@ static struct platform_driver fg_gen4_driver = {
 	.shutdown	= fg_gen4_shutdown,
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static int __init early_parse_batt_profile_vendor_id(char *p)
 {
 	if (p) {
@@ -7916,7 +7774,7 @@ static int __init early_parse_batt_profile_vendor_id(char *p)
 	return 0;
 }
 early_param("androidboot.profile_vendor_id", early_parse_batt_profile_vendor_id);
-#endif
+
 
 module_platform_driver(fg_gen4_driver);
 

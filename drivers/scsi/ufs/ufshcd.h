@@ -3,6 +3,7 @@
  *
  * This code is based on drivers/scsi/ufs/ufshcd.h
  * Copyright (C) 2011-2013 Samsung India Software Operations
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (c) 2013-2020, The Linux Foundation. All rights reserved.
  *
  * Authors:
@@ -70,6 +71,7 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_dbg.h>
 #include <scsi/scsi_eh.h>
+#include <linux/android_kabi.h>
 
 #include <linux/fault-inject.h>
 
@@ -89,6 +91,29 @@ enum dev_cmd_type {
 	DEV_CMD_TYPE_QUERY		= 0x1,
 };
 
+#define ufs_spin_lock_irqsave(lock, flags)				\
+do {	\
+	if (!oops_in_progress)\
+		spin_lock_irqsave(lock, flags);	\
+} while (0)
+
+#define ufs_spin_unlock_irqrestore(lock, flags)				\
+do {	\
+	if (!oops_in_progress)\
+		spin_unlock_irqrestore(lock, flags);	\
+} while (0)
+
+#define ufs_spin_lock(lock)				\
+do {	\
+	if (!oops_in_progress)\
+		spin_lock(lock);	\
+} while (0)
+
+#define ufs_spin_unlock(lock)				\
+do {	\
+	if (!oops_in_progress)\
+		spin_unlock(lock);	\
+} while (0)
 /**
  * struct uic_command - UIC command structure
  * @command: UIC command
@@ -231,6 +256,9 @@ struct ufshcd_lrb {
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
 
 	bool req_abort_skip;
+#if defined(CONFIG_UFSFEATURE) && defined(CONFIG_UFSHPB)
+	int hpb_ctx_id;
+#endif
 };
 
 /**
@@ -381,6 +409,11 @@ struct ufs_hba_variant_ops {
 #endif
 	int	(*program_key)(struct ufs_hba *hba,
 			       const union ufs_crypto_cfg_entry *cfg, int slot);
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 /**
@@ -424,6 +457,11 @@ struct ufs_hba_crypto_variant_ops {
 				    struct scsi_cmnd *cmd,
 				    struct ufshcd_lrb *lrbp);
 	void *priv;
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 /* clock gating state  */
@@ -469,6 +507,7 @@ struct ufs_clk_gating {
 	struct device_attribute delay_perf_attr;
 	struct device_attribute enable_attr;
 	bool is_enabled;
+	bool gate_wk_in_process;
 	int active_reqs;
 	struct workqueue_struct *clk_gating_workq;
 };
@@ -1111,6 +1150,24 @@ struct ufs_hba {
 	u32 crypto_cfg_register;
 	struct keyslot_manager *ksm;
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
+
+#if defined(CONFIG_UFSFEATURE) || defined(CONFIG_UFSFEATURE_31)
+       struct ufsf_feature *ufsf;
+#endif
+#if defined(CONFIG_UFSHPB_TOSHIBA)
+	   /* HPB support */
+	   u32 ufshpb_feat;
+	   int ufshpb_state;
+	   int ufshpb_max_regions;
+	   struct delayed_work ufshpb_init_work;
+	   struct ufshpb_lu *ufshpb_lup[UFS_UPIU_MAX_GENERAL_LUN];
+	   struct scsi_device *sdev_ufs_lu[UFS_UPIU_MAX_GENERAL_LUN];
+	   struct work_struct ufshpb_eh_work;
+#endif
+        ANDROID_KABI_RESERVE(1);
+        ANDROID_KABI_RESERVE(2);
+        ANDROID_KABI_RESERVE(3);
+        ANDROID_KABI_RESERVE(4);
 };
 
 static inline void ufshcd_mark_shutdown_ongoing(struct ufs_hba *hba)
@@ -1377,7 +1434,14 @@ int ufshcd_query_flag(struct ufs_hba *hba, enum query_opcode opcode,
 	enum flag_idn idn, bool *flag_res);
 int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index,
 			    u8 *buf, u32 size, bool ascii);
-
+#if defined(CONFIG_UFSFEATURE_31)
+int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
+			enum dev_cmd_type cmd_type, int timeout);
+void ufshcd_hold_all(struct ufs_hba *hba);
+void ufshcd_release_all(struct ufs_hba *hba);
+int ufshcd_issue_tm_cmd(struct ufs_hba *hba, int lun_id, int task_id,
+			u8 tm_function, u8 *tm_response);
+#endif
 int ufshcd_hold(struct ufs_hba *hba, bool async);
 void ufshcd_release(struct ufs_hba *hba, bool no_sched);
 int ufshcd_wait_for_doorbell_clr(struct ufs_hba *hba, u64 wait_timeout_us);
@@ -1393,6 +1457,15 @@ u32 ufshcd_get_local_unipro_ver(struct ufs_hba *hba);
 
 void ufshcd_scsi_block_requests(struct ufs_hba *hba);
 void ufshcd_scsi_unblock_requests(struct ufs_hba *hba);
+#if defined(CONFIG_UFSFEATURE)
+int ufshcd_exec_dev_cmd(struct ufs_hba *hba,
+			enum dev_cmd_type cmd_type, int timeout);
+int ufshcd_hibern8_hold(struct ufs_hba *hba, bool async);
+void ufshcd_hold_all(struct ufs_hba *hba);
+void ufshcd_release_all(struct ufs_hba *hba);
+int ufshcd_comp_scsi_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
+int ufshcd_map_sg(struct ufs_hba *hba, struct ufshcd_lrb *lrbp);
+#endif
 
 /* Wrapper functions for safely calling variant operations */
 static inline const char *ufshcd_get_var_name(struct ufs_hba *hba)

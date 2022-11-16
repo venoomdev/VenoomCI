@@ -1,6 +1,5 @@
 /*
-this file is for attribution only of umi
-And public attribution of xiaomi platforms(like alioth and so and)
+this file is for attribution only of alioth
 */
 
 #include "alioth-pinctrl.dtsi"
@@ -243,6 +242,10 @@ And public attribution of xiaomi platforms(like alioth and so and)
 	status = "disabled";
 };
 
+&usb1 {
+        extcon = <&extcon_usb1>;
+};
+
 &sde_dsi {
 	/delete-property/ vdd-supply;
 	/delete-property/ avdd-supply;
@@ -255,6 +258,11 @@ And public attribution of xiaomi platforms(like alioth and so and)
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
 };
+
+&pm8150l_rgb_led {
+	status = "disabled";
+};
+
 &soc {
 	fingerprint_goodix {
 		compatible = "goodix,fingerprint";
@@ -512,7 +520,7 @@ And public attribution of xiaomi platforms(like alioth and so and)
 	qcom,sec-charger-config = <0>;
 	qcom,usb-icl-ua = <3000000>;
 	qcom,fcc-max-ua = <6000000>;
-	qcom,fv-max-uv = <4480000>;
+	qcom,fv-max-uv = <4460000>;
 	qcom,non-fcc-fv-max-uv = <4450000>;
 	qcom,dc-icl-ua = <1000000>;
 	qcom,auto-recharge-soc = <99>;
@@ -524,16 +532,17 @@ And public attribution of xiaomi platforms(like alioth and so and)
 	qcom,chg-cool-th= <150>;
 	//qcom,suspend-input-on-debug-batt;
 	qcom,usbpd-phandle = <&pm8150b_pdphy>;
-	qcom,battery-data = <&umi_batterydata>;
+	qcom,battery-data = <&alioth_batterydata>;
 	mi,six-pin-step-chg-params = <4250000  6000000
 				4450000  5400000
-				4480000  3536000>;
+				4460000  3536000>;
 	mi,six-pin-step-chg;
 	mi,six-pin-soc-th = <22>;
 	mi,fcc-batt-unverify-ua = <2000000>;
 	mi,support-ffc;
 	qcom,lpd-disable;
 	mi,use-bq-pump;
+	mi,chg-enable-k11a;
 	mi,support-second-ffc-term-current;
 	mi,support-second-ffc-term-current-diff = <133>;
 	mi,support-qc3p5-without-smb;
@@ -598,11 +607,12 @@ And public attribution of xiaomi platforms(like alioth and so and)
 };
 
 &pm8150b_fg {
-	qcom,battery-data = <&umi_batterydata>;
+	qcom,battery-data = <&alioth_batterydata>;
 	qcom,rapid-soc-dec-en;
 	qcom,five-pin-battery;
 	qcom,soc-hi-res;
 	qcom,sun-profile-only;
+	qcom,k11a-batt-profile;
 	qcom,soc_decimal_rate = <
 		0  38
 		10 35
@@ -653,19 +663,20 @@ And public attribution of xiaomi platforms(like alioth and so and)
 	usbpd_pm {
 		compatible = "xiaomi,usbpd-pm";
 		status = "ok";
-		mi,pd-bat-volt-max = <4480>;
+		mi,pd-bat-volt-max = <4460>;
 		mi,pd-bat-curr-max = <6000>;
 		mi,pd-bus-volt-max = <12000>;
 		mi,pd-bus-curr-max = <3000>;
-		mi,pd-bus-curr-compensate  = <0>;
+		mi,pd-bus-curr-compensate  = <50>;
 		mi,pd-non-ffc-bat-volt-max = <4450>;
 		mi,pd-battery-warm-th = <480>;
 		mi,use-qcom-gauge;
 		//mi,cp-sec-enable;
 		mi,therm-level-threshold = <12>;
+		mi,chg-enable-k11a;
 	};
 
-	umi_batterydata: qcom,battery-data {
+	alioth_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
 		#include "fg-gen4-batterydata-alioth-FMT-4520mah.dtsi"
 		#include "fg-gen4-batterydata-alioth-GY-4520mah.dtsi"
@@ -1042,7 +1053,7 @@ And public attribution of xiaomi platforms(like alioth and so and)
 		};
 	};
 
-	xo_therm {//place close to pa1
+	pa_therm1 {//place close to pa1
 		polling-delay-passive = <0>;
 		polling-delay = <0>;
 		thermal-governor = "user_space";

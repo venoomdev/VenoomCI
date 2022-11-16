@@ -39,7 +39,6 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 
 		bio->bi_iter.bi_sector = map_swap_page(page, &bdev);
 		bio_set_dev(bio, bdev);
-		bio->bi_iter.bi_sector <<= PAGE_SHIFT - 9;
 		bio->bi_end_io = end_io;
 
 		for (i = 0; i < nr; i++)
@@ -72,6 +71,22 @@ void end_swap_bio_write(struct bio *bio)
 	}
 	end_page_writeback(page);
 	bio_put(bio);
+}
+
+/* Moto huangzq2: check sync_io state on swap entry */
+bool swap_slot_has_sync_io(swp_entry_t entry)
+{
+	struct swap_info_struct *sis;
+	struct gendisk *disk;
+
+	sis = swp_swap_info(entry);
+	disk = sis->bdev->bd_disk;
+	if (disk->fops->ioctl) {
+		return disk->fops->ioctl(sis->bdev, 0,
+			SWP_SYNCHRONOUS_IO, swp_offset(entry)) == 1;
+	}
+
+	return false;
 }
 
 static void swap_slot_free_notify(struct page *page)
@@ -180,8 +195,9 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 
 		cond_resched();
 
-		first_block = bmap(inode, probe_block);
-		if (first_block == 0)
+		first_block = probe_block;
+		ret = bmap(inode, &first_block);
+		if (ret || !first_block)
 			goto bad_bmap;
 
 		/*
@@ -196,9 +212,11 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 					block_in_page++) {
 			sector_t block;
 
-			block = bmap(inode, probe_block + block_in_page);
-			if (block == 0)
+			block = probe_block + block_in_page;
+			ret = bmap(inode, &block);
+			if (ret || !block)
 				goto bad_bmap;
+
 			if (block != first_block + block_in_page) {
 				/* Discontiguity */
 				probe_block++;

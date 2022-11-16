@@ -29,6 +29,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/debugfs.h>
+#include <linux/spi-xiaomi-tp.h>
 #include <drm/drm_notifier_mi.h>
 
 #include <linux/notifier.h>
@@ -38,7 +39,6 @@
 #endif
 
 #include "nt36xxx.h"
-#include "spi-xiaomi-tp.h"
 #ifndef NVT_SAVE_TESTDATA_IN_FILE
 #include "nt36xxx_mp_ctrlram.h"
 #endif
@@ -131,28 +131,27 @@ const uint16_t gesture_key_array[] = {
 
 #ifdef CONFIG_TOUCHSCREEN_COMMON
 static ssize_t double_tap_show(struct kobject *kobj,
-                               struct kobj_attribute *attr, char *buf)
+				struct kobj_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", ts->db_wakeup);
+	return sprintf(buf, "%d\n", ts->db_wakeup);
 }
 
 static ssize_t double_tap_store(struct kobject *kobj,
-                                struct kobj_attribute *attr, const char *buf,
-                                size_t count)
+	struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    int rc, val;
+	int rc, val;
 
-    rc = kstrtoint(buf, 10, &val);
-    if (rc)
-    return -EINVAL;
+	rc = kstrtoint(buf, 10, &val);
+	if (rc)
+		return -EINVAL;
 
-    ts->db_wakeup = !!val;
-    return count;
+	ts->db_wakeup = !!val;
+	return count;
 }
 
 static struct tp_common_ops double_tap_ops = {
-    .show = double_tap_show,
-    .store = double_tap_store
+	.show = double_tap_show,
+	.store = double_tap_store
 };
 #endif
 
@@ -2616,11 +2615,10 @@ static int32_t nvt_ts_probe(struct platform_device *pdev)
 		input_set_capability(ts->input_dev, EV_KEY, gesture_key_array[retry]);
 	}
 #ifdef CONFIG_TOUCHSCREEN_COMMON
-    ret = tp_common_set_double_tap_ops(&double_tap_ops);
-    if (ret < 0) {
-        NVT_ERR("%s: Failed to create double_tap node err=%d\n",
-                __func__, ret);
-    }
+	ret = tp_common_set_double_tap_ops(&double_tap_ops);
+	if (ret < 0)
+        	NVT_ERR("%s: Failed to create double_tap node err=%d\n",
+			__func__, ret);
 #endif
 #endif
 
@@ -3091,6 +3089,11 @@ static int32_t nvt_ts_suspend(struct device *dev)
 	} else {
 		/* ---write command to enter "deep sleep mode"--- */
 		buf[0] = EVENT_MAP_HOST_CMD;
+		buf[1] = 0x11;
+		CTP_SPI_WRITE(ts->client, buf, 2);
+		
+		nvt_set_page(0x11a50);
+		buf[0] = 0x11a50 & 0xff;
 		buf[1] = 0x11;
 		CTP_SPI_WRITE(ts->client, buf, 2);
 		if (ts->ts_pinctrl) {

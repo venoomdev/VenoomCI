@@ -470,7 +470,9 @@ inline void __blk_run_queue_uncond(struct request_queue *q)
 	 * can wait until all these request_fn calls have finished.
 	 */
 	q->request_fn_active++;
+	preempt_disable();
 	q->request_fn(q);
+	preempt_enable();
 	q->request_fn_active--;
 }
 EXPORT_SYMBOL_GPL(__blk_run_queue_uncond);
@@ -1037,6 +1039,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id,
 		goto fail_stats;
 
 	q->backing_dev_info->ra_pages =
+			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
+	q->backing_dev_info->io_pages =
 			(VM_MAX_READAHEAD * 1024) / PAGE_SIZE;
 	q->backing_dev_info->capabilities = BDI_CAP_CGROUP_WRITEBACK;
 	q->backing_dev_info->name = "block";
@@ -1614,6 +1618,41 @@ static struct request *blk_old_get_request(struct request_queue *q,
 	rq->bio = rq->biotail = NULL;
 	return rq;
 }
+/* flags: BLK_MQ_REQ_PREEMPT and/or BLK_MQ_REQ_NOWAIT. */
+struct request *blk_old_get_request_no_ioc(struct request_queue *q,
+                               unsigned int op, blk_mq_req_flags_t flags)
+{
+       struct request *rq;
+       gfp_t gfp_mask = flags & BLK_MQ_REQ_NOWAIT ? GFP_ATOMIC : GFP_NOIO;
+       int ret = 0;
+
+       WARN_ON_ONCE(q->mq_ops);
+
+       ret = blk_queue_enter(q, flags);
+       if (ret)
+               return ERR_PTR(ret);
+       spin_lock_irq(q->queue_lock);
+       rq = get_request(q, op, NULL, flags, gfp_mask);
+       if (IS_ERR(rq)) {
+               spin_unlock_irq(q->queue_lock);
+               blk_queue_exit(q);
+               return rq;
+       }
+
+       /* q->queue_lock is unlocked at this point */
+       rq->__data_len = 0;
+       rq->__sector = (sector_t) -1;
+#ifdef CONFIG_PFK
+       rq->__dun = 0;
+#endif
+       rq->bio = rq->biotail = NULL;
+
+       if (!IS_ERR(rq) && q->initialize_rq_fn)
+               q->initialize_rq_fn(rq);
+
+       return rq;
+}
+EXPORT_SYMBOL(blk_old_get_request_no_ioc);
 
 /**
  * blk_get_request - allocate a request
@@ -1739,8 +1778,12 @@ EXPORT_SYMBOL_GPL(part_round_stats);
 #ifdef CONFIG_PM
 static void blk_pm_put_request(struct request *rq)
 {
-	if (rq->q->dev && !(rq->rq_flags & RQF_PM) && !--rq->q->nr_pending)
-		pm_runtime_mark_last_busy(rq->q->dev);
+	if (rq->q->dev && !(rq->rq_flags & RQF_PM) &&
+	    (rq->rq_flags & RQF_PM_ADDED)) {
+		rq->rq_flags &= ~RQF_PM_ADDED;
+		if (!--rq->q->nr_pending)
+			pm_runtime_mark_last_busy(rq->q->dev);
+	}
 }
 #else
 static inline void blk_pm_put_request(struct request *rq) {}

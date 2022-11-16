@@ -28,6 +28,7 @@
 #include <linux/bug.h>
 #include <linux/errno.h>
 
+#include <asm/unaligned.h>
 #include <asm/byteorder.h>
 #include <asm/word-at-a-time.h>
 #include <asm/page.h>
@@ -158,11 +159,9 @@ EXPORT_SYMBOL(strlcpy);
  * @src: Where to copy the string from
  * @count: Size of destination buffer
  *
- * Copy the string, or as much of it as fits, into the dest buffer.
- * The routine returns the number of characters copied (not including
- * the trailing NUL) or -E2BIG if the destination buffer wasn't big enough.
- * The behavior is undefined if the string buffers overlap.
- * The destination buffer is always NUL terminated, unless it's zero-sized.
+ * Copy the string, or as much of it as fits, into the dest buffer.  The
+ * behavior is undefined if the string buffers overlap.  The destination
+ * buffer is always NUL terminated, unless it's zero-sized.
  *
  * Preferred to strlcpy() since the API doesn't require reading memory
  * from the src string beyond the specified "count" bytes, and since
@@ -172,8 +171,10 @@ EXPORT_SYMBOL(strlcpy);
  *
  * Preferred to strncpy() since it always returns a valid string, and
  * doesn't unnecessarily force the tail of the destination buffer to be
- * zeroed.  If the zeroing is desired, it's likely cleaner to use strscpy()
- * with an overflow test, then just memset() the tail of the dest buffer.
+ * zeroed.  If zeroing is desired please use strscpy_pad().
+ *
+ * Return: The number of characters copied (not including the trailing
+ *         %NUL) or -E2BIG if the destination buffer wasn't big enough.
  */
 ssize_t strscpy(char *dest, const char *src, size_t count)
 {
@@ -236,7 +237,6 @@ ssize_t strscpy(char *dest, const char *src, size_t count)
 EXPORT_SYMBOL(strscpy);
 #endif
 
-#ifndef __HAVE_ARCH_STPCPY
 /**
  * stpcpy - copy a string from src to dest returning a pointer to the new end
  *          of dest, including src's %NUL-terminator. May overrun dest.
@@ -245,12 +245,12 @@ EXPORT_SYMBOL(strscpy);
  * @src: pointer to the beginning of string being copied from. Must not overlap
  *       dest.
  *
- * stpcpy differs from strcpy in a key way: the return value is the new
- * %NUL-terminated character. (for strcpy, the return value is a pointer to
- * src. This interface is considered unsafe as it doesn't perform bounds
- * checking of the inputs. As such it's not recommended for usage. Instead,
- * its definition is provided in case the compiler lowers other libcalls to
- * stpcpy.
+ * stpcpy differs from strcpy in a key way: the return value is a pointer
+ * to the new %NUL-terminating character in @dest. (For strcpy, the return
+ * value is a pointer to the start of @dest). This interface is considered
+ * unsafe as it doesn't perform bounds checking of the inputs. As such it's
+ * not recommended for usage. Instead, its definition is provided in case
+ * the compiler lowers other libcalls to stpcpy.
  */
 char *stpcpy(char *__restrict__ dest, const char *__restrict__ src);
 char *stpcpy(char *__restrict__ dest, const char *__restrict__ src)
@@ -260,7 +260,39 @@ char *stpcpy(char *__restrict__ dest, const char *__restrict__ src)
 	return --dest;
 }
 EXPORT_SYMBOL(stpcpy);
-#endif
+
+/**
+ * strscpy_pad() - Copy a C-string into a sized buffer
+ * @dest: Where to copy the string to
+ * @src: Where to copy the string from
+ * @count: Size of destination buffer
+ *
+ * Copy the string, or as much of it as fits, into the dest buffer.  The
+ * behavior is undefined if the string buffers overlap.  The destination
+ * buffer is always %NUL terminated, unless it's zero-sized.
+ *
+ * If the source string is shorter than the destination buffer, zeros
+ * the tail of the destination buffer.
+ *
+ * For full explanation of why you may want to consider using the
+ * 'strscpy' functions please see the function docstring for strscpy().
+ *
+ * Return: The number of characters copied (not including the trailing
+ *         %NUL) or -E2BIG if the destination buffer wasn't big enough.
+ */
+ssize_t strscpy_pad(char *dest, const char *src, size_t count)
+{
+	ssize_t written;
+
+	written = strscpy(dest, src, count);
+	if (written < 0 || written == count - 1)
+		return written;
+
+	memset(dest + written + 1, 0, count - written - 1);
+
+	return written;
+}
+EXPORT_SYMBOL(strscpy_pad);
 
 #ifndef __HAVE_ARCH_STRCAT
 /**
@@ -538,21 +570,13 @@ EXPORT_SYMBOL(strnlen);
 size_t strspn(const char *s, const char *accept)
 {
 	const char *p;
-	const char *a;
-	size_t count = 0;
 
 	for (p = s; *p != '\0'; ++p) {
-		for (a = accept; *a != '\0'; ++a) {
-			if (*p == *a)
-				break;
-		}
-		if (*a == '\0')
-			return count;
-		++count;
+		if (!strchr(accept, *p))
+			break;
 	}
-	return count;
+	return p - s;
 }
-
 EXPORT_SYMBOL(strspn);
 #endif
 
@@ -565,17 +589,12 @@ EXPORT_SYMBOL(strspn);
 size_t strcspn(const char *s, const char *reject)
 {
 	const char *p;
-	const char *r;
-	size_t count = 0;
 
 	for (p = s; *p != '\0'; ++p) {
-		for (r = reject; *r != '\0'; ++r) {
-			if (*p == *r)
-				return count;
-		}
-		++count;
+		if (strchr(reject, *p))
+			break;
 	}
-	return count;
+	return p - s;
 }
 EXPORT_SYMBOL(strcspn);
 #endif
@@ -883,6 +902,21 @@ __visible int memcmp(const void *cs, const void *ct, size_t count)
 	const unsigned char *su1, *su2;
 	int res = 0;
 
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	if (count >= sizeof(unsigned long)) {
+		const unsigned long *u1 = cs;
+		const unsigned long *u2 = ct;
+		do {
+			if (get_unaligned(u1) != get_unaligned(u2))
+				break;
+			u1++;
+			u2++;
+			count -= sizeof(unsigned long);
+		} while (count >= sizeof(unsigned long));
+		cs = u1;
+		ct = u2;
+	}
+#endif
 	for (su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
 		if ((res = *su1 - *su2) != 0)
 			break;

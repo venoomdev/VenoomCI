@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 #ifndef _UAPI_LINUX_MSM_ION_H
 #define _UAPI_LINUX_MSM_ION_H
@@ -22,9 +23,7 @@ enum msm_ion_heap_types {
 	ION_HEAP_TYPE_SYSTEM_SECURE,
 	ION_HEAP_TYPE_HYP_CMA,
 	ION_HEAP_TYPE_SECURE_CARVEOUT,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	ION_HEAP_TYPE_CAMERA,
-#endif
 };
 
 /**
@@ -41,6 +40,7 @@ enum ion_heap_ids {
 	ION_CP_MM_HEAP_ID = 8,
 	ION_SECURE_HEAP_ID = 9,
 	ION_SECURE_DISPLAY_HEAP_ID = 10,
+	ION_VIDEO_HEAP_ID = 12,
 	ION_SPSS_HEAP_ID = 13, /* Secure Processor ION heap */
 	ION_ADSP_HEAP_ID = 22,
 	ION_SYSTEM_HEAP_ID = 25,
@@ -61,6 +61,7 @@ enum ion_heap_ids {
  * Flags to be used when allocating from the secure heap for
  * content protection
  */
+#define ION_FLAG_CP_CAMERA_ENCODE	ION_BIT(14)
 #define ION_FLAG_CP_TOUCH		ION_BIT(17)
 #define ION_FLAG_CP_BITSTREAM		ION_BIT(18)
 #define ION_FLAG_CP_PIXEL		ION_BIT(19)
@@ -76,7 +77,7 @@ enum ion_heap_ids {
 #define ION_FLAG_CP_CDSP		ION_BIT(29)
 #define ION_FLAG_CP_SPSS_HLOS_SHARED	ION_BIT(30)
 
-#define ION_FLAGS_CP_MASK	0x6FFE0000
+#define ION_FLAGS_CP_MASK	0x6FFEC000
 
 /**
  * Flag to allow non continguous allocation of memory from secure

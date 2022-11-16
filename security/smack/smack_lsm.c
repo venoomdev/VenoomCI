@@ -858,27 +858,10 @@ static int smack_set_mnt_opts(struct super_block *sb,
  *
  * Returns 0 on success, an error code on failure
  */
-static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
+static int smack_sb_kern_mount(struct super_block *sb, int flags,
+			       struct security_mnt_opts *opts)
 {
-	int rc = 0;
-	char *options = data;
-	struct security_mnt_opts opts;
-
-	security_init_mnt_opts(&opts);
-
-	if (!options)
-		goto out;
-
-	rc = smack_parse_opts_str(options, &opts);
-	if (rc)
-		goto out_err;
-
-out:
-	rc = smack_set_mnt_opts(sb, &opts, 0, NULL);
-
-out_err:
-	security_free_mnt_opts(&opts);
-	return rc;
+	return smack_set_mnt_opts(sb, opts, 0, NULL);
 }
 
 /**
@@ -2586,7 +2569,7 @@ static int smk_ipv6_check(struct smack_known *subject,
 #ifdef CONFIG_AUDIT
 	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 	ad.a.u.net->family = PF_INET6;
-	ad.a.u.net->dport = ntohs(address->sin6_port);
+	ad.a.u.net->dport = address->sin6_port;
 	if (act == SMK_RECEIVING)
 		ad.a.u.net->v6info.saddr = address->sin6_addr;
 	else

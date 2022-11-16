@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0-only
-
 menu "Qualcomm Technologies, Inc. Charger and Fuel Gauge support"
 
 config QPNP_SMB2
@@ -39,6 +38,25 @@ config QPNP_SMBLITE
 	  usb properties to userspace and other driver consumers such
 	  as fuel gauge and USB.
 	  VBUS regulator is registered for supporting OTG.
+
+config QPNP_VM_BMS
+	tristate "QPNP Voltage-Mode Battery Monitoring System driver"
+	depends on MFD_SPMI_PMIC
+	help
+	  Say Y here to enable support for QPNP chip vm-bms device.
+	  The voltage-mode (vm) BMS driver uses periodic VBATT
+	  readings from the battery to calculate the State of
+	  Charge.
+
+config QPNP_LINEAR_CHARGER
+	tristate "QPNP Linear Charger driver"
+	depends on MFD_SPMI_PMIC
+	help
+	  Say Y here to enable the Linear battery charger which supports USB
+	  detection and charging. The driver also offers relevant information
+	  to userspace via the power supply framework.
+	  The power supply framework is used to communicate battery and
+	  usb properties to userspace and other driver consumers like USB.
 
 config SMB138X_CHARGER
 	tristate "SMB138X Battery Charger"
@@ -86,6 +104,17 @@ config SMB1351_USB_CHARGER
          charge-current limiting. It also provides USB VBUS detection and
          notification support. The driver controls SMB1351 via I2C and
          supports device-tree interface.
+
+config SMB1360_CHARGER_FG
+	tristate "SMB1360 Charger and Fuel Gauge"
+	depends on I2C
+	help
+	  Say Y to include support for SMB1360 Charger and Fuel Gauge.
+	  SMB1360 is a single path switching mode charger capable of charging
+	  the battery with 1.5Amps of current. It supports a fuel gauge which
+	  uses voltage and coloumb counting for state of charge reporting.
+	  The driver reports the status via the power supply framework.
+	  A status change triggers an IRQ via the device STAT pin.
 
 config SMB1355_SLAVE_CHARGER
 	tristate "SMB1355 Slave Battery Charger"
@@ -139,6 +168,11 @@ config FUEL_GAUGE_BQ27Z561
 	help
 	  Say Y to enable support for TI bq27z561 fuel gauge driver
 
+config DUAL_FUEL_GAUGE_BQ27Z561
+	tristate "TI bq27z561 battery gauge driver"
+	help
+	  Say Y to enable support for TI bq27z561 fuel gauge driver
+
 config HL6111R
 	bool "HL6111R driver"
 	depends on I2C && OF
@@ -171,6 +205,7 @@ config RX1619_REMOVE
 	help
 	 J2S special modify
 
+
 config IDT_P9415
 	tristate "idtp9415 wireless Charger"
 	depends on I2C
@@ -182,6 +217,17 @@ config IDT_P9415
 	  The driver controls idtp9415 via I2C and
 	  supports device-tree interface.
 
+config IDT_P9418
+	tristate "idtp9418 wireless Charger"
+	depends on I2C
+	help
+	  Say Y to include support for idtp9418 wireless Charger.
+	  idtp9418 is a wireless battery charger.
+	  The driver supports charger enable/disable.
+	  The driver reports the charger status via the power supply framework.
+	  The driver controls idtp9418 via I2C and
+	  supports device-tree interface.
+
 config RX1619_TRIM
 	tristate "RX1619 TRIM"
 	depends on I2C
@@ -191,6 +237,13 @@ config RX1619_TRIM
 	  The driver supports charger enable/disable.
 	  The driver reports the charger status via the power supply framework.
 	  The driver controls rx1619 via I2C and
+	  supports device-tree interface.
+
+config RX_ON_URD
+	tristate "RX chip on urd device"
+	depends on I2C
+	help
+	  Say Y to include support for rx wireless Charger on URD.
 	  supports device-tree interface.
 
 config RX1619

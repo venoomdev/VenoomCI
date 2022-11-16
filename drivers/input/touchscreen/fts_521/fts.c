@@ -500,29 +500,28 @@ static ssize_t fts_feature_enable_show(struct device *dev,
 
 #ifdef CONFIG_TOUCHSCREEN_COMMON
 static ssize_t double_tap_show(struct kobject *kobj,
-                               struct kobj_attribute *attr, char *buf)
+				struct kobj_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", fts_info->gesture_enabled);
+	return sprintf(buf, "%d\n", fts_info->gesture_enabled);
 }
 
 static ssize_t double_tap_store(struct kobject *kobj,
-                                struct kobj_attribute *attr, const char *buf,
-                                size_t count)
+				struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    int rc, val;
+	int rc, val;
 
-    rc = kstrtoint(buf, 10, &val);
-    if (rc)
-    return -EINVAL;
+	rc = kstrtoint(buf, 10, &val);
+	if (rc)
+		return -EINVAL;
 
 	fts_info->gesture_enabled = !!val;
 	schedule_work(&fts_info->switch_mode_work);
-    return count;
+	return count;
 }
 
 static struct tp_common_ops double_tap_ops = {
-    .show = double_tap_show,
-    .store = double_tap_store
+	.show = double_tap_show,
+	.store = double_tap_store
 };
 #endif
 
@@ -7458,7 +7457,7 @@ static int fts_probe(struct spi_device *client)
 	int skip_5_1 = 0;
 	u16 bus_type;
 #ifdef CONFIG_TOUCHSCREEN_COMMON
-    int ret;
+	int ret;
 #endif
 
 	MI_TOUCH_LOGI(1, "%s %s: Probe start\n", tag, __func__);
@@ -7678,11 +7677,10 @@ static int fts_probe(struct spi_device *client)
 #ifdef GESTURE_MODE
 	mutex_init(&gestureMask_mutex);
 #ifdef CONFIG_TOUCHSCREEN_COMMON
-    ret = tp_common_set_double_tap_ops(&double_tap_ops);
-	if (ret < 0) {
+	ret = tp_common_set_double_tap_ops(&double_tap_ops);
+	if (ret < 0)
 		MI_TOUCH_LOGE(1, "%s %s: Failed to create double_tap node err=%d\n",
-		              tag, __func__, ret);
-    }
+			tag, __func__, ret);
 #endif
 #endif
 
@@ -7850,7 +7848,6 @@ static int fts_probe(struct spi_device *client)
 	dev_set_drvdata(info->fts_touch_dev, info);
 #ifdef CONFIG_TOUCHSCREEN_FOD
 	mutex_init(&(info->fod_mutex));
-
 	info->fod_status = -1;
 	info->fod_icon_status = 1;
 	error =

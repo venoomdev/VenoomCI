@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2010 Marco Stornelli <marco.stornelli@gmail.com>
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Copyright (C) 2011 Kees Cook <keescook@chromium.org>
  * Copyright (C) 2011 Google, Inc.
  *
@@ -63,12 +64,10 @@ struct persistent_ram_zone {
 	size_t old_log_size;
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 struct pmsg_start_t {
-	size_t start;
-	spinlock_t lock;
+       size_t         start;
+       spinlock_t     lock;
 };
-#endif
 
 struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 			u32 sig, struct persistent_ram_ecc_info *ecc_info,

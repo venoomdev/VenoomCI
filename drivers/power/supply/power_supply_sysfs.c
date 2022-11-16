@@ -19,6 +19,8 @@
 
 #include "power_supply.h"
 
+//#undef dev_dbg
+//#define dev_dbg  dev_err
 /*
  * This is because the name "current" breaks the device attr macro.
  * The "current" word resolves to "(get_current())" so instead of
@@ -46,10 +48,7 @@ static const char * const power_supply_type_text[] = {
 	"USB_PD", "USB_PD_DRP", "BrickID",
 	"USB_HVDCP", "USB_HVDCP_3", "USB_HVDCP_3P5", "Wireless", "USB_FLOAT",
 	"BMS", "Parallel", "Main", "USB_C_UFP", "USB_C_DFP",
-	"Charge_Pump",
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-	"Batt_Verify",
-#endif
+	"Charge_Pump","Batt_Verify"
 };
 
 static const char * const power_supply_usb_type_text[] = {
@@ -68,8 +67,7 @@ static const char * const power_supply_charge_type_text[] = {
 static const char * const power_supply_health_text[] = {
 	"Unknown", "Good", "Overheat", "Dead", "Over voltage",
 	"Unspecified failure", "Cold", "Watchdog timer expire",
-	"Safety timer expire",
-	"Warm", "Cool", "Hot"
+	"Safety timer expire", "Over current", "Warm", "Cool", "Hot"
 };
 
 static const char * const power_supply_technology_text[] = {
@@ -218,7 +216,6 @@ static ssize_t power_supply_show_property(struct device *dev,
 	case POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT:
 		ret = sprintf(buf, "%lld\n", value.int64val);
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_WIRELESS_VERSION:
 		ret = scnprintf(buf, PAGE_SIZE, "0x%x\n",
 				value.intval);
@@ -242,6 +239,22 @@ static ssize_t power_supply_show_property(struct device *dev,
 	case POWER_SUPPLY_PROP_TX_MAC:
 		ret = scnprintf(buf, PAGE_SIZE, "%llx\n",
 				value.int64val);
+		break;
+	case POWER_SUPPLY_PROP_PEN_MAC:
+		ret = scnprintf(buf, PAGE_SIZE, "%llx\n",
+				value.int64val);
+		break;
+	case POWER_SUPPLY_PROP_REVERSE_PEN_SOC:
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
+				value.intval);
+		break;
+	case POWER_SUPPLY_PROP_REVERSE_CHG_STATE:
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
+				value.intval);
+		break;
+	case POWER_SUPPLY_PROP_REVERSE_PEN_CHG_STATE:
+		ret = scnprintf(buf, PAGE_SIZE, "%d\n",
+				value.intval);
 		break;
 	case POWER_SUPPLY_PROP_RX_CR:
 		ret = scnprintf(buf, PAGE_SIZE, "%llx\n",
@@ -275,7 +288,6 @@ static ssize_t power_supply_show_property(struct device *dev,
 		break;
 	case POWER_SUPPLY_PROP_VERIFY_MODEL_NAME:
 #endif
-#endif
 	case POWER_SUPPLY_PROP_MODEL_NAME ... POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		ret = sprintf(buf, "%s\n", value.strval);
 		break;
@@ -293,10 +305,8 @@ static ssize_t power_supply_store_property(struct device *dev,
 	struct power_supply *psy = dev_get_drvdata(dev);
 	enum power_supply_property psp = attr - power_supply_attrs;
 	union power_supply_propval value;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	long val;
 	int64_t num_long;
-#endif
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -317,7 +327,6 @@ static ssize_t power_supply_store_property(struct device *dev,
 	case POWER_SUPPLY_PROP_SCOPE:
 		ret = sysfs_match_string(power_supply_scope_text, buf);
 		break;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	case POWER_SUPPLY_PROP_BT_STATE:
 	case POWER_SUPPLY_PROP_RX_CR:
 		ret = kstrtol(buf, 16, &val);
@@ -343,7 +352,18 @@ static ssize_t power_supply_store_property(struct device *dev,
 			return count;
 
 		break;
-#endif
+	case POWER_SUPPLY_PROP_PEN_MAC:
+		ret = kstrtoll(buf, 16, &num_long);
+		if (ret < 0)
+			return ret;
+		value.int64val = num_long;
+		ret = power_supply_set_property(psy, psp, &value);
+		if (ret < 0)
+			return ret;
+		else
+			return count;
+
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -420,13 +440,11 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(capacity_alert_min),
 	POWER_SUPPLY_ATTR(capacity_alert_max),
 	POWER_SUPPLY_ATTR(capacity_level),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(shutdown_delay),
 	POWER_SUPPLY_ATTR(shutdown_delay_en),
 	POWER_SUPPLY_ATTR(soc_decimal),
 	POWER_SUPPLY_ATTR(soc_decimal_rate),
 	POWER_SUPPLY_ATTR(cold_thermal_level),
-#endif
 	POWER_SUPPLY_ATTR(temp),
 	POWER_SUPPLY_ATTR(temp_max),
 	POWER_SUPPLY_ATTR(temp_min),
@@ -451,12 +469,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(charge_enabled),
 	POWER_SUPPLY_ATTR(set_ship_mode),
 	POWER_SUPPLY_ATTR(real_type),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(hvdcp3_type),
 	POWER_SUPPLY_ATTR(fake_hvdcp3),
 	POWER_SUPPLY_ATTR(quick_charge_type),
 	POWER_SUPPLY_ATTR(quick_charge_power),
-#endif
 	POWER_SUPPLY_ATTR(charge_now_raw),
 	POWER_SUPPLY_ATTR(charge_now_error),
 	POWER_SUPPLY_ATTR(capacity_raw),
@@ -466,14 +482,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(step_charging_step),
 	POWER_SUPPLY_ATTR(pin_enabled),
 	POWER_SUPPLY_ATTR(input_suspend),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(battery_input_suspend),
-#endif
 	POWER_SUPPLY_ATTR(input_voltage_regulation),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(input_voltage_vrect),
 	POWER_SUPPLY_ATTR(rx_iout),
-#endif
 	POWER_SUPPLY_ATTR(input_current_max),
 	POWER_SUPPLY_ATTR(input_current_trim),
 	POWER_SUPPLY_ATTR(input_current_settled),
@@ -498,11 +510,9 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(boost_current),
 	POWER_SUPPLY_ATTR(safety_timer_enabled),
 	POWER_SUPPLY_ATTR(charge_done),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(hiz_mode),
 	POWER_SUPPLY_ATTR(usb_current_now),
 	POWER_SUPPLY_ATTR(usb_voltage_now),
-#endif
 	POWER_SUPPLY_ATTR(flash_active),
 	POWER_SUPPLY_ATTR(flash_trigger),
 	POWER_SUPPLY_ATTR(force_tlim),
@@ -520,17 +530,13 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(typec_mode),
 	POWER_SUPPLY_ATTR(typec_cc_orientation),
 	POWER_SUPPLY_ATTR(typec_power_role),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(typec_boost_otg_disable),
-#endif
 	POWER_SUPPLY_ATTR(typec_src_rp),
 	POWER_SUPPLY_ATTR(pd_allowed),
 	POWER_SUPPLY_ATTR(pd_active),
 	POWER_SUPPLY_ATTR(pd_in_hard_reset),
 	POWER_SUPPLY_ATTR(pd_current_max),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(apdo_max),
-#endif
 	POWER_SUPPLY_ATTR(pd_usb_suspend_supported),
 	POWER_SUPPLY_ATTR(charger_temp),
 	POWER_SUPPLY_ATTR(charger_temp_max),
@@ -543,11 +549,9 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(parallel_mode),
 	POWER_SUPPLY_ATTR(die_health),
 	POWER_SUPPLY_ATTR(connector_health),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(connector_temp),
 	POWER_SUPPLY_ATTR(vbus_disable),
 	POWER_SUPPLY_ATTR(arti_vbus_enable),
-#endif
 	POWER_SUPPLY_ATTR(ctm_current_max),
 	POWER_SUPPLY_ATTR(hw_current_max),
 	POWER_SUPPLY_ATTR(pr_swap),
@@ -557,13 +561,11 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(pd_voltage_max),
 	POWER_SUPPLY_ATTR(pd_voltage_min),
 	POWER_SUPPLY_ATTR(sdp_current_max),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+	POWER_SUPPLY_ATTR(fg_reset_clock),
 	POWER_SUPPLY_ATTR(dc_thermal_levels),
-#endif
 	POWER_SUPPLY_ATTR(connector_type),
 	POWER_SUPPLY_ATTR(parallel_batfet_mode),
 	POWER_SUPPLY_ATTR(parallel_fcc_max),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(wireless_version),
 	POWER_SUPPLY_ATTR(wireless_fw_version),
 	POWER_SUPPLY_ATTR(signal_strength),
@@ -577,14 +579,12 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(rx_cr),
 	POWER_SUPPLY_ATTR(rx_cep),
 	POWER_SUPPLY_ATTR(bt_state),
-#endif
+	POWER_SUPPLY_ATTR(pen_mac),
 	POWER_SUPPLY_ATTR(min_icl),
 	POWER_SUPPLY_ATTR(moisture_detected),
 	POWER_SUPPLY_ATTR(batt_profile_version),
 	POWER_SUPPLY_ATTR(batt_full_current),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(warm_fake_charging),
-#endif
 	POWER_SUPPLY_ATTR(recharge_soc),
 	POWER_SUPPLY_ATTR(hvdcp_opti_allowed),
 	POWER_SUPPLY_ATTR(smb_en_mode),
@@ -595,14 +595,10 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(clear_soh),
 	POWER_SUPPLY_ATTR(force_recharge),
 	POWER_SUPPLY_ATTR(fcc_stepper_enable),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(smb_en_allowed),
 	POWER_SUPPLY_ATTR(batt_2s_mode),
-#endif
 	POWER_SUPPLY_ATTR(toggle_stat),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(type_recheck),
-#endif
 	POWER_SUPPLY_ATTR(main_fcc_max),
 	POWER_SUPPLY_ATTR(fg_reset),
 	POWER_SUPPLY_ATTR(qc_opti_disable),
@@ -619,9 +615,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(force_main_fcc),
 	POWER_SUPPLY_ATTR(comp_clamp_level),
 	POWER_SUPPLY_ATTR(adapter_cc_mode),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	POWER_SUPPLY_ATTR(non_compatible),
-#endif
 	POWER_SUPPLY_ATTR(skin_health),
 	POWER_SUPPLY_ATTR(aicl_done),
 	POWER_SUPPLY_ATTR(voltage_step),
@@ -640,7 +634,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(cp_ilim),
 	POWER_SUPPLY_ATTR(irq_status),
 	POWER_SUPPLY_ATTR(parallel_output_mode),
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+	POWER_SUPPLY_ATTR(cc_toggle_enable),
 	POWER_SUPPLY_ATTR(cp_win_ov),
 	POWER_SUPPLY_ATTR(cp_passthrough_mode),
 	POWER_SUPPLY_ATTR(cp_passthrough_config),
@@ -698,11 +692,16 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(div_2_mode),
 	POWER_SUPPLY_ATTR(reverse_chg_mode),
 	POWER_SUPPLY_ATTR(reverse_chg_state),
+	POWER_SUPPLY_ATTR(reverse_pen_chg_state),
 	POWER_SUPPLY_ATTR(reverse_gpio_state),
 	POWER_SUPPLY_ATTR(reset_div_2_mode),
 	POWER_SUPPLY_ATTR(aicl_enable),
 	POWER_SUPPLY_ATTR(otg_state),
-#endif
+	POWER_SUPPLY_ATTR(reverse_chg_hall3),
+	POWER_SUPPLY_ATTR(reverse_chg_hall4),
+	POWER_SUPPLY_ATTR(reverse_pen_soc),
+	POWER_SUPPLY_ATTR(reverse_vout),
+	POWER_SUPPLY_ATTR(reverse_iout),
 	POWER_SUPPLY_ATTR(fg_type),
 	POWER_SUPPLY_ATTR(charger_status),
 	/* Local extensions of type int64_t */

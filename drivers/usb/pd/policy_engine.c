@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/completion.h>
@@ -20,9 +21,7 @@
 #include <linux/extcon-provider.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/usbpd.h>
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #include <linux/pmic-voter.h>
-#endif
 #include "usbpd.h"
 
 enum usbpd_state {
@@ -352,19 +351,17 @@ static void *usbpd_ipc_log;
 
 #define PD_MIN_SINK_CURRENT	900
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define PD_VBUS_MAX_VOLTAGE_LIMIT		9000000
 #define MAX_FIXED_PDO_MA		2000
 #define MAX_NON_COMPLIANT_PPS_UA		2000000
 
 static int min_sink_current = 900;
 module_param(min_sink_current, int, 0600);
-#endif
 
 #if defined (CONFIG_IDT_P9415) || defined (CONFIG_RX1619)
 static const u32 default_src_caps[] = { 0x36019032 };	/* VSafe5V @ 0.5A */
 #else
-static const u32 default_src_caps[] = { 0x36019096 };	/* VSafe5V @ 1.5A */
+static const u32 default_src_caps[] = { 0x36019096 };   /* VSafe5V @ 1.5A */
 #endif
 static const u32 default_snk_caps[] = { 0x2601912C };	/* VSafe5V @ 3A */
 
@@ -393,13 +390,11 @@ struct usbpd {
 	struct workqueue_struct	*wq;
 	struct work_struct	sm_work;
 	struct work_struct	start_periph_work;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct work_struct	disable_active_work;
 	struct delayed_work	src_check_work;
 	struct work_struct	pdo_work;
 	struct delayed_work	fixed_pdo_work;
 	struct delayed_work	pps_monitor_work;
-#endif
 	struct hrtimer		timer;
 	bool			sm_queued;
 
@@ -432,16 +427,11 @@ struct usbpd {
 	struct power_supply	*usb_psy;
 	struct power_supply	*bat_psy;
 	struct power_supply	*bms_psy;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct power_supply	*wireless_psy;
 	struct power_supply	*cp_psy;
-#endif
 	struct notifier_block	psy_nb;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool			batt_2s;
-	bool			fix_pdo_5v;
-#endif
 
 	int			bms_charge_full;
 	int			bat_voltage_max;
@@ -455,11 +445,9 @@ struct usbpd {
 	enum power_role		current_pr;
 	bool			in_pr_swap;
 	bool			pd_phy_opened;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool			pps_found;
 	bool			pps_insert;
 	bool			is_support_2s;
-#endif
 	bool			send_request;
 	struct completion	is_ready;
 	struct completion	tx_chunk_request;
@@ -494,16 +482,13 @@ struct usbpd {
 	struct list_head	svid_handlers;
 	ktime_t			svdm_start_time;
 	bool			vdm_in_suspend;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	bool			verify_process;
 	bool			verify_done;
-#endif
 
 	struct list_head	instance;
 
 	bool		has_dp;
 	u16			ss_lane_svid;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	/*for xiaomi verifed pd adapter*/
 	u32			adapter_id;
 	u32			adapter_svid;
@@ -524,7 +509,6 @@ struct usbpd {
 	struct votable          *cp_slave_disable_votable;
 	struct votable          *passthrough_dis_votable;
 	struct votable          *ffc_mode_dis_votable;
-#endif
 
 	/* ext msg support */
 	bool			send_get_src_cap_ext;
@@ -539,6 +523,8 @@ struct usbpd {
 	u8			get_battery_status_db;
 	bool			send_get_battery_status;
 	u32			battery_sts_dobj;
+	bool			request_reject;
+	bool			typec_analog_audio_connected;
 };
 
 static LIST_HEAD(_usbpd);	/* useful for debugging */
@@ -561,10 +547,7 @@ static void handle_state_snk_wait_for_capabilities(struct usbpd *pd,
 	struct rx_msg *rx_msg);
 static void handle_state_prs_snk_src_source_on(struct usbpd *pd,
 	struct rx_msg *rx_msg);
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static void reset_vdm_state(struct usbpd *pd);
-#endif
 static const struct usbpd_state_handler state_handlers[];
 
 enum plug_orientation usbpd_get_plug_orientation(struct usbpd *pd)
@@ -670,7 +653,6 @@ static void start_usb_peripheral_work(struct work_struct *w)
 	}
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static void usbpd_disable_cp(struct usbpd *pd)
 {
 	queue_work(pd->wq, &pd->disable_active_work);
@@ -688,7 +670,6 @@ static void usbpd_disable_active_work(struct work_struct *w)
 				POWER_SUPPLY_PROP_PD_ACTIVE, &val);
 	}
 }
-#endif
 
 /**
  * This API allows client driver to request for releasing SS lanes. It should
@@ -818,9 +799,7 @@ static int pd_send_msg(struct usbpd *pd, u8 msg_type, const u32 *data,
 		hdr = PD_MSG_HDR(msg_type, 0, 0, pd->tx_msgid[sop], num_data,
 				pd->spec_rev);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
-#endif
 	/* bail out and try again later if a message just arrived */
 	spin_lock_irqsave(&pd->rx_lock, flags);
 	if (!list_empty(&pd->rx_q)) {
@@ -830,6 +809,8 @@ static int pd_send_msg(struct usbpd *pd, u8 msg_type, const u32 *data,
 	}
 	spin_unlock_irqrestore(&pd->rx_lock, flags);
 
+	usbpd_dbg(&pd->dev, "send msg %s\n",
+			msg_to_string(msg_type, num_data, false));
 	ret = pd_phy_write(hdr, (u8 *)data, num_data * sizeof(u32), sop);
 	if (ret) {
 		if (pd->pd_connected)
@@ -840,9 +821,6 @@ static int pd_send_msg(struct usbpd *pd, u8 msg_type, const u32 *data,
 		return ret;
 	}
 
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-	pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
-#endif
 	return 0;
 }
 
@@ -878,9 +856,8 @@ static int pd_send_ext_msg(struct usbpd *pd, u8 msg_type,
 		hdr = PD_MSG_HDR(msg_type, pd->current_dr, pd->current_pr,
 				pd->tx_msgid[sop], num_objs, pd->spec_rev) |
 			PD_MSG_HDR_EXTENDED;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
-#endif
+		usbpd_info(&pd->dev, "send ext msg pd->tx_msgid[sop]:%d,hdr:%x\n", pd->tx_msgid[sop], hdr);
 		ret = pd_phy_write(hdr, chunked_payload,
 				num_objs * sizeof(u32), sop);
 		if (ret) {
@@ -889,10 +866,6 @@ static int pd_send_ext_msg(struct usbpd *pd, u8 msg_type,
 					ret);
 			return ret;
 		}
-
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-		pd->tx_msgid[sop] = (pd->tx_msgid[sop] + 1) & PD_MAX_MSG_ID;
-#endif
 
 		/* Wait for request chunk */
 		if (len_remain &&
@@ -929,13 +902,18 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 
 		pd->requested_voltage =
 			PD_SRC_PDO_FIXED_VOLTAGE(pdo) * 50 * 1000;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+		/* pd request uv will less than pd vbus max 9V for fixed pdos */
 		if (pd->requested_voltage > PD_VBUS_MAX_VOLTAGE_LIMIT)
 			return -ENOTSUPP;
+
+		/*
+		 * set maxium allowed current for fixed pdo to 2A if request
+		 * voltage is 9V, as we should limit charger to 18W for more safety
+		 * both for charger and our device(such as charge ic inductor)
+		 */
 		if (pd->requested_voltage == PD_VBUS_MAX_VOLTAGE_LIMIT
 				&& curr >= MAX_FIXED_PDO_MA)
 			curr = MAX_FIXED_PDO_MA;
-#endif
 		pd->rdo = PD_RDO_FIXED(pdo_pos, 0, mismatch, 1, 1, curr / 10,
 				max_current / 10);
 	} else if (type == PD_SRC_PDO_TYPE_AUGMENTED) {
@@ -947,8 +925,9 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 			return -EINVAL;
 		}
 
+
 		curr = ua / 1000;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 		/*
 		 * workaround for Zimi and similar non-compliant QC4+/PPS chargers:
 		 * if PPS power limit bit is set and QC4+ not compliant PPS chargers,
@@ -959,7 +938,7 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 			ua = MAX_NON_COMPLIANT_PPS_UA;
 			curr = ua / 1000;
 		}
-#endif
+
 		pd->requested_voltage = uv;
 		pd->rdo = PD_RDO_AUGMENTED(pdo_pos, mismatch, 1, 1,
 				uv / 20000, ua / 50000);
@@ -974,7 +953,6 @@ static int pd_select_pdo(struct usbpd *pd, int pdo_pos, int uv, int ua)
 	return 0;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static int pd_select_pdo_for_bq(struct usbpd *pd, int pdo_pos, int uv, int ua)
 {
 	int curr;
@@ -1051,17 +1029,10 @@ static int pd_select_pdo_for_bq(struct usbpd *pd, int pdo_pos, int uv, int ua)
 
 	return 0;
 }
-#endif
 
 static int pd_eval_src_caps(struct usbpd *pd)
 {
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-	int i;
-#endif
 	union power_supply_propval val;
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-	bool pps_found = false;
-#endif
 	u32 first_pdo = pd->received_pdos[0];
 
 	if (PD_SRC_PDO_TYPE(first_pdo) != PD_SRC_PDO_TYPE_FIXED) {
@@ -1077,39 +1048,17 @@ static int pd_eval_src_caps(struct usbpd *pd)
 	power_supply_set_property(pd->usb_psy,
 			POWER_SUPPLY_PROP_PD_USB_SUSPEND_SUPPORTED, &val);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	schedule_work(&pd->pdo_work);
-#else
-	/* Check for PPS APDOs */
-	if (pd->spec_rev == USBPD_REV_30) {
-		for (i = 1; i < PD_MAX_DATA_OBJ; i++) {
-			if ((PD_SRC_PDO_TYPE(pd->received_pdos[i]) ==
-					PD_SRC_PDO_TYPE_AUGMENTED) &&
-				!PD_APDO_PPS(pd->received_pdos[i])) {
-				pps_found = true;
-				break;
-			}
-		}
-	}
-
-	val.intval = pps_found ?
-			POWER_SUPPLY_PD_PPS_ACTIVE :
-			POWER_SUPPLY_PD_ACTIVE;
-	power_supply_set_property(pd->usb_psy,
-			POWER_SUPPLY_PROP_PD_ACTIVE, &val);
-#endif
-
 	/* First time connecting to a PD source and it supports USB data */
 	if (pd->peer_usb_comm && pd->current_dr == DR_UFP && !pd->pd_connected)
 		start_usb_peripheral(pd);
 
 	/* Select the first PDO (vSafe5V) immediately. */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+	/* Select thr first PDO for zimi adapter*/
 	if (pd->batt_2s && pd->adapter_id == 0xA819)
 		pd_select_pdo(pd, 2, 0, 0);
 	else
-#endif
-	pd_select_pdo(pd, 1, 0, 0);
+		pd_select_pdo(pd, 1, 0, 0);
 
 	return 0;
 }
@@ -1120,16 +1069,12 @@ static void pd_send_hard_reset(struct usbpd *pd)
 
 	usbpd_dbg(&pd->dev, "send hard reset");
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	usbpd_disable_cp(pd);
-#endif
 	pd->hard_reset_count++;
 	pd_phy_signal(HARD_RESET_SIG);
 	pd->in_pr_swap = false;
 	pd->pd_connected = false;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	reset_vdm_state(pd);
-#endif
 	power_supply_set_property(pd->usb_psy, POWER_SUPPLY_PROP_PR_SWAP, &val);
 }
 
@@ -1142,6 +1087,7 @@ static void kick_sm(struct usbpd *pd, int ms)
 		usbpd_dbg(&pd->dev, "delay %d ms", ms);
 		hrtimer_start(&pd->timer, ms_to_ktime(ms), HRTIMER_MODE_REL);
 	} else {
+		usbpd_dbg(&pd->dev, "queue state work\n");
 		queue_work(pd->wq, &pd->sm_work);
 	}
 }
@@ -1160,9 +1106,7 @@ static void phy_sig_received(struct usbpd *pd, enum pd_sig_type sig)
 
 	usbpd_err(&pd->dev, "hard reset received\n");
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	usbpd_disable_cp(pd);
-#endif
 
 	power_supply_set_property(pd->usb_psy,
 			POWER_SUPPLY_PROP_PD_IN_HARD_RESET, &val);
@@ -1190,18 +1134,11 @@ static void pd_request_chunk_work(struct work_struct *w)
 				pd->tx_msgid[req->sop], 1, pd->spec_rev)
 		| PD_MSG_HDR_EXTENDED;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->tx_msgid[req->sop] = (pd->tx_msgid[req->sop] + 1) & PD_MAX_MSG_ID;
-#endif
 	*(u16 *)payload = PD_MSG_EXT_HDR(1, req->chunk_num, 1, 0);
 
 	ret = pd_phy_write(hdr, payload, sizeof(payload), req->sop);
-	if (!ret) {
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-		pd->tx_msgid[req->sop] =
-			(pd->tx_msgid[req->sop] + 1) & PD_MAX_MSG_ID;
-#endif
-	} else {
+	if (ret) {
 		usbpd_err(&pd->dev, "could not send chunk request\n");
 
 		/* queue what we have anyway */
@@ -1658,14 +1595,12 @@ static void handle_vdm_resp_ack(struct usbpd *pd, u32 *vdos, u8 num_vdos,
 			break;
 		}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		if (num_vdos != 0) {
 			for (i = 0; i < num_vdos; i++) {
 				pd->adapter_id = vdos[i] & 0xFFFF;
 				usbpd_dbg(&pd->dev, "pd->adapter_id:0x%x\n", pd->adapter_id);
 			}
 		}
-#endif
 
 		pd->vdm_state = DISCOVERED_ID;
 		usbpd_send_svdm(pd, USBPD_SID,
@@ -1726,11 +1661,9 @@ static void handle_vdm_resp_ack(struct usbpd *pd, u32 *vdos, u8 num_vdos,
 			 * non-zero. Just skip over the zero ones.
 			 */
 			if (svid) {
-				usbpd_dbg(&pd->dev, "Discovered SVID: 0x%04x\n",
-						svid);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+				usbpd_info(&pd->dev, "Discovered SVID: 0x%04x\n",
+							svid);
 				pd->adapter_svid = svid;
-#endif
 				*psvid++ = svid;
 			}
 		}
@@ -1865,7 +1798,7 @@ static void handle_vdm_rx(struct usbpd *pd, struct rx_msg *rx_msg)
 	case SVDM_CMD_TYPE_RESP_NAK:
 		usbpd_info(&pd->dev, "VDM NAK received for SVID:0x%04x command:0x%x\n",
 				svid, cmd);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 		switch (cmd) {
 		case USBPD_SVDM_DISCOVER_IDENTITY:
 		case USBPD_SVDM_DISCOVER_SVIDS:
@@ -1874,7 +1807,7 @@ static void handle_vdm_rx(struct usbpd *pd, struct rx_msg *rx_msg)
 		default:
 			break;
 		}
-#endif
+
 		break;
 
 	case SVDM_CMD_TYPE_RESP_BUSY:
@@ -1934,8 +1867,12 @@ static void handle_vdm_tx(struct usbpd *pd, enum pd_sop_type sop_type)
 
 		mutex_unlock(&pd->svid_handler_lock);
 		/* retry when hitting PE_SRC/SNK_Ready again */
-		if (ret != -EBUSY && sop_type == SOP_MSG)
+		if (ret != -EBUSY && sop_type == SOP_MSG) {
 			usbpd_set_state(pd, PE_SEND_SOFT_RESET);
+		} else if (sop_type != SOP_MSG) {
+			kfree(pd->vdm_tx);
+			pd->vdm_tx = NULL;
+		}
 
 		return;
 	}
@@ -2127,9 +2064,6 @@ send:
 
 static void dr_swap(struct usbpd *pd)
 {
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-	reset_vdm_state(pd);
-#endif
 	usbpd_dbg(&pd->dev, "%s: current_dr(%d)\n", __func__, pd->current_dr);
 
 	if (pd->current_dr == DR_DFP) {
@@ -2141,9 +2075,7 @@ static void dr_swap(struct usbpd *pd)
 			start_usb_peripheral(pd);
 		typec_set_data_role(pd->typec_port, TYPEC_DEVICE);
 	} else if (pd->current_dr == DR_UFP) {
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		reset_vdm_state(pd);
-#endif
 		pd->current_dr = DR_DFP;
 		pd_phy_update_roles(pd->current_dr, pd->current_pr);
 
@@ -2211,9 +2143,7 @@ static int enable_vbus(struct usbpd *pd)
 {
 	union power_supply_propval val = {0};
 	int count = 100;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	int wireless_power_good_on = 0;
-#endif
 	int ret;
 
 	/*
@@ -2221,7 +2151,7 @@ static int enable_vbus(struct usbpd *pd)
 	 * VBUS before enabling it as a source. If so poll here
 	 * until it goes below VSafe0V (0.8V) before proceeding.
 	 */
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 	if (pd->wireless_psy) {
 		ret = power_supply_get_property(pd->wireless_psy,
 				POWER_SUPPLY_PROP_WIRELESS_POWER_GOOD_EN, &val);
@@ -2229,9 +2159,6 @@ static int enable_vbus(struct usbpd *pd)
 	}
 
 	while (!wireless_power_good_on && count--) {
-#else
-	while (count--) {
-#endif
 		ret = power_supply_get_property(pd->usb_psy,
 				POWER_SUPPLY_PROP_VOLTAGE_NOW, &val);
 		if (ret || val.intval <= 800000)
@@ -2647,7 +2574,6 @@ static void enter_state_src_ready(struct usbpd *pd)
 static void handle_state_src_ready(struct usbpd *pd, struct rx_msg *rx_msg)
 {
 	int ret;
-
 	if (IS_CTRL(rx_msg, MSG_GET_SOURCE_CAP)) {
 		pd->current_state = PE_SRC_SEND_CAPABILITIES;
 		kick_sm(pd, 0);
@@ -2799,6 +2725,8 @@ static void handle_state_soft_reset(struct usbpd *pd,
 	usbpd_set_state(pd, pd->current_pr == PR_SRC ?
 			PE_SRC_SEND_CAPABILITIES :
 			PE_SNK_WAIT_FOR_CAPABILITIES);
+	pd->request_reject = 1;
+	usbpd_err(&pd->dev, "set request_reject as 1\n");
 }
 
 static void handle_state_src_transition_to_default(struct usbpd *pd,
@@ -3278,7 +3206,6 @@ static bool handle_ext_snk_ready(struct usbpd *pd, struct rx_msg *rx_msg)
 	return true;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static void handle_snk_ready_prdr_swap(struct usbpd *pd, struct rx_msg *rx_msg)
 {
 	int ret;
@@ -3306,8 +3233,6 @@ static void handle_snk_ready_prdr_swap(struct usbpd *pd, struct rx_msg *rx_msg)
 	}
 
 }
-#endif
-
 static void handle_snk_ready_tx(struct usbpd *pd, struct rx_msg *rx_msg)
 {
 	int ret;
@@ -3406,13 +3331,10 @@ static void handle_state_snk_ready(struct usbpd *pd, struct rx_msg *rx_msg)
 			usbpd_set_state(pd, PE_SEND_SOFT_RESET);
 		return;
 	}
-
 	if (is_sink_tx_ok(pd))
 		handle_snk_ready_tx(pd, rx_msg);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	else
 		handle_snk_ready_prdr_swap(pd, rx_msg);
-#endif
 }
 
 static void enter_state_snk_transition_to_default(struct usbpd *pd)
@@ -3587,9 +3509,7 @@ static void enter_state_send_soft_reset(struct usbpd *pd)
 
 	pd_reset_protocol(pd);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	usbpd_disable_cp(pd);
-#endif
 
 	ret = pd_send_msg(pd, MSG_SOFT_RESET, NULL, 0, SOP_MSG);
 	if (ret) {
@@ -3648,10 +3568,8 @@ static void usbpd_set_state(struct usbpd *pd, enum usbpd_state next_state)
 			usbpd_state_strings[pd->current_state],
 			usbpd_state_strings[next_state]);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (next_state == PE_SRC_SOFT_RESET || next_state == PE_SRC_HARD_RESET)
 		usbpd_disable_cp(pd);
-#endif
 
 	pd->current_state = next_state;
 
@@ -3732,18 +3650,14 @@ static void handle_disconnect(struct usbpd *pd)
 		pd->pd_phy_opened = false;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->pps_found = false;
 	pd->pps_insert = false;
 	pd->is_support_2s = false;
 	pd->current_pr = PR_NONE;
 	pd->send_dr_swap = false;
-#endif
 	pd->in_pr_swap = false;
 	pd->pd_connected = false;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->verifed = false;
-#endif
 	pd->in_explicit_contract = false;
 	pd->hard_reset_recvd = false;
 	pd->caps_count = 0;
@@ -3751,7 +3665,6 @@ static void handle_disconnect(struct usbpd *pd)
 	pd->requested_voltage = 0;
 	pd->requested_current = 0;
 	pd->selected_pdo = pd->requested_pdo = 0;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->verify_process = 0;
 	pd->verify_done = false;
 	pd->pps_weak_limit = false;
@@ -3759,12 +3672,10 @@ static void handle_disconnect(struct usbpd *pd)
 	pd->last_uv = 0;
 	pd->last_ua = 0;
 	pd->force_update = false;
-#endif
 	pd->peer_usb_comm = pd->peer_pr_swap = pd->peer_dr_swap = false;
 	memset(&pd->received_pdos, 0, sizeof(pd->received_pdos));
 	rx_msg_cleanup(pd);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	cancel_delayed_work(&pd->fixed_pdo_work);
 	cancel_delayed_work(&pd->pps_monitor_work);
 	if (pd->batt_2s) {
@@ -3774,7 +3685,6 @@ static void handle_disconnect(struct usbpd *pd)
 		vote(pd->cp_disable_votable, USBPD_DR_SWAP_VOTER, false, 0);
 		vote(pd->passthrough_dis_votable, USBPD_VOTER, false, 0);
 	}
-#endif
 
 	power_supply_set_property(pd->usb_psy,
 			POWER_SUPPLY_PROP_PD_IN_HARD_RESET, &val);
@@ -3789,16 +3699,12 @@ static void handle_disconnect(struct usbpd *pd)
 	if (pd->vbus_enabled) {
 		regulator_disable(pd->vbus);
 		pd->vbus_enabled = false;
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		val.intval = 1;
 		power_supply_set_property(pd->usb_psy,
 			POWER_SUPPLY_PROP_TYPEC_BOOST_OTG_DISABLE, &val);
-#endif
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	usbpd_disable_cp(pd);
-#endif
 
 	reset_vdm_state(pd);
 	if (pd->current_dr == DR_UFP)
@@ -3892,9 +3798,22 @@ static void usbpd_sm(struct work_struct *w)
 	struct rx_msg *rx_msg = NULL;
 	unsigned long flags;
 
-	usbpd_dbg(&pd->dev, "handle state %s\n",
+	usbpd_err(&pd->dev, "typec mode:%d, pr:%d, handle state %s\n",
+			pd->typec_mode, pd->current_pr,
 			usbpd_state_strings[pd->current_state]);
 
+	/* Register typec partner in case AAA is connected */
+	if (pd->typec_mode == POWER_SUPPLY_TYPEC_SINK_AUDIO_ADAPTER) {
+		if (!pd->partner) {
+			memset(&pd->partner_identity, 0,
+					sizeof(pd->partner_identity));
+			pd->partner_desc.usb_pd = false;
+			pd->partner_desc.accessory = TYPEC_ACCESSORY_AUDIO;
+			pd->partner = typec_register_partner(pd->typec_port,
+							&pd->partner_desc);
+			pd->typec_analog_audio_connected = true;
+		}
+	}
 	hrtimer_cancel(&pd->timer);
 	pd->sm_queued = false;
 
@@ -3908,9 +3827,18 @@ static void usbpd_sm(struct work_struct *w)
 	/* Disconnect? */
 	if (pd->current_pr == PR_NONE) {
 		if (pd->current_state == PE_UNKNOWN &&
-				pd->current_dr == DR_NONE)
-			goto sm_done;
+				pd->current_dr == DR_NONE) {
+			/*
+			 * Since PD stack will not be loaded in case AAA is
+			 * connected, call disconnect to unregister typec
+			 * partner
+			 */
+			if (!pd->typec_analog_audio_connected &&
+					pd->partner)
+				handle_disconnect(pd);
 
+			goto sm_done;
+		}
 		handle_disconnect(pd);
 		goto sm_done;
 	}
@@ -3945,8 +3873,10 @@ sm_done:
 	spin_unlock_irqrestore(&pd->rx_lock, flags);
 
 	/* requeue if there are any new/pending RX messages */
-	if (!ret && !pd->sm_queued)
+	if (!ret) {
+		usbpd_dbg(&pd->dev, "Requeuing new/pending RX messages\n");
 		kick_sm(pd, 0);
+	}
 
 	if (!pd->sm_queued)
 		pm_relax(&pd->dev);
@@ -3980,6 +3910,7 @@ static int usbpd_process_typec_mode(struct usbpd *pd,
 		}
 
 		pd->current_pr = PR_NONE;
+		pd->typec_analog_audio_connected = false;
 		break;
 
 	/* Sink states */
@@ -3989,19 +3920,23 @@ static int usbpd_process_typec_mode(struct usbpd *pd,
 		usbpd_info(&pd->dev, "Type-C Source (%s) connected\n",
 				src_current(typec_mode));
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 		/*if source insert clean the vbus regulator*/
 		if (pd->vbus_enabled) {
 			regulator_disable(pd->vbus);
 			pd->vbus_enabled = false;
 		}
-#endif
 
 		/* if waiting for SinkTxOk to start an AMS */
 		if (pd->spec_rev == USBPD_REV_30 &&
 			typec_mode == POWER_SUPPLY_TYPEC_SOURCE_HIGH &&
-			(pd->send_pr_swap || pd->send_dr_swap || pd->vdm_tx))
+			(pd->send_pr_swap || pd->send_dr_swap || pd->vdm_tx)) {
+
+			if (pd->vdm_tx) {
+				kfree(pd->vdm_tx);
+				pd->vdm_tx = NULL;
+			}
 			break;
+		}
 
 		if (pd->current_pr == PR_SINK)
 			return 0;
@@ -4093,7 +4028,7 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 		if (val.intval == POWER_SUPPLY_TYPE_USB ||
 			val.intval == POWER_SUPPLY_TYPE_USB_CDP ||
 			val.intval == POWER_SUPPLY_TYPE_USB_FLOAT) {
-			usbpd_dbg(&pd->dev, "typec mode:%d type:%d\n",
+			usbpd_err(&pd->dev, "typec mode:%d type:%d\n",
 				typec_mode, val.intval);
 			pd->typec_mode = typec_mode;
 			queue_work(pd->wq, &pd->start_periph_work);
@@ -4119,7 +4054,7 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 	if (typec_mode && ((!pd->vbus_present &&
 			pd->current_state == PE_SNK_TRANSITION_TO_DEFAULT) ||
 		(pd->vbus_present && pd->current_state == PE_SNK_DISCOVERY))) {
-		usbpd_dbg(&pd->dev, "hard reset: typec mode:%d present:%d\n",
+		usbpd_info(&pd->dev, "hard reset: typec mode:%d present:%d\n",
 			typec_mode, pd->vbus_present);
 		pd->typec_mode = typec_mode;
 
@@ -4134,19 +4069,14 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 	if (pd->typec_mode == typec_mode)
 		return 0;
 
-#ifndef CONFIG_MACH_XIAOMI_SM8250
-	pd->typec_mode = typec_mode;
-#endif
 
-	usbpd_dbg(&pd->dev, "typec mode:%d present:%d orientation:%d\n",
+	usbpd_info(&pd->dev, "typec mode:%d present:%d orientation:%d\n",
 			typec_mode, pd->vbus_present,
 			usbpd_get_plug_orientation(pd));
 
 	ret = usbpd_process_typec_mode(pd, typec_mode);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->typec_mode = typec_mode;
-#endif
 
 	/* queue state machine due to CC state change */
 	if (ret)
@@ -4220,9 +4150,7 @@ static int usbpd_typec_dr_set(const struct typec_capability *cap,
 			usbpd_err(&pd->dev, "incorrect state (%s) after data_role swap\n",
 					pd->current_dr == DR_DFP ?
 					"dfp" : "ufp");
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 			vote(pd->cp_disable_votable, USBPD_DR_SWAP_VOTER, true, 0);
-#endif
 			return -EPROTO;
 		}
 	}
@@ -4552,7 +4480,6 @@ static ssize_t select_pdo_store(struct device *dev,
 
 	mutex_lock(&pd->swap_lock);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (pd->verify_process)
 		goto out;
 
@@ -4562,7 +4489,6 @@ static ssize_t select_pdo_store(struct device *dev,
 			"PPS is controlled by ourself, return not support\n");
 		goto out;
 	}
-#endif
 
 	/* Only allowed if we are already in explicit sink contract */
 	if (pd->current_state != PE_SNK_READY) {
@@ -4591,12 +4517,11 @@ static ssize_t select_pdo_store(struct device *dev,
 		goto out;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if ((pd->pps_weak_limit) && (ua > USBPD_WAKK_PPS_CURR_LIMIT)) {
 		ua = USBPD_WAKK_PPS_CURR_LIMIT;
 	}
-#endif
 
+	usbpd_info(&pd->dev, "pdo:%d, uv:%d, ua:%d\n", pdo, uv, ua);
 	ret = pd_select_pdo(pd, pdo, uv, ua);
 	if (ret)
 		goto out;
@@ -4755,10 +4680,8 @@ static ssize_t get_src_cap_ext_show(struct device *dev,
 	if (pd->spec_rev == USBPD_REV_20)
 		return -EINVAL;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	/*xiaomi 30W pd adapter can't support pd3.0 get src_cap_ext cmd, so return this cmd*/
 	return -EINVAL;
-#endif
 
 	ret = trigger_tx_msg(pd, &pd->send_get_src_cap_ext);
 	if (ret)
@@ -4885,7 +4808,6 @@ static ssize_t get_battery_status_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(get_battery_status);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static ssize_t current_state_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
@@ -4922,7 +4844,7 @@ static ssize_t usbpd_verifed_store(struct device *dev,
 		}
 	}
 
-	if (!pd->verifed && !pd->pps_found && !pd->fix_pdo_5v)
+	if (!pd->verifed && !pd->pps_found)
 		schedule_delayed_work(&pd->fixed_pdo_work, 5 * HZ);
 
 	return size;
@@ -5135,7 +5057,6 @@ static ssize_t request_vdm_cmd_show(struct device *dev,
 
 }
 static DEVICE_ATTR_RW(request_vdm_cmd);
-#endif
 
 static struct attribute *usbpd_attrs[] = {
 	&dev_attr_contract.attr,
@@ -5161,7 +5082,6 @@ static struct attribute *usbpd_attrs[] = {
 	&dev_attr_get_pps_status.attr,
 	&dev_attr_get_battery_cap.attr,
 	&dev_attr_get_battery_status.attr,
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	&dev_attr_request_vdm_cmd.attr,
 	&dev_attr_current_state.attr,
 	&dev_attr_adapter_id.attr,
@@ -5169,7 +5089,6 @@ static struct attribute *usbpd_attrs[] = {
 	&dev_attr_verify_process.attr,
 	&dev_attr_adapter_version.attr,
 	&dev_attr_usbpd_verifed.attr,
-#endif
 	NULL,
 };
 ATTRIBUTE_GROUPS(usbpd);
@@ -5240,7 +5159,6 @@ struct usbpd *devm_usbpd_get_by_phandle(struct device *dev, const char *phandle)
 }
 EXPORT_SYMBOL(devm_usbpd_get_by_phandle);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 static void usbpd_mi_connect_cb(struct usbpd_svid_handler *hdlr,bool supports_usb_comm)
 {
 	struct usbpd *pd;
@@ -5367,6 +5285,9 @@ int usbpd_fetch_pdo(struct usbpd *pd, struct usbpd_pdo *pdos)
 
 	mutex_lock(&pd->swap_lock);
 
+	pd->request_reject = 0;
+	usbpd_err(&pd->dev, "set request_reject as 0\n");
+
 	if (pd->current_pr == PR_SRC) {
 		usbpd_err(&pd->dev, "not support in SRC mode\n");
 		ret = -ENOTSUPP;
@@ -5477,6 +5398,14 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(usbpd_select_pdo);
+
+int usbpd_get_current_state(struct usbpd *pd){
+	int ret = 0;
+
+	ret = pd->request_reject;
+	return ret;
+}
+EXPORT_SYMBOL(usbpd_get_current_state);
 
 static void source_check_workfunc(struct work_struct *w)
 {
@@ -5633,10 +5562,6 @@ static void usbpd_pdo_workfunc(struct work_struct *w)
 	for (i = 0; i < ARRAY_SIZE(pd->received_pdos); i++) {
 		u32 pdo = pd->received_pdos[i];
 
-		if (pd->received_pdos[2] == 0) {
-			pd->fix_pdo_5v = true;
-			usbpd_info(&pd->dev,"fixed pdo [2]= %d",pd->fix_pdo_5v);
-			}
 		if (pdo == 0)
 			break;
 
@@ -5729,7 +5654,6 @@ static void usbpd_pdo_workfunc(struct work_struct *w)
 	power_supply_set_property(pd->usb_psy,
 			POWER_SUPPLY_PROP_PD_ACTIVE, &val);
 }
-#endif
 
 static void usbpd_release(struct device *dev)
 {
@@ -5755,7 +5679,6 @@ struct usbpd *usbpd_create(struct device *parent)
 	int ret;
 	struct usbpd *pd;
 	union power_supply_propval val = {0};
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	struct usbpd_svid_handler svid_handler = {
 		.svid           = USB_PD_MI_SVID,
 		.vdm_received   = &usbpd_mi_vdm_received_cb,
@@ -5763,7 +5686,6 @@ struct usbpd *usbpd_create(struct device *parent)
 		.svdm_received  = NULL,
 		.disconnect     = &usbpd_mi_disconnect_cb,
 	};
-#endif
 
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 	if (!pd)
@@ -5794,13 +5716,11 @@ struct usbpd *usbpd_create(struct device *parent)
 	}
 	INIT_WORK(&pd->sm_work, usbpd_sm);
 	INIT_WORK(&pd->start_periph_work, start_usb_peripheral_work);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	INIT_WORK(&pd->pdo_work, usbpd_pdo_workfunc);
 	INIT_DELAYED_WORK(&pd->src_check_work, source_check_workfunc);
 	INIT_DELAYED_WORK(&pd->fixed_pdo_work, usbpd_fixed_pdo_workfunc);
 	INIT_DELAYED_WORK(&pd->pps_monitor_work, usbpd_pps_monitor_workfunc);
 	INIT_WORK(&pd->disable_active_work, usbpd_disable_active_work);
-#endif
 	hrtimer_init(&pd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pd->timer.function = pd_timeout;
 	mutex_init(&pd->swap_lock);
@@ -5827,7 +5747,6 @@ struct usbpd *usbpd_create(struct device *parent)
 			POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN, &val))
 			pd->bms_charge_full = val.intval;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (!pd->wireless_psy)
 		pd->wireless_psy = power_supply_get_by_name("wireless");
 
@@ -5849,8 +5768,6 @@ struct usbpd *usbpd_create(struct device *parent)
 			pd->passthrough_dis_votable = find_votable("PASSTHROUGH");
 		vote(pd->passthrough_dis_votable, USBPD_INIT_VOTER, true, 0);
 	}
-#endif
-
 	/*
 	 * associate extcon with the parent dev as it could have a DT
 	 * node which will be useful for extcon_get_edev_by_phandle()
@@ -5882,10 +5799,9 @@ struct usbpd *usbpd_create(struct device *parent)
 
 	pd->num_sink_caps = device_property_read_u32_array(parent,
 			"qcom,default-sink-caps", NULL, 0);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 	pd->non_qcom_pps_ctr = of_property_read_bool(parent->of_node,
 				"mi,non-qcom-pps-ctrl");
-#endif
 	if (pd->num_sink_caps > 0) {
 		int i;
 		u32 sink_caps[14];
@@ -5963,13 +5879,11 @@ struct usbpd *usbpd_create(struct device *parent)
 	if (ret)
 		goto del_inst;
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	pd->svid_handler = svid_handler;
 	ret = usbpd_register_svid(pd, &pd->svid_handler);
 	if (ret) {
 		usbpd_err(&pd->dev, "usbpd registration failed\n");
 	}
-#endif
 
 	/* force read initial power_supply values */
 	psy_changed(&pd->psy_nb, PSY_EVENT_PROP_CHANGED, pd->usb_psy);
@@ -6007,10 +5921,8 @@ void usbpd_destroy(struct usbpd *pd)
 		power_supply_put(pd->bat_psy);
 	if (pd->bms_psy)
 		power_supply_put(pd->bms_psy);
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 	if (pd->wireless_psy)
 		power_supply_put(pd->wireless_psy);
-#endif
 	destroy_workqueue(pd->wq);
 	device_unregister(&pd->dev);
 }

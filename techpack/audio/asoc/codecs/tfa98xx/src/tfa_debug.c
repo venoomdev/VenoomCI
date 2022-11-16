@@ -1,6 +1,5 @@
 /*
  * Copyright 2014-2017 NXP Semiconductors
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +14,9 @@
  * limitations under the License.
  */
 
-#include "../inc/dbgprint.h"
-#include "../inc/tfa_service.h"
-#include "../inc/tfa98xx_tfafieldnames.h"
+#include "dbgprint.h"
+#include "tfa_service.h"
+#include "tfa98xx_tfafieldnames.h"
 
 /* support for error code translation into text */
 static char latest_errorstr[64];

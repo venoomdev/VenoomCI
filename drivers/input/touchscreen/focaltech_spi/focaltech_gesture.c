@@ -200,28 +200,27 @@ static struct attribute_group fts_gesture_group = {
 
 #ifdef CONFIG_TOUCHSCREEN_COMMON
 static ssize_t double_tap_show(struct kobject *kobj,
-                               struct kobj_attribute *attr, char *buf)
+				struct kobj_attribute *attr, char *buf)
 {
-    return sprintf(buf, "%d\n", fts_data->gesture_mode);
+	return sprintf(buf, "%d\n", fts_data->gesture_mode);
 }
 
 static ssize_t double_tap_store(struct kobject *kobj,
-                                struct kobj_attribute *attr, const char *buf,
-                                size_t count)
+	struct kobj_attribute *attr, const char *buf, size_t count)
 {
-    int rc, val;
+	int rc, val;
 
-    rc = kstrtoint(buf, 10, &val);
-    if (rc)
-    return -EINVAL;
+	rc = kstrtoint(buf, 10, &val);
+	if (rc)
+		return -EINVAL;
 
 	fts_update_gesture_state(fts_data, GESTURE_DOUBLETAP, !!val);
-    return count;
+	return count;
 }
 
 static struct tp_common_ops double_tap_ops = {
-    .show = double_tap_show,
-    .store = double_tap_store
+	.show = double_tap_show,
+	.store = double_tap_store
 };
 #endif
 
@@ -452,7 +451,7 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 {
 	struct input_dev *input_dev = ts_data->input_dev;
 #ifdef CONFIG_TOUCHSCREEN_COMMON
-    int ret;
+	int ret;
 #endif
 
 	FTS_FUNC_ENTER();
@@ -489,11 +488,10 @@ int fts_gesture_init(struct fts_ts_data *ts_data)
 
 	fts_create_gesture_sysfs(ts_data->dev);
 #ifdef CONFIG_TOUCHSCREEN_COMMON
-    ret = tp_common_set_double_tap_ops(&double_tap_ops);
-    if (ret < 0) {
-        FTS_ERROR("%s: Failed to create double_tap node err=%d\n",
-                  __func__, ret);
-    }
+	ret = tp_common_set_double_tap_ops(&double_tap_ops);
+	if (ret < 0)
+        	FTS_ERROR("%s: Failed to create double_tap node err=%d\n",
+			__func__, ret);
 #endif
 
 	memset(&fts_gesture_data, 0, sizeof(struct fts_gesture_st));

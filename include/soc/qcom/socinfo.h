@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2009-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2009-2021, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #ifndef _ARCH_ARM_MACH_MSM_SOCINFO_H_
@@ -62,6 +63,12 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,bengal")
 #define early_machine_is_bengalp()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,bengalp")
+#define early_machine_is_khaje()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,khaje")
+#define early_machine_is_khajep()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,khajep")
+#define early_machine_is_khajeq()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,khajeq")
 #define early_machine_is_lagoon()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,lagoon")
 #define early_machine_is_scuba()	\
@@ -86,6 +93,20 @@
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,bengal-iot")
 #define early_machine_is_bengalp_iot()	\
 	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,bengalp-iot")
+#define early_machine_is_msm8937()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm8937")
+#define early_machine_is_msm8917()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm8917")
+#define early_machine_is_sdm439()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sdm439")
+#define early_machine_is_sdm429()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sdm429")
+#define early_machine_is_qm215()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,qm215")
+#define early_machine_is_msm8953()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,msm8953")
+#define early_machine_is_sdm450()	\
+	of_flat_dt_is_compatible(of_get_flat_dt_root(), "qcom,sdm450")
 #else
 #define of_board_is_sim()		0
 #define of_board_is_rumi()		0
@@ -111,6 +132,9 @@
 #define early_machine_is_orchid()	0
 #define early_machine_is_bengal()	0
 #define early_machine_is_bengalp()	0
+#define early_machine_is_khaje()	0
+#define early_machine_is_khajep()	0
+#define early_machine_is_khajeq()	0
 #define early_machine_is_lagoon()	0
 #define early_machine_is_scuba()	0
 #define early_machine_is_scubaiot()	0
@@ -123,6 +147,13 @@
 #define early_machine_is_sdm660()	0
 #define early_machine_is_bengal_iot()	0
 #define early_machine_is_bengalp_iot()	0
+#define early_machine_is_msm8937()	0
+#define early_machine_is_msm8917()	0
+#define early_machine_is_sdm439()	0
+#define early_machine_is_sdm429()	0
+#define early_machine_is_qm215()	0
+#define early_machine_is_msm8953()	0
+#define early_machine_is_sdm450()	0
 #endif
 
 #define PLATFORM_SUBTYPE_MDM	1
@@ -131,9 +162,7 @@
 
 #define SMEM_IMAGE_VERSION_TABLE	469
 #define SMEM_HW_SW_BUILD_ID		137
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define SMEM_ID_VENDOR1                 135
-#endif
 enum msm_cpu {
 	MSM_CPU_UNKNOWN = 0,
 	MSM_CPU_8960,
@@ -154,6 +183,9 @@ enum msm_cpu {
 	MSM_CPU_ORCHID,
 	MSM_CPU_BENGAL,
 	MSM_CPU_BENGALP,
+	MSM_CPU_KHAJE,
+	MSM_CPU_KHAJEP,
+	MSM_CPU_KHAJEQ,
 	MSM_CPU_LAGOON,
 	MSM_CPU_SCUBA,
 	MSM_CPU_SCUBAIOT,
@@ -165,6 +197,13 @@ enum msm_cpu {
 	MSM_CPU_SDMMAGPIE,
 	MSM_CPU_BENGAL_IOT,
 	MSM_CPU_BENGALP_IOT,
+	MSM_CPU_8937,
+	MSM_CPU_8917,
+	MSM_CPU_SDM439,
+	MSM_CPU_SDM429,
+	MSM_CPU_QM215,
+	MSM_CPU_8953,
+	MSM_CPU_SDM450,
 };
 
 struct msm_soc_info {
@@ -189,15 +228,19 @@ enum pmic_model {
 	PMIC_MODEL_UNKNOWN	= 0xFFFFFFFF
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 #define HARDWARE_PLATFORM_UNKNOWN 0
 #define HARDWARE_PLATFORM_CMI  1
 #define HARDWARE_PLATFORM_UMI  2
 #define HARDWARE_PLATFORM_LMI  3
+#define HARDWARE_PLATFORM_URD  4
+#define HARDWARE_PLATFORM_VERTHANDI  5
+#define HARDWARE_PLATFORM_SKULD  6
 #define HARDWARE_PLATFORM_CAS  7
 #define HARDWARE_PLATFORM_APOLLO  8
 #define HARDWARE_PLATFORM_ALIOTH  9
 #define HARDWARE_PLATFORM_THYME  10
+#define HARDWARE_PLATFORM_ENUMA  11
+#define HARDWARE_PLATFORM_ELISH  12
 
 #define HW_MAJOR_VERSION_B  9
 #define HW_MINOR_VERSION_B  1
@@ -225,7 +268,6 @@ uint32_t get_hw_version_major(void);
 uint32_t get_hw_version_minor(void);
 uint32_t get_hw_version_build(void);
 const char *product_name_get(void);
-#endif
 
 enum msm_cpu socinfo_get_msm_cpu(void);
 uint32_t socinfo_get_id(void);

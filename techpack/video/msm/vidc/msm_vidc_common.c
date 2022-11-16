@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/jiffies.h>
@@ -691,6 +691,25 @@ enum multi_stream msm_comm_get_stream_output_mode(struct msm_vidc_inst *inst)
 		return HAL_VIDEO_DECODER_SECONDARY;
 	else
 		return HAL_VIDEO_DECODER_PRIMARY;
+}
+
+bool vidc_scalar_enabled(struct msm_vidc_inst *inst)
+{
+	struct v4l2_format *f;
+	u32 output_height, output_width, input_height, input_width;
+	bool scalar_enable = false;
+
+	f = &inst->fmts[OUTPUT_PORT].v4l2_fmt;
+	output_height = f->fmt.pix_mp.height;
+	output_width = f->fmt.pix_mp.width;
+	f = &inst->fmts[INPUT_PORT].v4l2_fmt;
+	input_height = f->fmt.pix_mp.height;
+	input_width = f->fmt.pix_mp.width;
+
+	if (output_height != input_height || output_width != input_width)
+		scalar_enable = true;
+
+	return scalar_enable;
 }
 
 bool is_single_session(struct msm_vidc_inst *inst, u32 ignore_flags)
@@ -3055,7 +3074,6 @@ static int msm_comm_init_core(struct msm_vidc_inst *inst)
 	core->state = VIDC_CORE_INIT;
 	core->smmu_fault_handled = false;
 	core->trigger_ssr = false;
-	core->resources.max_inst_count = MAX_SUPPORTED_INSTANCES;
 	core->resources.max_secure_inst_count =
 		core->resources.max_secure_inst_count ?
 		core->resources.max_secure_inst_count :
@@ -3403,7 +3421,10 @@ static void msm_comm_print_mem_usage(struct msm_vidc_core *core)
 				break;
 			}
 		}
-		sz_i = iplane->plane_fmt[0].sizeimage;
+		if (is_decode_session(inst))
+			sz_i = msm_vidc_calculate_dec_input_frame_size(inst, 0);
+		else
+			sz_i = iplane->plane_fmt[0].sizeimage;
 		sz_i_e = iplane->plane_fmt[1].sizeimage;
 		cnt_i = inp_f->count_min_host;
 
@@ -4808,6 +4829,7 @@ int msm_comm_qbufs_batch(struct msm_vidc_inst *inst,
 	int rc = 0;
 	struct msm_vidc_buffer *buf;
 	int do_bw_calc = 0;
+	int num_buffers_queued = 0;
 
 	do_bw_calc = mbuf ? mbuf->vvb.vb2_buf.type == INPUT_MPLANE : 0;
 	rc = msm_comm_scale_clocks_and_bus(inst, do_bw_calc);
@@ -4833,10 +4855,13 @@ int msm_comm_qbufs_batch(struct msm_vidc_inst *inst,
 				__func__, rc);
 			break;
 		}
+		num_buffers_queued++;
 loop_end:
-		/* Queue pending buffers till the current buffer only */
-		if (buf == mbuf)
+		/* Queue pending buffers till batch size */
+		if (num_buffers_queued == inst->batch.size) {
+			s_vpr_l(inst->sid, "Queue buffers till batch size\n");
 			break;
+		}
 	}
 	mutex_unlock(&inst->registeredbufs.lock);
 
@@ -5812,7 +5837,7 @@ static u32 msm_comm_get_memory_limit(struct msm_vidc_core *core)
 
 	memory_limits_tbl = core->resources.mem_limit_tbl;
 	memory_limits_tbl_size = core->resources.memory_limit_table_size;
-	memory_limit_mbytes = ((u64)totalram_pages * PAGE_SIZE) >> 20;
+	memory_limit_mbytes = ((u64)totalram_pages() * PAGE_SIZE) >> 20;
 	for (i = memory_limits_tbl_size - 1; i >= 0; i--) {
 		memory_size = memory_limits_tbl[i].ddr_size;
 		memory_limit = memory_limits_tbl[i].mem_limit;
@@ -5831,7 +5856,7 @@ int msm_comm_check_memory_supported(struct msm_vidc_inst *vidc_inst)
 	struct v4l2_format *f;
 	struct hal_buffer_requirements *req;
 	struct context_bank_info *cb = NULL;
-	u32 i, dpb_cnt = 0, dpb_size = 0, rc = 0;
+	u32 i, dpb_cnt = 0, dpb_size = 0, input_size = 1, rc = 0;
 	u32 inst_mem_size, non_sec_cb_size = 0;
 	u64 total_mem_size = 0, non_sec_mem_size = 0;
 	u32 memory_limit_mbytes;
@@ -5841,10 +5866,17 @@ int msm_comm_check_memory_supported(struct msm_vidc_inst *vidc_inst)
 	mutex_lock(&core->lock);
 	list_for_each_entry(inst, &core->instances, list) {
 		inst_mem_size = 0;
+		input_size = 1;
 		/* input port buffers memory size */
 		fmt = &inst->fmts[INPUT_PORT];
 		f = &fmt->v4l2_fmt;
-		for (i = 0; i < f->fmt.pix_mp.num_planes; i++)
+		if (is_decode_session(inst))
+			input_size = msm_vidc_calculate_dec_input_frame_size(inst, 0);
+		else
+			input_size = f->fmt.pix_mp.plane_fmt[0].sizeimage;
+		inst_mem_size += input_size * fmt->count_min_host;
+
+		for (i = 1; i < f->fmt.pix_mp.num_planes; i++)
 			inst_mem_size += f->fmt.pix_mp.plane_fmt[i].sizeimage *
 							fmt->count_min_host;
 
@@ -6167,10 +6199,12 @@ int msm_vidc_check_session_supported(struct msm_vidc_inst *inst)
 				width_min, height_min);
 			rc = -ENOTSUPP;
 		}
-		if (!rc && output_width > width_max) {
+		if (!rc && (output_width > width_max ||
+				output_height > height_max)) {
 			s_vpr_e(sid,
-				"Unsupported width = %u supported max width = %u\n",
-				output_width, width_max);
+				"Unsupported WxH (%u)x(%u), max supported is (%u)x(%u)\n",
+				output_width, output_height,
+				width_max, height_max);
 				rc = -ENOTSUPP;
 		}
 

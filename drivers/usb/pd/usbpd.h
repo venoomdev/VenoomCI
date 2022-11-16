@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #ifndef _USBPD_H
@@ -64,7 +65,7 @@ struct pd_phy_params {
 	u8		frame_filter_val;
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
+
 struct usbpd_pdo {
 	bool pps;
 	int type;
@@ -76,7 +77,7 @@ struct usbpd_pdo {
 
 int usbpd_get_pps_status(struct usbpd *pd, u32 *status);
 int usbpd_fetch_pdo(struct usbpd *pd, struct usbpd_pdo *pdos);
-#endif
+int usbpd_get_current_state(struct usbpd *pd);
 
 #if IS_ENABLED(CONFIG_QPNP_USB_PDPHY)
 int pd_phy_open(struct pd_phy_params *params);
@@ -118,7 +119,6 @@ static inline void pd_phy_close(void)
 }
 #endif
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 enum uvdm_state {
 	USBPD_UVDM_DISCONNECT,
 	USBPD_UVDM_CHARGER_VERSION,
@@ -172,6 +172,5 @@ enum quick_charge_type {
 #define USBPD_SUPER_PPS_POWER		120000000
 #define USBPD_WAKK_PPS_CURR_LIMIT       1800000
 #define PD_UNVERIFY_PASSTHROUGH_CURR	3000
-#endif
 
 #endif /* _USBPD_H */

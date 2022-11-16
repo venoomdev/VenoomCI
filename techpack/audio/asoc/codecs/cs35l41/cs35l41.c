@@ -2,7 +2,6 @@
  * cs35l41.c -- CS35l41 ALSA SoC audio driver
  *
  * Copyright 2018 Cirrus Logic, Inc.
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Author:	David Rhodes	<david.rhodes@cirrus.com>
  *		Brian Austin	<brian.austin@cirrus.com>
@@ -12,7 +11,6 @@
  * published by the Free Software Foundation.
  *
  */
-#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/version.h>
@@ -45,6 +43,7 @@
 #include "wm_adsp.h"
 #include "cs35l41.h"
 #include <sound/cs35l41.h>
+#include "send_data_to_xlog.h"
 static const char * const cs35l41_supplies[] = {
 	"VA",
 	"VP",
@@ -390,7 +389,7 @@ static int cs35l41_fast_switch_file_put(struct snd_kcontrol *kcontrol,
 		cs35l41->fast_switch_file_idx = i;
 		ret = cs35l41_do_fast_switch(cs35l41);
 	} else {
-		dev_info(cs35l41->dev, "do not need switch to delta (%u),origin delta %d, fast_switch_en %d\n",
+		dev_dbg(cs35l41->dev, "do not need switch to delta (%u),origin delta %d, fast_switch_en %d\n",
 			i, cs35l41->fast_switch_file_idx, cs35l41->fast_switch_en);
 	}
 
@@ -795,6 +794,7 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 	unsigned int status[4];
 	unsigned int masks[4];
 	unsigned int i;
+	char reason[] = "DSP";
 	dev_info(cs35l41->dev, "step into cs35l41 irq handler\n");
 
 	for (i = 0; i < ARRAY_SIZE(status); i++) {
@@ -919,7 +919,7 @@ static irqreturn_t cs35l41_irq(int irq, void *data)
 		//Analog mute PA if DC is detected
 		//regmap_write(cs35l41->regmap, CS35L41_AMP_OUT_MUTE,
 		//	     1 << CS35L41_AMP_MUTE_SHIFT);
-		cs35l41->dc_current_cnt++;
+		send_DC_data_to_xlog(reason);
 		dev_crit(cs35l41->dev, "DC current detected");
 	}
 
@@ -954,8 +954,8 @@ static int cs35l41_main_amp_event(struct snd_soc_dapm_widget *w,
 	int i;
 	bool pdn;
 	unsigned int val;
-	dev_info(cs35l41->dev, "%s: event = %d, DC counter = %d.\n",
-		__func__, event, cs35l41->dc_current_cnt);
+	dev_dbg(cs35l41->dev, "%s: event = %d.\n",
+		__func__, event);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_multi_reg_write_bypassed(cs35l41->regmap,
@@ -1297,10 +1297,11 @@ static const struct cs35l41_global_fs_config cs35l41_fs_rates[] = {
 	{ 16000,	0x12 },
 	{ 32000,	0x13 },
 };
+#if defined (CONFIG_TARGET_PRODUCT_ALIOTH)
 #define SPK_DAI_NAME "cs35l41.1-0040"
-#ifdef CONFIG_MACH_XIAOMI_ALIOTH
 #define RCV_DAI_NAME "cs35l41.1-0041"
 #else
+#define SPK_DAI_NAME "cs35l41.1-0040"
 #define RCV_DAI_NAME "cs35l41.1-0042"
 #endif
 
@@ -1355,7 +1356,7 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	regmap_read(cs35l41->regmap, CS35L41_PLL_CLK_CTRL, &val);
-	dev_info(cs35l41->dev, "%s: Before 0x2c04 <= 0x%x\n",
+	dev_dbg(cs35l41->dev, "%s: Before 0x2c04 <= 0x%x\n",
 			__func__, val);
 	for (i = 0; i < ARRAY_SIZE(cs35l41_fs_rates); i++) {
 		if (rate == cs35l41_fs_rates[i].rate)
@@ -1368,13 +1369,13 @@ static int cs35l41_pcm_hw_params(struct snd_pcm_substream *substream,
 	asp_wl = params_width(params);
 	asp_width = params_physical_width(params);
 
-#if defined(CONFIG_MACH_XIAOMI_APOLLO) || defined(CONFIG_MACH_XIAOMI_CAS) || defined (CONFIG_MACH_XIAOMI_ALIOTH)
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS) || defined (CONFIG_TARGET_PRODUCT_ALIOTH) || defined(CONFIG_TARGET_PRODUCT_ENUMA)
 	cs35l41_component_set_sysclk(dai->component, 0, 0, 8 * rate * asp_width, 0);
 #else
 	cs35l41_component_set_sysclk(dai->component, 0, 0, 2 * rate * asp_width, 0);
 #endif
 	regmap_read(cs35l41->regmap, CS35L41_PLL_CLK_CTRL, &val);
-	dev_info(cs35l41->dev, "%s: After 0x2c04 <= 0x%x\n",
+	dev_dbg(cs35l41->dev, "%s: After 0x2c04 <= 0x%x\n",
 			__func__, val);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -1440,12 +1441,12 @@ static int cs35l41_pcm_startup(struct snd_pcm_substream *substream,
 	//struct snd_soc_codec *codec = dai->codec;
 	pr_debug("++++>CSPL: %s.\n", __func__);
 
-#if defined(CONFIG_MACH_XIAOMI_APOLLO) || defined(CONFIG_MACH_XIAOMI_CAS) || defined (CONFIG_MACH_XIAOMI_ALIOTH)
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS) || defined (CONFIG_TARGET_PRODUCT_ALIOTH) || defined(CONFIG_TARGET_PRODUCT_ENUMA)
 	cs35l41_set_dai_fmt(dai, SND_SOC_DAIFMT_CBS_CFS|SND_SOC_DAIFMT_DSP_A);
 #else
 	cs35l41_set_dai_fmt(dai, SND_SOC_DAIFMT_CBS_CFS|SND_SOC_DAIFMT_I2S);
 #endif
-	
+
     //cs35l41_codec_set_sysclk(codec, 0, 0, 1536000, 0);
 #if 0
 	if (substream->runtime)
@@ -1470,7 +1471,7 @@ static int cs35l41_component_set_sysclk(struct snd_soc_component *component,
 		return 0;
 	}
 
-	dev_info(cs35l41->dev, "%s: clk_id=%d, src=%d, freq=%d, dir=%d\n",
+	dev_dbg(cs35l41->dev, "%s: clk_id=%d, src=%d, freq=%d, dir=%d\n",
 			__func__, clk_id, source, freq, dir);
 
 	switch (clk_id) {
@@ -1830,7 +1831,11 @@ static int cs35l41_component_probe(struct snd_soc_component *component)
 	}
 
 	wm_adsp2_component_probe(&cs35l41->dsp, component);
+#if defined(CONFIG_TARGET_PRODUCT_MONET) || defined(CONFIG_TARGET_PRODUCT_VANGOGH)
+        if (0 == cs35l41->pdata.right_channel) {
+#else
 	if (cs35l41->pdata.right_channel) {
+#endif
 		snd_soc_dapm_ignore_suspend(dapm, "AMP Playback");
 		snd_soc_dapm_ignore_suspend(dapm, "AMP Capture");
 		snd_soc_dapm_ignore_suspend(dapm, "Main AMP");
@@ -2270,7 +2275,7 @@ static int cs35l41_dsp_init(struct cs35l41_private *cs35l41)
 	return ret;
 }
 
-#if defined(CONFIG_MACH_XIAOMI_APOLLO) || defined(CONFIG_MACH_XIAOMI_CAS) || defined (CONFIG_MACH_XIAOMI_ALIOTH)
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS) || defined (CONFIG_TARGET_PRODUCT_ALIOTH)
 static int cs35l41_96k_sample_rate_init(struct cs35l41_private *cs35l41)
 {
 	int i;
@@ -2402,8 +2407,6 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 
 	irq_pol = cs35l41_irq_gpio_config(cs35l41);
 
-	cs35l41->dc_current_cnt = 0;
-
 	ret = devm_request_threaded_irq(cs35l41->dev, cs35l41->irq, NULL,
 				cs35l41_irq, irq_pol | IRQF_ONESHOT,
 				"cs35l41", cs35l41);
@@ -2469,16 +2472,16 @@ int cs35l41_probe(struct cs35l41_private *cs35l41,
 	}
 	//init brownout parameter
 	ret = regmap_update_bits(cs35l41->regmap, CS35L41_PWR_CTRL3, 0x1000, 0x1000);
-#if defined(CONFIG_MACH_XIAOMI_APOLLO)
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO)
 	ret = regmap_write(cs35l41->regmap, CS35L41_VPBR_CFG, 0x0200530C);
 #else
 	ret = regmap_write(cs35l41->regmap, CS35L41_VPBR_CFG, 0x0200530E);
 #endif
-#if defined(CONFIG_MACH_XIAOMI_CAS) || defined (CONFIG_MACH_XIAOMI_ALIOTH)
+#if defined(CONFIG_TARGET_PRODUCT_CAS) || defined (CONFIG_TARGET_PRODUCT_ALIOTH)
 	ret = regmap_write(cs35l41->regmap, CS35L41_DAC_MSM_CFG, 0x00100000);
 #endif
 
-	#if defined(CONFIG_MACH_XIAOMI_APOLLO) || defined(CONFIG_MACH_XIAOMI_CAS) || defined (CONFIG_MACH_XIAOMI_ALIOTH)
+	#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS) || defined (CONFIG_TARGET_PRODUCT_ALIOTH)
 	cs35l41_96k_sample_rate_init(cs35l41);
 	#endif
 	//external clock frequency initialize

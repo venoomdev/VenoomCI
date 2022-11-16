@@ -419,8 +419,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 			break;
 		case BPF_MOD:
 			emit(A64_UDIV(is64, tmp, dst, src), ctx);
-			emit(A64_MUL(is64, tmp, tmp, src), ctx);
-			emit(A64_SUB(is64, dst, dst, tmp), ctx);
+			emit(A64_MSUB(is64, dst, dst, tmp, src), ctx);
 			break;
 		}
 		break;
@@ -526,8 +525,7 @@ emit_bswap_uxt:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 		emit_a64_mov_i(is64, tmp2, imm, ctx);
 		emit(A64_UDIV(is64, tmp, dst, tmp2), ctx);
-		emit(A64_MUL(is64, tmp, tmp, tmp2), ctx);
-		emit(A64_SUB(is64, dst, dst, tmp), ctx);
+		emit(A64_MSUB(is64, dst, dst, tmp, tmp2), ctx);
 		break;
 	case BPF_ALU | BPF_LSH | BPF_K:
 	case BPF_ALU64 | BPF_LSH | BPF_K:
@@ -683,6 +681,19 @@ emit_cond_jmp:
 			emit(A64_LDR64(dst, src, tmp), ctx);
 			break;
 		}
+		break;
+
+	/* speculation barrier */
+	case BPF_ST | BPF_NOSPEC:
+		/*
+		 * Nothing required here.
+		 *
+		 * In case of arm64, we rely on the firmware mitigation of
+		 * Speculative Store Bypass as controlled via the ssbd kernel
+		 * parameter. Whenever the mitigation is enabled, it works
+		 * for all of the kernel code with no need to provide any
+		 * additional instructions.
+		 */
 		break;
 
 	/* ST: *(size *)(dst + off) = imm */
@@ -925,6 +936,7 @@ skip_init_ctx:
 			bpf_jit_binary_free(header);
 			prog->bpf_func = NULL;
 			prog->jited = 0;
+			prog->jited_len = 0;
 			goto out_off;
 		}
 		bpf_jit_binary_lock_ro(header);
@@ -971,3 +983,16 @@ bool arch_bpf_jit_check_func(const struct bpf_prog *prog)
 	return (func >= MODULES_VADDR && func < MODULES_END);
 }
 #endif
+
+void *bpf_jit_alloc_exec(unsigned long size)
+{
+	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
+				    BPF_JIT_REGION_END, GFP_KERNEL,
+				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				    __builtin_return_address(0));
+}
+
+void bpf_jit_free_exec(void *addr)
+{
+	return vfree(addr);
+}

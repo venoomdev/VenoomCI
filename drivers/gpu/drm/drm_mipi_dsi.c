@@ -2,6 +2,7 @@
  * MIPI DSI Bus
  *
  * Copyright (C) 2012-2013, Samsung Electronics, Co., Ltd.
+ * Copyright (C) 2021 XiaoMi, Inc.
  * Andrzej Hajda <a.hajda@samsung.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -1035,11 +1036,11 @@ EXPORT_SYMBOL(mipi_dsi_dcs_set_pixel_format);
  */
 int mipi_dsi_dcs_set_tear_scanline(struct mipi_dsi_device *dsi, u16 scanline)
 {
-	u8 payload[3] = { MIPI_DCS_SET_TEAR_SCANLINE, scanline >> 8,
-			  scanline & 0xff };
+	u8 payload[2] = { scanline >> 8, scanline & 0xff };
 	ssize_t err;
 
-	err = mipi_dsi_generic_write(dsi, payload, sizeof(payload));
+	err = mipi_dsi_dcs_write(dsi, MIPI_DCS_SET_TEAR_SCANLINE, payload,
+				 sizeof(payload));
 	if (err < 0)
 		return err;
 
@@ -1070,7 +1071,6 @@ int mipi_dsi_dcs_set_display_brightness(struct mipi_dsi_device *dsi,
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_display_brightness);
 
-#ifdef CONFIG_MACH_XIAOMI_SM8250
 /**
  * mipi_dsi_dcs_set_display_brightness_bigendian() - sets the brightness value of the
  * display with big endian, high byte to 1st parameter, low byte to 2nd parameter
@@ -1093,7 +1093,6 @@ int mipi_dsi_dcs_set_display_brightness_big_endian(struct mipi_dsi_device *dsi,
 	return 0;
 }
 EXPORT_SYMBOL(mipi_dsi_dcs_set_display_brightness_big_endian);
-#endif
 
 /**
  * mipi_dsi_dcs_get_display_brightness() - gets the current brightness value

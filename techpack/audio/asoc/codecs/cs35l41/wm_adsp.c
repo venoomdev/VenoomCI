@@ -2,7 +2,6 @@
  * wm_adsp.c  --  Wolfson ADSP support
  *
  * Copyright 2012 Wolfson Microelectronics plc
- * Copyright (C) 2021 XiaoMi, Inc.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
  *
@@ -10,7 +9,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define DEBUG
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -515,7 +513,11 @@ static const char *wm_vpu_fw_text[WM_VPU_NUM_FW] = {
 	[WM_VPU_FW_MISC] =	"Misc",
 };
 
+#ifdef CONFIG_TARGET_PRODUCT_DRACO
+#define CAL_R_DEFAULT       11190
+#else
 #define CAL_R_DEFAULT       8392
+#endif
 
 #define AMBIENT_DEFAULT     30
 #define CAL_STATUS_DEFAULT  1
@@ -2257,12 +2259,7 @@ static int wm_adsp_load(struct wm_adsp *dsp)
 			snprintf(file, PAGE_SIZE,
 				 "%s", dsp->firmwares[dsp->fw].file);
 		else {
-#if defined(CONFIG_MACH_XIAOMI_ALIOTH) \
-	|| defined(CONFIG_MACH_XIAOMI_APOLLO) \
-	|| defined(CONFIG_MACH_XIAOMI_CAS) \
-	|| defined(CONFIG_MACH_XIAOMI_CMI) \
-	|| defined(CONFIG_MACH_XIAOMI_THYME) \
-	|| defined(CONFIG_MACH_XIAOMI_UMI)
+#if defined(CONFIG_TARGET_PRODUCT_MONET) || defined(CONFIG_TARGET_PRODUCT_VANGOGH) || defined(CONFIG_AUDIO_SMARTPA_STEREO)
 			if(dsp->chip_revid == 0xB2) {
 				snprintf(file, PAGE_SIZE, "%s-%s%d-%s-revb2.wmfw",
 					 dsp->part, wm_adsp_arch_text_lower(dsp->type),
@@ -3194,12 +3191,7 @@ static int wm_adsp_load_coeff(struct wm_adsp *dsp)
 		snprintf(file, PAGE_SIZE, "%s-dsp%d-%s.bin", dsp->part,
 			 dsp->num, dsp->firmwares[dsp->fw].binfile);
 	else
-#if defined(CONFIG_MACH_XIAOMI_ALIOTH) \
-	|| defined(CONFIG_MACH_XIAOMI_APOLLO) \
-	|| defined(CONFIG_MACH_XIAOMI_CAS) \
-	|| defined(CONFIG_MACH_XIAOMI_CMI) \
-	|| defined(CONFIG_MACH_XIAOMI_THYME) \
-	|| defined(CONFIG_MACH_XIAOMI_UMI)
+#if defined(CONFIG_TARGET_PRODUCT_MONET) || defined(CONFIG_TARGET_PRODUCT_VANGOGH) || defined(CONFIG_AUDIO_SMARTPA_STEREO)
 		if(dsp->chip_revid == 0xB2) {
 			//for B2 chip
 			if (dsp->component->name_prefix)
@@ -4430,7 +4422,7 @@ static int wm_halo_apply_calibration(struct snd_soc_dapm_widget *w)
 				wm_adsp_k_ctl_get(dsp, "RCV DSP1X Protection cd CAL_STATUS");
 				wm_adsp_k_ctl_get(dsp, "RCV DSP1X Protection cd CAL_CHECKSUM");
 				//for ultrasonic
-#if defined(CONFIG_MACH_XIAOMI_APOLLO) || defined(CONFIG_MACH_XIAOMI_CAS) || defined (CONFIG_MACH_XIAOMI_ALIOTH)
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS) || defined (CONFIG_TARGET_PRODUCT_ALIOTH)
 				wm_adsp_k_ctl_put(dsp, "RCV DSP1X Protection 400a4 E_FULL_US_BYPASS", 1);
 				wm_adsp_k_ctl_get(dsp, "RCV DSP1X Protection 400a4 E_FULL_US_BYPASS");
 #endif

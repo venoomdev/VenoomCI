@@ -16,6 +16,7 @@
 
 #include <linux/stddef.h>
 #include <linux/mm.h>
+#include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
@@ -67,12 +68,15 @@
 #include <linux/ftrace.h>
 #include <linux/lockdep.h>
 #include <linux/nmi.h>
+#include <linux/khugepaged.h>
 #include <linux/psi.h>
 
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
 #include "internal.h"
+
+atomic_long_t kswapd_waiters = ATOMIC_LONG_INIT(0);
 
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
@@ -126,7 +130,8 @@ EXPORT_SYMBOL(node_states);
 /* Protect totalram_pages and zone->managed_pages */
 static DEFINE_SPINLOCK(managed_page_count_lock);
 
-unsigned long totalram_pages __read_mostly;
+atomic_long_t _totalram_pages __read_mostly;
+EXPORT_SYMBOL(_totalram_pages);
 unsigned long totalreserve_pages __read_mostly;
 unsigned long totalcma_pages __read_mostly;
 
@@ -331,7 +336,7 @@ int user_min_free_kbytes = -1;
  */
 int watermark_boost_factor __read_mostly;
 #else
-int watermark_boost_factor __read_mostly = 15000;
+int watermark_boost_factor __read_mostly = 0;
 #endif
 int watermark_scale_factor = 10;
 
@@ -488,8 +493,12 @@ static __always_inline unsigned long __get_pfnblock_flags_mask(struct page *page
 	bitidx = pfn_to_bitidx(page, pfn);
 	word_bitidx = bitidx / BITS_PER_LONG;
 	bitidx &= (BITS_PER_LONG-1);
-
-	word = bitmap[word_bitidx];
+	/*
+	 * This races, without locks, with set_pfnblock_flags_mask(). Ensure
+	 * a consistent read of the memory array, so that results, even though
+	 * racy, are not corrupted.
+	 */
+	word = READ_ONCE(bitmap[word_bitidx]);
 	bitidx += end_bitidx;
 	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
 }
@@ -935,7 +944,7 @@ static inline void __free_one_page(struct page *page,
 	unsigned int max_order;
 	struct capture_control *capc = task_capc(zone);
 
-	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+	max_order = min_t(unsigned int, MAX_ORDER - 1, pageblock_order);
 
 	VM_BUG_ON(!zone_is_initialized(zone));
 	VM_BUG_ON_PAGE(page->flags & PAGE_FLAGS_CHECK_AT_PREP, page);
@@ -948,7 +957,7 @@ static inline void __free_one_page(struct page *page,
 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
 
 continue_merging:
-	while (order < max_order - 1) {
+	while (order < max_order) {
 		if (compaction_capture(capc, page, order, migratetype)) {
 			__mod_zone_freepage_state(zone, -(1 << order),
 								migratetype);
@@ -977,7 +986,7 @@ continue_merging:
 		pfn = combined_pfn;
 		order++;
 	}
-	if (max_order < MAX_ORDER) {
+	if (order < MAX_ORDER - 1) {
 		/* If we are here, it means order is >= pageblock_order.
 		 * We want to prevent merge between freepages on isolate
 		 * pageblock and normal pageblock. Without this, pageblock
@@ -998,7 +1007,7 @@ continue_merging:
 						is_migrate_isolate(buddy_mt)))
 				goto done_merging;
 		}
-		max_order++;
+		max_order = order + 1;
 		goto continue_merging;
 	}
 
@@ -1143,8 +1152,11 @@ static void kernel_init_free_pages(struct page *page, int numpages)
 {
 	int i;
 
+	/* s390's use of memset() could override KASAN redzones. */
+	kasan_disable_current();
 	for (i = 0; i < numpages; i++)
 		clear_highpage(page + i);
+	kasan_enable_current();
 }
 
 static __always_inline bool free_pages_prepare(struct page *page,
@@ -1260,6 +1272,11 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 	struct page *page, *tmp;
 	LIST_HEAD(head);
 
+	/*
+	 * Ensure proper count is passed which otherwise would stuck in the
+	 * below while (list_empty(list)) loop.
+	 */
+	count = min(pcp->count, count);
 	while (count) {
 		struct list_head *list;
 
@@ -1568,6 +1585,7 @@ void set_zone_contiguous(struct zone *zone)
 		if (!__pageblock_pfn_to_page(block_start_pfn,
 					     block_end_pfn, zone))
 			return;
+		cond_resched();
 	}
 
 	/* We confirm that there is no hole */
@@ -1731,6 +1749,13 @@ static int __init deferred_init_memmap(void *data)
 	BUG_ON(pgdat->first_deferred_pfn > pgdat_end_pfn(pgdat));
 	pgdat->first_deferred_pfn = ULONG_MAX;
 
+	/*
+	 * Once we unlock here, the zone cannot be grown anymore, thus if an
+	 * interrupt thread must allocate this early in boot, zone must be
+	 * pre-grown prior to start of deferred page initialization.
+	 */
+	pgdat_resize_unlock(pgdat, &flags);
+
 	/* Only the highest zone is deferred so find it */
 	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
 		zone = pgdat->node_zones + zid;
@@ -1755,7 +1780,6 @@ static int __init deferred_init_memmap(void *data)
 		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
 		deferred_free_pages(nid, zid, spfn, epfn);
 	}
-	pgdat_resize_unlock(pgdat, &flags);
 
 	/* Sanity check that the next zone really is unpopulated */
 	WARN_ON(++zid < MAX_NR_ZONES && populated_zone(++zone));
@@ -1800,17 +1824,6 @@ deferred_grow_zone(struct zone *zone, unsigned int order)
 		return false;
 
 	pgdat_resize_lock(pgdat, &flags);
-
-	/*
-	 * If deferred pages have been initialized while we were waiting for
-	 * the lock, return true, as the zone was grown.  The caller will retry
-	 * this zone.  We won't return to this function since the caller also
-	 * has this static branch.
-	 */
-	if (!static_branch_unlikely(&deferred_pages)) {
-		pgdat_resize_unlock(pgdat, &flags);
-		return true;
-	}
 
 	/*
 	 * If someone grew this zone while we were waiting for spinlock, return
@@ -3558,6 +3571,7 @@ bool zone_watermark_ok_safe(struct zone *z, unsigned int order,
 	return __zone_watermark_ok(z, order, mark, classzone_idx, 0,
 								free_pages);
 }
+EXPORT_SYMBOL_GPL(zone_watermark_ok_safe);
 
 #ifdef CONFIG_NUMA
 static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
@@ -4215,7 +4229,7 @@ static int
 __perform_reclaim(gfp_t gfp_mask, unsigned int order,
 					const struct alloc_context *ac)
 {
-	struct reclaim_state reclaim_state;
+	struct reclaim_state reclaim_state = {};
 	int progress;
 	unsigned int noreclaim_flag;
 	unsigned long pflags;
@@ -4524,6 +4538,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	int no_progress_loops;
 	unsigned int cpuset_mems_cookie;
 	int reserve_flags;
+	bool woke_kswapd = false;
+	bool used_vmpressure = false;
 
 	/*
 	 * We also sanity check to catch abuse of atomic reserves being used by
@@ -4557,8 +4573,15 @@ retry_cpuset:
 	if (!ac->preferred_zoneref->zone)
 		goto nopage;
 
-	if (alloc_flags & ALLOC_KSWAPD)
+	if (alloc_flags & ALLOC_KSWAPD) {
+		if (!woke_kswapd) {
+			atomic_long_inc(&kswapd_waiters);
+			woke_kswapd = true;
+		}
+		if (!used_vmpressure)
+			used_vmpressure = vmpressure_inc_users(order);
 		wake_all_kswapds(order, gfp_mask, ac);
+	}
 
 	/*
 	 * The adjusted alloc_flags might result in immediate success, so try
@@ -4651,6 +4674,8 @@ retry:
 		goto nopage;
 
 	/* Try direct reclaim and then allocating */
+	if (!used_vmpressure)
+		used_vmpressure = vmpressure_inc_users(order);
 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
 							&did_some_progress);
 	if (page)
@@ -4705,8 +4730,10 @@ retry:
 	/* Avoid allocations with no watermarks from looping endlessly */
 	if (tsk_is_oom_victim(current) &&
 	    (alloc_flags == ALLOC_OOM ||
-	     (gfp_mask & __GFP_NOMEMALLOC)))
+	     (gfp_mask & __GFP_NOMEMALLOC))) {
+		gfp_mask |= __GFP_NOWARN;
 		goto nopage;
+	}
 
 	/* Retry as long as the OOM killer is making progress */
 	if (did_some_progress) {
@@ -4760,9 +4787,14 @@ nopage:
 		goto retry;
 	}
 fail:
-	warn_alloc(gfp_mask, ac->nodemask,
-			"page allocation failure: order:%u", order);
 got_pg:
+	if (woke_kswapd)
+		atomic_long_dec(&kswapd_waiters);
+	if (used_vmpressure)
+		vmpressure_dec_users();
+	if (!page)
+		warn_alloc(gfp_mask, ac->nodemask,
+				"page allocation failure: order:%u", order);
 	return page;
 }
 
@@ -4992,11 +5024,11 @@ refill:
 		/* Even if we own the page, we do not use atomic_set().
 		 * This would break get_page_unless_zero() users.
 		 */
-		page_ref_add(page, size);
+		page_ref_add(page, PAGE_FRAG_CACHE_MAX_SIZE);
 
 		/* reset page count bias and offset to start of new frag */
 		nc->pfmemalloc = page_is_pfmemalloc(page);
-		nc->pagecnt_bias = size + 1;
+		nc->pagecnt_bias = PAGE_FRAG_CACHE_MAX_SIZE + 1;
 		nc->offset = size;
 	}
 
@@ -5007,15 +5039,20 @@ refill:
 		if (!page_ref_sub_and_test(page, nc->pagecnt_bias))
 			goto refill;
 
+		if (unlikely(nc->pfmemalloc)) {
+			free_the_page(page, compound_order(page));
+			goto refill;
+		}
+
 #if (PAGE_SIZE < PAGE_FRAG_CACHE_MAX_SIZE)
 		/* if size can vary use size else just use PAGE_SIZE */
 		size = nc->size;
 #endif
 		/* OK, page count is 0, we can safely set it */
-		set_page_count(page, size + 1);
+		set_page_count(page, PAGE_FRAG_CACHE_MAX_SIZE + 1);
 
 		/* reset page count bias and offset to start of new frag */
-		nc->pagecnt_bias = size + 1;
+		nc->pagecnt_bias = PAGE_FRAG_CACHE_MAX_SIZE + 1;
 		offset = size - fragsz;
 	}
 
@@ -5222,11 +5259,11 @@ EXPORT_SYMBOL_GPL(si_mem_available);
 
 void si_meminfo(struct sysinfo *val)
 {
-	val->totalram = totalram_pages;
+	val->totalram = totalram_pages();
 	val->sharedram = global_node_page_state(NR_SHMEM);
 	val->freeram = global_zone_page_state(NR_FREE_PAGES);
 	val->bufferram = nr_blockdev_pages();
-	val->totalhigh = totalhigh_pages;
+	val->totalhigh = totalhigh_pages();
 	val->freehigh = nr_free_highpages();
 	val->mem_unit = PAGE_SIZE;
 }
@@ -5540,7 +5577,7 @@ static int build_zonerefs_node(pg_data_t *pgdat, struct zoneref *zonerefs)
 	do {
 		zone_type--;
 		zone = pgdat->node_zones + zone_type;
-		if (managed_zone(zone)) {
+		if (populated_zone(zone)) {
 			zoneref_set_zone(zone, &zonerefs[nr_zones++]);
 			check_highest_zone(zone_type);
 		}
@@ -5935,7 +5972,7 @@ void __ref build_all_zonelists(pg_data_t *pgdat)
  * done. Non-atomic initialization, single-pass.
  */
 void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
-		unsigned long start_pfn, enum memmap_context context,
+		unsigned long start_pfn, enum meminit_context context,
 		struct vmem_altmap *altmap)
 {
 	unsigned long end_pfn = start_pfn + size;
@@ -5962,7 +5999,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 		 * There can be holes in boot-time mem_map[]s handed to this
 		 * function.  They do not exist on hotplugged memory.
 		 */
-		if (context != MEMMAP_EARLY)
+		if (context != MEMINIT_EARLY)
 			goto not_early;
 
 		if (!early_pfn_valid(pfn))
@@ -5997,7 +6034,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 not_early:
 		page = pfn_to_page(pfn);
 		__init_single_page(page, pfn, zone, nid);
-		if (context == MEMMAP_HOTPLUG)
+		if (context == MEMINIT_HOTPLUG)
 			SetPageReserved(page);
 
 		/*
@@ -6012,7 +6049,7 @@ not_early:
 		 * check here not to call set_pageblock_migratetype() against
 		 * pfn out of zone.
 		 *
-		 * Please note that MEMMAP_HOTPLUG path doesn't clear memmap
+		 * Please note that MEMINIT_HOTPLUG path doesn't clear memmap
 		 * because this is done early in sparse_add_one_section
 		 */
 		if (!(pfn & (pageblock_nr_pages - 1))) {
@@ -6033,7 +6070,8 @@ static void __meminit zone_init_free_lists(struct zone *zone)
 
 #ifndef __HAVE_ARCH_MEMMAP_INIT
 #define memmap_init(size, nid, zone, start_pfn) \
-	memmap_init_zone((size), (nid), (zone), (start_pfn), MEMMAP_EARLY, NULL)
+	memmap_init_zone((size), (nid), (zone), (start_pfn), \
+			 MEMINIT_EARLY, NULL)
 #endif
 
 static int zone_batchsize(struct zone *zone)
@@ -7303,9 +7341,16 @@ restart:
 
 out2:
 	/* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
-	for (nid = 0; nid < MAX_NUMNODES; nid++)
+	for (nid = 0; nid < MAX_NUMNODES; nid++) {
+		unsigned long start_pfn, end_pfn;
+
 		zone_movable_pfn[nid] =
 			roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+
+		get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+		if (zone_movable_pfn[nid] >= end_pfn)
+			zone_movable_pfn[nid] = 0;
+	}
 
 out:
 	/* restore the node_state */
@@ -7483,10 +7528,10 @@ void adjust_managed_page_count(struct page *page, long count)
 {
 	spin_lock(&managed_page_count_lock);
 	page_zone(page)->managed_pages += count;
-	totalram_pages += count;
+	totalram_pages_add(count);
 #ifdef CONFIG_HIGHMEM
 	if (PageHighMem(page))
-		totalhigh_pages += count;
+		totalram_pages_add(count);
 #endif
 	spin_unlock(&managed_page_count_lock);
 }
@@ -7563,7 +7608,7 @@ void __init mem_init_print_info(const char *str)
 	 */
 #define adj_init_size(start, end, size, pos, adj) \
 	do { \
-		if (start <= pos && pos < end && size > adj) \
+		if (&start[0] <= &pos[0] && &pos[0] < &end[0] && size > adj) \
 			size -= adj; \
 	} while (0)
 
@@ -7585,10 +7630,10 @@ void __init mem_init_print_info(const char *str)
 		physpages << (PAGE_SHIFT - 10),
 		codesize >> 10, datasize >> 10, rosize >> 10,
 		(init_data_size + init_code_size) >> 10, bss_size >> 10,
-		(physpages - totalram_pages - totalcma_pages) << (PAGE_SHIFT - 10),
+		(physpages - totalram_pages() - totalcma_pages) << (PAGE_SHIFT - 10),
 		totalcma_pages << (PAGE_SHIFT - 10),
 #ifdef	CONFIG_HIGHMEM
-		totalhigh_pages << (PAGE_SHIFT - 10),
+		totalhigh_pages() << (PAGE_SHIFT - 10),
 #endif
 		str ? ", " : "", str ? str : "");
 }
@@ -7865,9 +7910,11 @@ int __meminit init_per_zone_wmark_min(void)
 	setup_min_slab_ratio();
 #endif
 
+	khugepaged_min_free_kbytes_update();
+
 	return 0;
 }
-core_initcall(init_per_zone_wmark_min)
+postcore_initcall(init_per_zone_wmark_min)
 
 /*
  * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so

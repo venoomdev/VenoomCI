@@ -191,7 +191,10 @@ static void update_counts(struct memlat_cpu_grp *cpu_grp)
 			common_evs[STALL_IDX].last_delta =
 				common_evs[CYC_IDX].last_delta;
 
-		cpu_data->freq = common_evs[CYC_IDX].last_delta / delta;
+		if (delta != 0)
+			cpu_data->freq = common_evs[CYC_IDX].last_delta / delta;
+		else
+			cpu_data->freq = common_evs[CYC_IDX].last_delta;
 		cpu_data->stall_pct = mult_frac(100,
 				common_evs[STALL_IDX].last_delta,
 				common_evs[CYC_IDX].last_delta);
@@ -649,7 +652,8 @@ static int memlat_mon_probe(struct platform_device *pdev, bool is_compute)
 		if (!cpumask_subset(&mon->cpus, &cpu_grp->cpus)) {
 			dev_err(dev,
 				"Mon CPUs must be a subset of cpu_grp CPUs. mon=%*pbl cpu_grp=%*pbl\n",
-				mon->cpus, cpu_grp->cpus);
+				cpumask_pr_args(&mon->cpus),
+				cpumask_pr_args(&cpu_grp->cpus));
 			ret = -EINVAL;
 			goto unlock_out;
 		}

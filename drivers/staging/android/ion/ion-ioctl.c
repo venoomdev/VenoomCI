@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2011 Google, Inc.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/kernel.h>
@@ -74,18 +75,17 @@ long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case ION_IOC_ALLOC:
 	{
 		int fd;
-
-#ifdef CONFIG_MACH_XIAOMI_SM8250
-		if (data.allocation.unused > 0)
+		if (data.allocation.unused > 0) {
 			fd = ion_alloc_fd_with_caller_pid(
 				data.allocation.len,
 				data.allocation.heap_id_mask,
 				data.allocation.flags, data.allocation.unused);
-		else
-#endif
-		fd = ion_alloc_fd(data.allocation.len,
-				  data.allocation.heap_id_mask,
-				  data.allocation.flags);
+		} else {
+			fd = ion_alloc_fd(data.allocation.len,
+					  data.allocation.heap_id_mask,
+					  data.allocation.flags);
+		}
+
 		if (fd < 0)
 			return fd;
 
