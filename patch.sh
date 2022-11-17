@@ -9,7 +9,7 @@ if [ -f $PWD/*.patch ]; then
 	rm -f $PWD/*.patch
 	#clear
 	echo " ";
-	echo -e "$blue**** Patching kernel finished ****";
+	echo -e "**** Patching kernel finished ****";
 else
 	clear
 	echo " ";
