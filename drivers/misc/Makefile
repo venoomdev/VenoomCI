@@ -89,3 +89,5 @@ obj-$(CONFIG_KINECTICS_XR_NORDIC) += kxrctrl/
 
 obj-$(CONFIG_KINECTICS_XR_NORDIC) += kxrctrl/
 
+obj-$(CONFIG_MI_GAMEKEY)	+= mi_gamekey.o
+obj-y                           += touch_oos.o
