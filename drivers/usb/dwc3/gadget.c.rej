@@ -1,0 +1,11 @@
+--- drivers/usb/dwc3/gadget.c
++++ drivers/usb/dwc3/gadget.c
+@@ -2475,6 +2491,8 @@
+ 
+ 	if (stop)
+ 		dwc3_stop_active_transfer(dep, true, true);
++	else if (dwc3_gadget_ep_should_continue(dep))
++		__dwc3_gadget_kick_transfer(dep);
+ 
+ 	/*
+ 	 * WORKAROUND: This is the 2nd half of U1/U2 -> U0 workaround.
