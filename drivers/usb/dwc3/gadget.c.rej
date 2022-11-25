@@ -1,43 +1,75 @@
 --- drivers/usb/dwc3/gadget.c
 +++ drivers/usb/dwc3/gadget.c
-@@ -894,19 +894,19 @@
+@@ -1020,6 +1020,19 @@
+ 	if (usb_endpoint_xfer_bulk(dep->endpoint.desc) && dep->stream_capable)
+ 		trb->ctrl |= DWC3_TRB_CTRL_SID_SOFN(stream_id);
  
- static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep)
- {
--	struct dwc3_trb		*tmp;
- 	u8			trbs_left;
++	/*
++	 * As per data book 4.2.3.2TRB Control Bit Rules section
++	 *
++	 * The controller autonomously checks the HWO field of a TRB to determine if the
++	 * entire TRB is valid. Therefore, software must ensure that the rest of the TRB
++	 * is valid before setting the HWO field to '1'. In most systems, this means that
++	 * software must update the fourth DWORD of a TRB last.
++	 *
++	 * However there is a possibility of CPU re-ordering here which can cause
++	 * controller to observe the HWO bit set prematurely.
++	 * Add a write memory barrier to prevent CPU re-ordering.
++	 */
++	wmb();
+ 	trb->ctrl |= DWC3_TRB_CTRL_HWO;
  
- 	/*
--	 * If enqueue & dequeue are equal than it is either full or empty.
--	 *
--	 * One way to know for sure is if the TRB right before us has HWO bit
--	 * set or not. If it has, then we're definitely full and can't fit any
--	 * more transfers in our ring.
-+	 * If the enqueue & dequeue are equal then the TRB ring is either full
-+	 * or empty. It's considered full when there are DWC3_TRB_NUM-1 of TRBs
-+	 * pending to be processed by the driver.
- 	 */
- 	if (dep->trb_enqueue == dep->trb_dequeue) {
--		tmp = dwc3_ep_prev_trb(dep, dep->trb_enqueue);
--		if (tmp->ctrl & DWC3_TRB_CTRL_HWO)
-+		/*
-+		 * If there is any request remained in the started_list at
-+		 * this point, that means there is no TRB available.
-+		 */
-+		if (!list_empty(&dep->started_list))
- 			return 0;
+ 	dwc3_ep_inc_enq(dep);
+--- drivers/usb/dwc3/gadget.c
++++ drivers/usb/dwc3/gadget.c
+@@ -3181,9 +3181,11 @@
+ 	unsigned long flags;
+ 	irqreturn_t ret = IRQ_NONE;
  
- 		return DWC3_TRB_NUM - 1;
-@@ -1805,10 +1805,8 @@
++	local_bh_disable();
+ 	spin_lock_irqsave(&dwc->lock, flags);
+ 	ret = dwc3_process_event_buf(evt);
+ 	spin_unlock_irqrestore(&dwc->lock, flags);
++	local_bh_enable();
  
- 		ret = wait_for_completion_timeout(&dwc->ep0_in_setup,
- 				msecs_to_jiffies(DWC3_PULL_UP_TIMEOUT));
--		if (ret == 0) {
--			dev_err(dwc->dev, "timed out waiting for SETUP phase\n");
--			return -ETIMEDOUT;
--		}
-+		if (ret == 0)
-+			dev_warn(dwc->dev, "timed out waiting for SETUP phase\n");
+ 	return ret;
+ }
+--- drivers/usb/dwc3/gadget.c
++++ drivers/usb/dwc3/gadget.c
+@@ -2445,7 +2446,35 @@
+ 		req->needs_extra_trb = false;
  	}
  
- 	spin_lock_irqsave(&dwc->lock, flags);
+-	dwc3_gadget_giveback(dep, req, status);
++	/*
++	 * The event status only reflects the status of the TRB with IOC set.
++	 * For the requests that don't set interrupt on completion, the driver
++	 * needs to check and return the status of the completed TRBs associated
++	 * with the request. Use the status of the last TRB of the request.
++	 */
++	if (req->request.no_interrupt) {
++		struct dwc3_trb *trb;
++
++		trb = dwc3_ep_prev_trb(dep, dep->trb_dequeue);
++		switch (DWC3_TRB_SIZE_TRBSTS(trb->size)) {
++		case DWC3_TRBSTS_MISSED_ISOC:
++			/* Isoc endpoint only */
++			request_status = -EXDEV;
++			break;
++		case DWC3_TRB_STS_XFER_IN_PROG:
++			/* Applicable when End Transfer with ForceRM=0 */
++		case DWC3_TRBSTS_SETUP_PENDING:
++			/* Control endpoint only */
++		case DWC3_TRBSTS_OK:
++		default:
++			request_status = 0;
++			break;
++		}
++	} else {
++		request_status = status;
++	}
++
++	dwc3_gadget_giveback(dep, req, request_status);
+ 
+ out:
+ 	return ret;
