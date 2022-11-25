@@ -42,6 +42,8 @@ rm -rf $ANYKERNEL_DIR/dtbo.img
 
 echo "****** build done! ******"
 echo ""
+echo "Your kernel zip name is $ZIPNAME"
+echo ""
 BUILD_END=$(date +"%s")
 DIFF=$(($BUILD_END - $BUILD_START))
 echo -e "Build completed in '$(($DIFF / 60))' minute(s) and '$(($DIFF % 60))' seconds"
