@@ -5,10 +5,7 @@ cd kernel_xiaomi_sm8250
 KERNEL_DIR=$PWD
 ANYKERNEL_DIR=$KERNEL_DIR/AnyKernel3
 CLANG_DIR=$MAIN/zyc-clang
-DATE_CLOCK=$(date +'%H%M-%d%m%Y')
 KERNELVER=$(make kernelversion)
-ZIPNAME=$KERNELVER-Oxygen+-$DATE_CLOCK.zip
-
 
 echo "cleaning..."
 mkdir -p out
@@ -25,12 +22,13 @@ make 				O=out \
 				CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
 				-j9
 
-
 mv $KERNEL_DIR/out/arch/arm64/boot/Image.gz-dtb $ANYKERNEL_DIR/
 mv $KERNEL_DIR/out/arch/arm64/boot/dtbo.img $ANYKERNEL_DIR/
 cd $ANYKERNEL_DIR
 echo ""
 echo "zipping"
+DATE_CLOCK=$(date +'%H%M-%d%m%Y')
+ZIPNAME=$KERNELVER-Oxygen+-$DATE_CLOCK.zip
 zip -r9 $ZIPNAME META-INF ramdisk tools anykernel.sh banner Image.gz-dtb dtbo.img
 mv $ZIPNAME $KERNEL_DIR/
 rm -rf $KERNEL_DIR/out/
