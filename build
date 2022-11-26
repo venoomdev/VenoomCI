@@ -9,7 +9,7 @@ KERNELVER=$(make kernelversion)
 
 echo "cleaning..."
 mkdir -p out
-
+clear
 BUILD_START=$(date +"%s")
 
 make O=out ARCH=arm64 oxygen_defconfig
