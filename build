@@ -7,6 +7,11 @@ ANYKERNEL_DIR=$KERNEL_DIR/AnyKernel3
 CLANG_DIR=$MAIN/zyc-clang
 KERNELVER=$(make kernelversion)
 
+if [[ -z "${JTHREAD}" ]]; then
+    COUNT="$(grep -c '^processor' /proc/cpuinfo)"
+    export JTHREAD="$((COUNT + 2))"
+fi
+
 echo "cleaning..."
 mkdir -p out
 clear
@@ -20,7 +25,7 @@ make 				O=out \
 				CC=clang \
 				CROSS_COMPILE=aarch64-linux-gnu- \
 				CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
-				-j9
+				-j${JTHREAD}
 
 mv $KERNEL_DIR/out/arch/arm64/boot/Image.gz-dtb $ANYKERNEL_DIR/
 mv $KERNEL_DIR/out/arch/arm64/boot/dtbo.img $ANYKERNEL_DIR/
