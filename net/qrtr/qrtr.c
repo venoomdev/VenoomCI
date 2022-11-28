@@ -775,15 +775,15 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	const struct qrtr_hdr_v2 *v2;
 	struct sk_buff *skb;
 	struct qrtr_cb *cb;
-	unsigned int size;
 	int errcode;
+	size_t size;
 	unsigned int ver;
 	size_t hdrlen;
 
 	if (len == 0 || len & 3)
 		return -EINVAL;
 
-	skb = alloc_skb_with_frags(sizeof(*v1), len, 0, &errcode, GFP_ATOMIC);
+	skb = alloc_skb_with_frags(sizeof(*v1), len, 0, &errcode, GFP_ATOMIC | __GFP_NOWARN);
 	if (!skb) {
 		skb = qrtr_get_backup(len);
 		if (!skb) {
@@ -849,7 +849,9 @@ int qrtr_endpoint_post(struct qrtr_endpoint *ep, const void *data, size_t len)
 	    cb->type != QRTR_TYPE_RESUME_TX)
 		goto err;
 
-	pm_wakeup_ws_event(node->ws, qrtr_wakeup_ms, true);
+	/* Force wakeup for all packets except for slpi and adsp */
+	if (node->nid != 9 && node->nid != 5)
+		pm_wakeup_ws_event(node->ws, qrtr_wakeup_ms, true);
 
 	skb->data_len = size;
 	skb->len = size;
@@ -1837,6 +1839,7 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 		 */
 		memset(addr, 0, sizeof(*addr));
 
+		cb = (struct qrtr_cb *)skb->cb;
 		addr->sq_family = AF_QIPCRTR;
 		addr->sq_node = cb->src_node;
 		addr->sq_port = cb->src_port;
