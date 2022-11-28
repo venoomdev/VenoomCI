@@ -492,12 +492,12 @@ int msm_atomic_prepare_fb(struct drm_plane *plane,
 	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
 }
 
-<<<<<<< HEAD
 extern struct device *connector_kdev;
 void complete_time_generate_event(struct drm_device *dev)
 {
 	sysfs_notify(&connector_kdev->kobj, NULL, "complete_commit_time");
-=======
+}
+
 static void complete_commit_cleanup(struct work_struct *work)
 {
 	struct msm_commit *c = container_of(work, typeof(*c), clean_work);
@@ -506,7 +506,6 @@ static void complete_commit_cleanup(struct work_struct *work)
 	drm_atomic_state_put(state);
 
 	commit_destroy(c);
->>>>>>> f29c47b08c39... drm/msm: Offload commit cleanup onto an unbound worker
 }
 
 /* The (potentially) asynchronous part of the commit.  At this point
@@ -549,35 +548,18 @@ static void complete_commit(struct msm_commit *c)
 
 	kms->funcs->complete_commit(kms, state);
 
-<<<<<<< HEAD
-	drm_atomic_state_put(state);
-
 	priv->complete_commit_time = ktime_get()/1000;
 
 	complete_time_generate_event(dev);
-=======
-    priv->commit_end_time =  ktime_get(); //commit end time
->>>>>>> f29c47b08c39... drm/msm: Offload commit cleanup onto an unbound worker
 
 	end_atomic(priv, c->crtc_mask, c->plane_mask);
 }
 
 static void _msm_drm_commit_work_cb(struct kthread_work *work)
 {
-<<<<<<< HEAD
-	struct msm_commit *commit = NULL;
 	ktime_t start, end;
 	s64 duration;
-
-	if (!work) {
-		DRM_ERROR("%s: Invalid commit work data!\n", __func__);
-		return;
-	}
-
-	commit = container_of(work, struct msm_commit, commit_work);
-=======
 	struct msm_commit *c = container_of(work, typeof(*c), commit_work);
->>>>>>> f29c47b08c39... drm/msm: Offload commit cleanup onto an unbound worker
 
 	start = ktime_get();
 	frame_stat_collector(0, COMMIT_START_TS);
@@ -586,11 +568,6 @@ static void _msm_drm_commit_work_cb(struct kthread_work *work)
 	complete_commit(c);
 	SDE_ATRACE_END("complete_commit");
 
-<<<<<<< HEAD
-	end = ktime_get();
-	duration = ktime_to_ns(ktime_sub(end, start));
-	frame_stat_collector(duration, COMMIT_END_TS);
-=======
 	if (c->nonblock) {
 		/* Offload the cleanup onto little CPUs (an unbound wq) */
 		INIT_WORK(&c->clean_work, complete_commit_cleanup);
@@ -598,7 +575,9 @@ static void _msm_drm_commit_work_cb(struct kthread_work *work)
 	} else {
 		complete_commit_cleanup(&c->clean_work);
 	}
->>>>>>> f29c47b08c39... drm/msm: Offload commit cleanup onto an unbound worker
+	end = ktime_get();
+	duration = ktime_to_ns(ktime_sub(end, start));
+	frame_stat_collector(duration, COMMIT_END_TS);
 }
 
 static struct msm_commit *commit_init(struct drm_atomic_state *state,
