@@ -484,18 +484,6 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 		 * program uses newlines in its paths then it can kick rocks.
 		 */
 		if (size > 1) {
-<<<<<<< HEAD
-			char *p;
-
-			p = d_path(&file->f_path, buf, size);
-			if (!IS_ERR(p)) {
-				size_t len;
-
-				/* Minus one to exclude the NUL character */
-				len = size - (p - buf) - 1;
-				if (likely(p > buf))
-					memmove(buf, p, len);
-=======
 			const int inlen = size - 1;
 			int outlen = inlen;
 			char *p;
@@ -509,7 +497,6 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 				else
 					len = strlen(p);
 				memmove(buf, p, len);
->>>>>>> 407655a1bbcd... mm: Micro-optimize PID map reads for arm64 while retaining output format
 				buf[len] = '\n';
 				seq_commit(m, len + 1);
 				return;
@@ -1897,7 +1884,14 @@ int reclaim_address_space(struct address_space *mapping,
 		}
 	}
 	rcu_read_unlock();
+#if defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+	/* relciam memory with scan walk info
+	 * while PROCESS_RECLAIM_ENHANCE is enabled.
+	 */
+	reclaimed = reclaim_pages_from_list(&page_list, NULL, NULL);
+#else
 	reclaimed = reclaim_pages_from_list(&page_list, NULL);
+#endif
 	rp->nr_reclaimed += reclaimed;
 
 	if (rp->nr_scanned >= rp->nr_to_reclaim)
@@ -1963,7 +1957,12 @@ cont:
 			break;
 	}
 	pte_unmap_unlock(pte - 1, ptl);
+#if defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+	reclaimed = reclaim_pages_from_list(&page_list, vma, NULL);
+#else
 	reclaimed = reclaim_pages_from_list(&page_list, vma);
+#endif
+
 	rp->nr_reclaimed += reclaimed;
 	rp->nr_to_reclaim -= reclaimed;
 	if (rp->nr_to_reclaim < 0)
