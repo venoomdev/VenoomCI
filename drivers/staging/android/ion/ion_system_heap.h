@@ -56,7 +56,7 @@ void free_buffer_page(struct ion_system_heap *heap,
 		      unsigned int order);
 int ion_system_heap_create_pools(struct ion_system_heap *sys_heap,
 				 struct ion_page_pool **pools,
-				 bool cached);
+				 bool cached, bool graphic_buffer_flag);
 
 void ion_system_heap_destroy_pools(struct ion_page_pool **pools);
 
