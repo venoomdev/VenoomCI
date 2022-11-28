@@ -1143,19 +1143,13 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 	exp_info.ops = &dma_buf_ops;
 	exp_info.size = buffer->size;
 	exp_info.flags = O_RDWR;
-<<<<<<< HEAD
-	exp_info.priv = buffer;
+	exp_info.priv = &buffer->iommu_data;
 	if (pid_info <= 0)
 		exp_info.exp_name = kasprintf(GFP_KERNEL, "%s-%s-%d-%s", KBUILD_MODNAME,
 					      heap->name, current->tgid, task_comm);
 	else
 		exp_info.exp_name = kasprintf(GFP_KERNEL, "%s-%s-%d-%s-caller|%d-%s|", KBUILD_MODNAME,
 					      heap->name, current->tgid, task_comm, pid_info, caller_task_comm);
-=======
-	exp_info.priv = &buffer->iommu_data;
-	exp_info.exp_name = kasprintf(GFP_KERNEL, "%s-%s-%d-%s", KBUILD_MODNAME,
-				      heap->name, current->tgid, task_comm);
->>>>>>> 9d544cfc9bfb... iommu: msm: Rewrite to improve clarity and performance
 
 	dmabuf = dma_buf_export(&exp_info);
 	if (IS_ERR(dmabuf)) {
