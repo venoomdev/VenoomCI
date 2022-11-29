@@ -320,7 +320,7 @@ unsigned long randomize_page(unsigned long start, unsigned long range)
 
 	return start + (get_random_long() % range << PAGE_SHIFT);
 }
-=======
+
 /*
  * Change backing file, only valid to use during initial VMA setup.
  */
@@ -332,7 +332,6 @@ void vma_set_file(struct vm_area_struct *vma, struct file *file)
 	fput(file);
 }
 EXPORT_SYMBOL(vma_set_file);
->>>>>>> 077c073f0b84... mm: introduce vma_set_file function v5
 
 #if defined(CONFIG_MMU) && !defined(HAVE_ARCH_PICK_MMAP_LAYOUT)
 void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
