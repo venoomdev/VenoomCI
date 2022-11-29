@@ -24,8 +24,9 @@
  * modify it under the terms of the GNU General Public License Version 2
  * as published by the Free Software Foundation.
  */
-
-#define FPC_DRM_INTERFACE_WA
+#if IS_ENABLED(CONFIG_MI_DRM_OPT)
+#define FPC_DRM_INTERFACE
+#endif
 
 #define CONFIG_FINGERPRINT_FP_VREG_CONTROL
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -51,7 +52,10 @@
 #define FPC_GPIO_NO_DEFINED -2
 #define FPC_GPIO_REQUEST_FAIL -3
 #define FPC_TTW_HOLD_TIME 2000
+
+#if IS_ENABLED(CONFIG_MI_DRM_OPT)
 #define FP_UNLOCK_REJECTION_TIMEOUT (FPC_TTW_HOLD_TIME - 500)
+#endif
 
 #define RESET_LOW_SLEEP_MIN_US 5000
 #define RESET_LOW_SLEEP_MAX_US (RESET_LOW_SLEEP_MIN_US + 100)
@@ -755,6 +759,7 @@ static ssize_t irq_ack(struct device *dev,
 
 static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
 
+#if IS_ENABLED(CONFIG_MI_DRM_OPT)
 static ssize_t fingerdown_wait_set(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
@@ -774,6 +779,7 @@ static ssize_t fingerdown_wait_set(struct device *dev,
 }
 
 static DEVICE_ATTR(fingerdown_wait, S_IWUSR, NULL, fingerdown_wait_set);
+#endif
 
 static ssize_t vendor_update(struct device *dev,
 			     struct device_attribute *attr,
@@ -829,7 +835,7 @@ static const struct attribute_group attribute_group = {
 	.attrs = attributes,
 };
 
-#ifndef FPC_DRM_INTERFACE_WA
+#ifdef FPC_DRM_INTERFACE
 static void notification_work(struct work_struct *work)
 {
 	pr_info("%s: unblank\n", __func__);
@@ -851,13 +857,13 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 	mutex_unlock(&fpc1020->lock);
 
 	sysfs_notify(&fpc1020->dev->kobj, NULL, dev_attr_irq.attr.name);
+#if IS_ENABLED(CONFIG_MI_DRM_OPT)
 	if (fpc1020->wait_finger_down && fpc1020->fb_black && fpc1020->prepared) {
 		pr_info("%s enter fingerdown & fb_black then schedule_work\n", __func__);
 		fpc1020->wait_finger_down = false;
-#ifndef FPC_DRM_INTERFACE_WA
 		schedule_work(&fpc1020->work);
-#endif
 	}
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -1017,9 +1023,9 @@ static int fpc1020_probe(struct platform_device *pdev)
 		(void)device_prepare(fpc1020, true);
 	}
 
+#if IS_ENABLED(CONFIG_MI_DRM_OPT)
 	fpc1020->fb_black = false;
 	fpc1020->wait_finger_down = false;
-#ifndef FPC_DRM_INTERFACE_WA
 	INIT_WORK(&fpc1020->work, notification_work);
 #endif
 	fpc1020->fb_notifier = fpc_notif_block;
