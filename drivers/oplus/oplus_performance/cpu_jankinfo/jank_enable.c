@@ -12,7 +12,7 @@
 #include <uapi/linux/sched/types.h>
 
 #include "../../../fs/proc/internal.h"
-#include "jank_enable.h"
+#include <soc/oplus/cpu_jankinfo/jank_enable.h>
 
 unsigned int cpu_jank_info_enable;
 

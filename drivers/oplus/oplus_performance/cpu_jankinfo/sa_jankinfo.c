@@ -6,7 +6,7 @@
 
 #include <linux/kallsyms.h>
 #include <linux/trace_events.h>
-#include "sa_jankinfo.h"
+#include <soc/oplus/cpu_jankinfo/sa_jankinfo.h>
 
 enum trace_type {
 	INVALID_TRACE_TYPE = -1,

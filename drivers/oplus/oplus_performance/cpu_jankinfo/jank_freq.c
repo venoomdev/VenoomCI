@@ -11,8 +11,8 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_topology.h"
-#include "jank_freq.h"
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
+#include <soc/oplus/cpu_jankinfo/jank_freq.h>
 
 struct cur_freq {
 	u64 last_update_time;

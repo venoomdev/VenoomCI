@@ -56,6 +56,7 @@ struct sighand_struct;
 struct signal_struct;
 struct task_delay_info;
 struct task_group;
+struct rq;
 
 /*
  * Task state bitmask. NOTE! These bits are also
@@ -806,6 +807,17 @@ struct wake_q_node {
 	struct wake_q_node *next;
 };
 
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_CPU_JANKINFO)
+#define OPLUS_NR_CPUS (8)
+/* hot-thread */
+struct task_record {
+#define RECOED_WINSIZE			(1 << 8)
+#define RECOED_WINIDX_MASK		(RECOED_WINSIZE - 1)
+	u8 winidx;
+	u8 count;
+};
+#endif
+
 #if defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
 union reclaim_limit {
 	unsigned long stop_jiffies;
@@ -1523,6 +1535,23 @@ struct task_struct {
 	 */
 	void *kperfevents;
 #endif
+
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_CPU_JANKINFO)
+	struct task_record record[OPLUS_NR_CPUS];	/* 2*u64 */
+#endif
+
+#ifdef CONFIG_OPLUS_JANK_INFO
+	int jank_trace;
+	struct jank_monitor_info jank_info;
+	unsigned in_mutex:1;
+	unsigned in_downread:1;
+	unsigned in_downwrite:1;
+	unsigned in_futex:1;
+	unsigned in_binder:1;
+	unsigned in_epoll:1;
+#endif
+
+>>>>>>> 234afdc87498... Import oplus feature and changes
 	/* task is frozen/stopped (used by the cgroup freezer) */
 	ANDROID_KABI_USE(1, unsigned frozen:1);
 

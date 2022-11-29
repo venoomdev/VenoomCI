@@ -12,9 +12,11 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_debug.h"
-#include "jank_cpuload.h"
-#include "jank_topology.h"
+#include <soc/oplus/cpu_jankinfo/jank_debug.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuload.h>
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
+
+#include <../kernel/sched/sched.h>
 
 #define CPU_NUMS	8
 

@@ -2,20 +2,20 @@
 /*
  * Copyright (C) 2022 Oplus. All rights reserved.
  */
-#include "jank_base.h"
-#include "jank_tasktrack.h"
-#include "jank_hotthread.h"
-#include "jank_topology.h"
-#include "jank_loadindicator.h"
-#include "jank_freq.h"
-#include "jank_onlinecpu.h"
-#include "jank_cputime.h"
-#include "jank_cpuload.h"
-#include "jank_cpuset.h"
-#include "jank_version.h"
-#include "jank_enable.h"
-#include "jank_debug.h"
-#include "jank_cpuloadmonitor.h"
+#include <soc/oplus/cpu_jankinfo/jank_base.h>
+#include <soc/oplus/cpu_jankinfo/jank_tasktrack.h>
+#include <soc/oplus/cpu_jankinfo/jank_hotthread.h>
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
+#include <soc/oplus/cpu_jankinfo/jank_loadindicator.h>
+#include <soc/oplus/cpu_jankinfo/jank_freq.h>
+#include <soc/oplus/cpu_jankinfo/jank_onlinecpu.h>
+#include <soc/oplus/cpu_jankinfo/jank_cputime.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuload.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuset.h>
+#include <soc/oplus/cpu_jankinfo/jank_version.h>
+#include <soc/oplus/cpu_jankinfo/jank_enable.h>
+#include <soc/oplus/cpu_jankinfo/jank_debug.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuloadmonitor.h>
 
 static struct proc_dir_entry *d_task_info;
 static struct proc_dir_entry *d_cpu_jank_info;

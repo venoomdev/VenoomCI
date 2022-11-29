@@ -11,7 +11,7 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_version.h"
+#include <soc/oplus/cpu_jankinfo/jank_version.h>
 
 static int proc_version_show(struct seq_file *m, void *v)
 {

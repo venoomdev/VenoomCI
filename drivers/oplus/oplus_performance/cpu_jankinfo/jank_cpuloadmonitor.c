@@ -19,8 +19,10 @@
 #include <linux/cpuset.h>
 
 #include "../../../fs/proc/internal.h"
-#include "jank_cpuloadmonitor.h"
-#include "jank_netlink.h"
+#include <soc/oplus/cpu_jankinfo/jank_cpuloadmonitor.h>
+#include <soc/oplus/cpu_jankinfo/jank_netlink.h>
+
+#include <../kernel/sched/sched.h>
 
 #define CPU_LOAD_TIMER_RATE 5
 #define CPU_HIGH_LOAD_THRESHOLD 4

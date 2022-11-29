@@ -11,9 +11,9 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_hotthread.h"
-#include "jank_topology.h"
-#include "jank_tasktrack.h"
+#include <soc/oplus/cpu_jankinfo/jank_tasktrack.h>
+#include <soc/oplus/cpu_jankinfo/jank_hotthread.h>
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
 
 static struct task_track_cpu task_track[CPU_NUMS];
 

@@ -27,6 +27,11 @@
 #include <linux/dyn_sync_cntrl.h>
 #endif
 
+// Add for get cpu load
+#ifdef CONFIG_OPLUS_HEALTHINFO
+#include <soc/oplus/healthinfo.h>
+#endif
+
 #define VALID_FLAGS (SYNC_FILE_RANGE_WAIT_BEFORE|SYNC_FILE_RANGE_WRITE| \
 			SYNC_FILE_RANGE_WAIT_AFTER)
 
@@ -252,6 +257,11 @@ static int do_fsync(unsigned int fd, int datasync)
 {
 	struct fd f;
 	int ret = -EBADF;
+	// Add for record  fsync  time
+#ifdef CONFIG_OPLUS_HEALTHINFO
+    unsigned long fsync_time = jiffies;
+#endif
+	
 
 #ifdef CONFIG_ONEPLUS_HEALTHINFO
 	unsigned long oneplus_fsync_time = jiffies;
@@ -269,6 +279,10 @@ static int do_fsync(unsigned int fd, int datasync)
 		fdput(f);
 		inc_syscfs(current);
 	}
+	// Add for record  fsync  time
+#ifdef CONFIG_OPLUS_HEALTHINFO
+	ohm_schedstats_record(OHM_SCHED_FSYNC, current, jiffies_to_msecs(jiffies - fsync_time));
+#endif
 	return ret;
 }
 

@@ -152,6 +152,11 @@ struct cpufreq_policy {
 
 	/* For cpufreq driver's internal use */
 	void			*driver_data;
+#ifdef CONFIG_OPLUS_HEALTHINFO
+	/* For get changed freq info */
+	char 			change_comm[TASK_COMM_LEN];
+	unsigned int 	org_max;
+#endif
 };
 
 /* Only for ACPI */
