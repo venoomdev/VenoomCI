@@ -1444,6 +1444,10 @@ struct task_struct {
 	/* Timestamp for last schedule: */
 	unsigned long long		ftrace_timestamp;
 
+#ifdef CONFIG_ANDROID_SIMPLE_LMK
+	struct task_struct		*simple_lmk_next;
+#endif
+
 	/*
 	 * Number of functions that haven't been traced
 	 * because of depth overrun:
