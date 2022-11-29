@@ -38,6 +38,11 @@
 #include "ion.h"
 #include "ion_secure_util.h"
 
+#if defined(CONFIG_OPLUS_HEALTHINFO) && defined (CONFIG_OPLUS_MEM_MONITOR)
+#include <linux/healthinfo/memory_monitor.h>
+#endif
+#include <linux/healthinfo/ion.h>
+
 static struct ion_device *internal_dev;
 static atomic_long_t total_heap_bytes;
 
@@ -170,6 +175,8 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	ion_buffer_add(dev, buffer);
 	mutex_unlock(&dev->buffer_lock);
 	atomic_long_add(len, &heap->total_allocated);
+	if (ion_cnt_enable)
+		atomic_long_add(buffer->size, &ion_total_size);
 	atomic_long_add(len, &total_heap_bytes);
 	return buffer;
 
@@ -186,6 +193,8 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		pr_warn_ratelimited("ION client likely missing a call to dma_buf_kunmap or dma_buf_vunmap\n");
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	}
+	if (ion_cnt_enable)
+		atomic_long_sub(buffer->size, &ion_total_size);
 	buffer->heap->ops->free(buffer);
 	spin_lock(&buffer->heap->stat_lock);
 	buffer->heap->num_of_buffers--;
@@ -1062,6 +1071,26 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.get_flags = ion_dma_buf_get_flags,
 };
 
+#ifdef CONFIG_OPLUS_ION_BOOSTPOOL
+pid_t alloc_svc_tgid;
+
+/* TODO use task comm may not safe. */
+inline is_allocator_svc(struct task_struct *tsk)
+{
+	return (tsk->tgid == alloc_svc_tgid);
+}
+
+static inline unsigned int boost_pool_extra_flags(unsigned int heap_id_mask)
+{
+	unsigned int extra_flags = 0;
+
+	if ((heap_id_mask & (1 << ION_CAMERA_HEAP_ID)) || is_allocator_svc(current))
+		extra_flags |= ION_FLAG_CAMERA_BUFFER;
+
+	return extra_flags;
+}
+#endif /* CONFIG_OPLUS_ION_BOOSTPOOL */
+
 struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 				 unsigned int flags, int pid_info)
 {
@@ -1076,6 +1105,12 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 	struct task_struct *p = current->group_leader;
 	unsigned int system_heap_id = ION_HEAP(ION_SYSTEM_HEAP_ID);
 	unsigned int system_heap_id1 = ION_HEAP(ION_SYSTEM_HEAP_ID) | ION_HEAP(ION_CAMERA_HEAP_ID);
+#ifdef CONFIG_OPLUS_ION_BOOSTPOOL
+	unsigned int extra_flags = boost_pool_extra_flags(heap_id_mask);
+#endif /* CONFIG_OPLUS_ION_BOOSTPOOL */
+#if defined(CONFIG_OPLUS_HEALTHINFO) && defined (CONFIG_OPLUS_MEM_MONITOR)
+	unsigned long oplus_ionwait_start = jiffies;
+#endif
 
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
 		 len, heap_id_mask, flags);
@@ -1128,6 +1163,12 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 		/* if the caller didn't specify this heap id */
 		if (!((1 << heap->id) & heap_id_mask))
 			continue;
+#ifdef CONFIG_OPLUS_ION_BOOSTPOOL
+		if (heap->id == ION_SYSTEM_HEAP_ID) {
+			buffer = ion_buffer_create(heap, dev, len,
+						   flags | extra_flags);
+		} else
+#endif
 		buffer = ion_buffer_create(heap, dev, len, flags);
 		if (!IS_ERR(buffer) || PTR_ERR(buffer) == -EINTR)
 			break;
@@ -1157,6 +1198,9 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 		kfree(exp_info.exp_name);
 	}
 
+#if defined(CONFIG_OPLUS_HEALTHINFO) && defined (CONFIG_OPLUS_MEM_MONITOR)
+	ionwait_monitor(jiffies_to_msecs(jiffies - oplus_ionwait_start));
+#endif
 	return dmabuf;
 }
 

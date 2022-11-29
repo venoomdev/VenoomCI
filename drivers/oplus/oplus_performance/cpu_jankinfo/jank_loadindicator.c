@@ -11,7 +11,9 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_loadindicator.h"
+#include <soc/oplus/cpu_jankinfo/jank_loadindicator.h>
+
+#include <../kernel/sched/sched.h>
 
 struct load_record recorder;
 

@@ -6,7 +6,7 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 
-#include "jank_base.h"
+#include <soc/oplus/cpu_jankinfo/jank_base.h>
 
 #ifdef JANK_SYSTRACE_DEBUG
 #ifdef JANK_DEBUG

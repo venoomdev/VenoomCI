@@ -3,12 +3,12 @@
  * Copyright (C) 2022 Oplus. All rights reserved.
  */
 
-#include "jank_base.h"
-#include "jank_tasktrack.h"
-#include "jank_topology.h"
-#include "jank_cpuload.h"
-#include "jank_netlink.h"
-#include "jank_cpuset.h"
+#include <soc/oplus/cpu_jankinfo/jank_base.h>
+#include <soc/oplus/cpu_jankinfo/jank_tasktrack.h>
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuload.h>
+#include <soc/oplus/cpu_jankinfo/jank_netlink.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuset.h>
 
 int s_dstate_threshold = S_DSTATE_THRESHOLD;
 int s_silver_usage = S_SILVER_USAGE;

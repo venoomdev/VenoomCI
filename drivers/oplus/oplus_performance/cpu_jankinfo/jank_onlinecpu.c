@@ -11,8 +11,8 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_onlinecpu.h"
-#include "jank_topology.h"
+#include <soc/oplus/cpu_jankinfo/jank_onlinecpu.h>
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
 
 struct number_cpus nb_cpus;
 

@@ -84,7 +84,6 @@
 
 #include "tune.h"
 
-struct rq;
 struct cpuidle_state;
 
 extern __read_mostly bool sched_predl;

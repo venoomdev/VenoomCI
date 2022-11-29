@@ -11,14 +11,16 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_hotthread.h"
-#include "jank_freq.h"
-#include "jank_loadindicator.h"
-#include "jank_cpuload.h"
-#include "jank_cputime.h"
-#include "jank_topology.h"
-#include "jank_tasktrack.h"
-#include "jank_onlinecpu.h"
+#include <soc/oplus/cpu_jankinfo/jank_hotthread.h>
+#include <soc/oplus/cpu_jankinfo/jank_freq.h>
+#include <soc/oplus/cpu_jankinfo/jank_loadindicator.h>
+#include <soc/oplus/cpu_jankinfo/jank_cpuload.h>
+#include <soc/oplus/cpu_jankinfo/jank_cputime.h>
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
+#include <soc/oplus/cpu_jankinfo/jank_tasktrack.h>
+#include <soc/oplus/cpu_jankinfo/jank_onlinecpu.h>
+
+#include <../kernel/sched/sched.h>
 
 struct cgropu_delta {
 	u64 delta;
@@ -85,7 +87,7 @@ static __maybe_unused void get_cgroup_delta(u64 now,
 	split_window(now, delta, &d->delta_a, &d->delta_cnt, &d->delta_b);
 }
 
-#if IS_ENABLED(CONFIG_SCHED_WALT) && IS_ENABLED(CONFIG_OPLUS_SYSTEM_KERNEL_QCOM)
+#if IS_ENABLED(CONFIG_SCHED_WALT)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
 static inline u64 scale_exec_time(u64 delta, struct rq *rq)
 {

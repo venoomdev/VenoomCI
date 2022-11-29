@@ -11,7 +11,7 @@
 #include <linux/completion.h>
 #include <uapi/linux/sched/types.h>
 
-#include "jank_topology.h"
+#include <soc/oplus/cpu_jankinfo/jank_topology.h>
 
 struct cluster_info cluster[CPU_NUMS];
 u32 cluster_num;

@@ -3,8 +3,8 @@
  * Copyright (C) 2022 Oplus. All rights reserved.
  */
 
-#include "jank_netlink.h"
-#include "jank_base.h"
+#include <soc/oplus/cpu_jankinfo/jank_netlink.h>
+#include <soc/oplus/cpu_jankinfo/jank_base.h>
 
 #define MAX_DATA_LEN 200
 static __u32 recv_pid;

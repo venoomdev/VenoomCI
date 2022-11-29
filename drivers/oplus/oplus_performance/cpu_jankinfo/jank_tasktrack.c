@@ -8,8 +8,8 @@
 #include <linux/kallsyms.h>
 #include <linux/trace_events.h>
 
-#include "jank_tasktrack.h"
-#include "sa_jankinfo.h"
+#include <soc/oplus/cpu_jankinfo/jank_tasktrack.h>
+#include <soc/oplus/cpu_jankinfo/sa_jankinfo.h>
 
 #if IS_ENABLED(CONFIG_JANK_CPUSET)
 #include "jank_cpuset.h"
