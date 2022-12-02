@@ -25,8 +25,15 @@ extern bool use_vload;
 extern capacity_spare_without(int cpu, struct task_struct *p);
 extern struct sched_cluster *sched_cluster[];
 extern int num_sched_clusters;
+#ifdef OPLUS_FEATURE_SCHED_ASSIST
 extern int sysctl_slide_boost_enabled;
 extern int sysctl_input_boost_enabled;
+#else
+int sysctl_slide_boost_enabled;
+module_param(sysctl_slide_boost_enabled, int, 0644);
+int sysctl_input_boost_enabled;
+module_param(sysctl_input_boost_enabled, int, 0644);
+#endif
 extern bool up_migrate;
 extern u64 last_migrate_time;
 #define DEFAULT_ROLL_OVER_INTERVAL 1000000 /* ns */
