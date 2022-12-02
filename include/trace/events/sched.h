@@ -1737,25 +1737,47 @@ TRACE_EVENT(sched_isolate,
 		__entry->time, __entry->isolate)
 );
 
-#ifndef CONFIG_SCHED_WALT
+//<<<<<<< HEAD
+//#ifndef CONFIG_SCHED_WALT
 
-TRACE_EVENT(sched_set_boost,
+//TRACE_EVENT(sched_set_boost,
+//
+//	TP_PROTO(int type),
+//
+//	TP_ARGS(type),
+//
+//	TP_STRUCT__entry(
+//		__field(int, type			)
+//	),
+//
+//	TP_fast_assign(
+//		__entry->type = type;
+//	),
+//
+//	TP_printk("type %d", __entry->type)
+//);
+//#endif /*CONFIG_SCHED_WALT*/
+//=======
+#ifdef CONFIG_OPLUS_FEATURE_GAME_OPT
+TRACE_EVENT(game_opt_info,
+	TP_PROTO(char * str, unsigned long frame_util),
 
-	TP_PROTO(int type),
-
-	TP_ARGS(type),
+	TP_ARGS(str, frame_util),
 
 	TP_STRUCT__entry(
-		__field(int, type			)
+                __array(char, name, TASK_COMM_LEN)
+		__field(unsigned long,            frame_util)
 	),
 
 	TP_fast_assign(
-		__entry->type = type;
+		__entry->frame_util           = frame_util;
+                memcpy(__entry->name, str, strlen(str));
 	),
 
-	TP_printk("type %d", __entry->type)
+	TP_printk("name = %s, val =%lu",__entry->name, __entry->frame_util)
 );
-#endif /*CONFIG_SCHED_WALT*/
+#endif
+//>>>>>>> 5df87172c45e (Import oplus feature game opt)
 
 #include "walt.h"
 #endif /* CONFIG_SMP */
