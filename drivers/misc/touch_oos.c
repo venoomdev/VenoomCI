@@ -31,6 +31,8 @@ MODULE_VERSION("0.0.5");
 #define tp_g "touchpanel/gesture_enable"
 #define tpg "tp_gesture"
 #define tpdir_fts "devices/platform/soc/a98000.i2c/i2c-3/3-0038/fts_gesture_mode"
+#define input_boost "/sys/module/frame_boost_group/parameters/sysctl_input_boost_enabled"
+#define slide_boost "/sys/module/frame_boost_group/parameters/sysctl_slide_boost_enabled"
 
 #ifdef CONFIG_ARCH_SDM845
 bool capacitive_keys_enabled;
@@ -89,8 +91,11 @@ bool inline tp_check_file(const char *name)
 #endif
 
 static int __init d8g_touch_oos_init(void) {
+//#if defined(CONFIG_BOARD_XIAOMI_SM8250) || defined(CONFIG_MACH_XIAOMI_SM8250) || defined(CONFIG_ARCH_SM8150)
 	char *driver_path;
+//#endif
     static struct proc_dir_entry *tp_dir;
+ //   static struct proc_dir_entry *tp_dir_entry;
     static struct proc_dir_entry *tp_oos;
 	int ret = 0;
 
@@ -117,6 +122,14 @@ static int __init d8g_touch_oos_init(void) {
 	tp_oos = proc_symlink(tp_g, NULL, "double_tap_enable");
 	if (!tp_oos)
 		ret = -ENOMEM;
+#ifndef OPLUS_FEATURE_SCHED_ASSIST
+	tp_oos = proc_symlink("input_boost_enabled", NULL, input_boost);
+	if (!tp_oos)
+		ret = -ENOMEM;
+	tp_oos = proc_symlink("slide_boost_enabled", NULL, slide_boost);
+	if (!tp_oos)
+		ret = -ENOMEM;
+#endif
 #else
 	touchpanel_kobj = kobject_create_and_add("touchpanel", NULL);
 	if (!touchpanel_kobj)
@@ -142,7 +155,15 @@ static int __init d8g_touch_oos_init(void) {
 		if (!tp_oos)
 			ret = -ENOMEM;
 	}
-
+		
+	/*
+	sprintf(driver_path, "/sys%s", tp_dt);
+	pr_err("%s: driver_path=%s\n", __func__, driver_path);
+	tp_oos = proc_symlink(tp_g, NULL, driver_path);
+	if (!tp_oos) {
+		ret = -ENOMEM;
+	}
+	kfree(driver_path);*/
 	tp_oos = proc_symlink(d_tap, NULL, "gesture_enable");
 	if (!tp_oos)
 		ret = -ENOMEM;
