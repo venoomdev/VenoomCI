@@ -122,6 +122,7 @@ static int __init d8g_touch_oos_init(void) {
 	tp_oos = proc_symlink(tp_g, NULL, "double_tap_enable");
 	if (!tp_oos)
 		ret = -ENOMEM;
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
 #ifndef OPLUS_FEATURE_SCHED_ASSIST
 	tp_oos = proc_symlink("input_boost_enabled", NULL, input_boost);
 	if (!tp_oos)
@@ -129,6 +130,7 @@ static int __init d8g_touch_oos_init(void) {
 	tp_oos = proc_symlink("slide_boost_enabled", NULL, slide_boost);
 	if (!tp_oos)
 		ret = -ENOMEM;
+#endif
 #endif
 #else
 	touchpanel_kobj = kobject_create_and_add("touchpanel", NULL);
