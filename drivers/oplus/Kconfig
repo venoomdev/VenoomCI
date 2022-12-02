@@ -25,6 +25,7 @@ config OPLUS_FEATURE_CPU_JANKINFO
 	  define this config to enable cpu jankinfo.
 
 #source "drivers/oplus/charger/Kconfig"
+source "drivers/oplus/game_opt/Kconfig"
 #source "drivers/oplus/system/cmdline_parser/Kconfig"
 source "drivers/oplus/system/oplus_pmic_monitor/Kconfig"
 source "drivers/oplus/oplus_performance/healthinfo/main/Kconfig"
