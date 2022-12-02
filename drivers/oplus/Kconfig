@@ -18,6 +18,7 @@ config OPLUS_FEATURE_SELINUX_CONTROL_LOG
   help
 	define this config to control selinux log.
 
+source "drivers/oplus/game_opt/Kconfig"
 source "drivers/oplus/oplus_pmic_monitor/Kconfig"
 source "drivers/oplus/oplus_performance/oplus_mm/process_reclaim/Kconfig"
 source "drivers/oplus/oplus_performance/oplus_mm/zram_opt/Kconfig"
