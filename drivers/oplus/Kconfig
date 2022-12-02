@@ -28,6 +28,8 @@ config OPLUS_FEATURE_CPU_JANKINFO
 #source "drivers/oplus/system/cmdline_parser/Kconfig"
 source "drivers/oplus/system/oplus_pmic_monitor/Kconfig"
 source "drivers/oplus/oplus_performance/healthinfo/main/Kconfig"
+source "drivers/oplus/oplus_performance/inputboost_v4/Kconfig"
+source "drivers/oplus/oplus_performance/im/Kconfig"
 source "drivers/oplus/oplus_performance/oplus_mm/process_reclaim/Kconfig"
 source "drivers/oplus/oplus_performance/oplus_mm/zram_opt/Kconfig"
 
