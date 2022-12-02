@@ -110,6 +110,16 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
 
+#ifdef CONFIG_OPLUS_JANK_INFO
+#include <linux/healthinfo/jank_monitor.h>
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_IM
+#include <linux/im/im.h>
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+#include <linux/tuning/frame_init.h>
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
+ 
 /*
  * Minimum number of threads to boot the kernel
  */
@@ -2043,6 +2053,14 @@ static __latent_entropy struct task_struct *copy_process(
 	p->kperfevents = NULL;
 #endif
 
+#ifdef CONFIG_OPLUS_JANK_INFO
+	p->jank_trace = 0;
+	memset(&p->jank_info, 0, sizeof(struct jank_monitor_info));
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+	init_task_frame(p);
+#endif
+
 	/* Perform scheduler related setup. Assign this task to a CPU. */
 	retval = sched_fork(clone_flags, p);
 	if (retval)
@@ -2275,6 +2293,11 @@ static __latent_entropy struct task_struct *copy_process(
 	uprobe_copy_process(p, clone_flags);
 
 	copy_oom_score_adj(clone_flags, p);
+	if (!IS_ERR(p)) {
+#ifdef CONFIG_OPLUS_FEATURE_IM
+		im_tsk_init_flag((void *) p);
+#endif
+	}
 
 	return p;
 

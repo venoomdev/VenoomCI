@@ -43,9 +43,12 @@ bool is_top(struct task_struct *p)
 void task_rename_hook(struct task_struct *p)
 {
 	struct task_struct *leader = p->group_leader;
+#ifdef OPLUS_FEATURE_SCHED_ASSIST
 	int im_flag = IM_WEBVIEW;
 	char *buf = p->comm;
-	int i = 0, j = 0;
+	int j = 0;
+#endif /* OPLUS_FEATURE_SCHED_ASSIST */
+	int i = 0;
 	size_t tlen = 0;
 
 	for (i = 0; i < WEB_ID_MAX; ++i) {

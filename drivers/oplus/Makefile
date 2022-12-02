@@ -20,3 +20,6 @@ obj-$(CONFIG_NANDSWAP)		+= oplus_performance/oplus_nandswap/
 
 obj-y	+= charger/oplus_chg_symbol.o
 obj-y	+= oplus_performance/healthinfo/fs/cpuload.o oplus_performance/healthinfo/fs/fg_uid/fg_uid.o
+
+obj-$(CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4) += oplus_performance/inputboost_v4/
+obj-y += oplus_performance/im/

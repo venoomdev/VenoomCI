@@ -30,6 +30,10 @@
 #include <linux/task_io_accounting.h>
 #include <linux/rseq.h>
 
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+#include <linux/tuning/frame_boost_group.h>
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
+
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
 struct backing_dev_info;
@@ -226,6 +230,8 @@ enum fps {
 	} while (0)
 
 #endif
+
+extern int sysctl_slide_boost_enabled;
 
 /* Task command name length: */
 #define TASK_COMM_LEN			16
@@ -640,6 +646,12 @@ struct ravg {
 	u16 pred_demand_scaled;
 	u64 active_time;
 	u64 last_win_size;
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+	u64 curr_window_exec;
+	u64 prev_window_exec;
+	u64 curr_window_scale;
+	u64 prev_window_scale;
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
 };
 #else
 static inline void sched_exit(struct task_struct *p) { }
@@ -1551,6 +1563,16 @@ struct task_struct {
 	unsigned in_epoll:1;
 #endif
 
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	int im_flag;
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+	struct frame_boost_group *fbg;
+	struct list_head fbg_list;
+	int fbg_depth;
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
+
 	/* task is frozen/stopped (used by the cgroup freezer) */
 	ANDROID_KABI_USE(1, unsigned frozen:1);
 
@@ -2005,11 +2027,19 @@ extern void kick_process(struct task_struct *tsk);
 static inline void kick_process(struct task_struct *tsk) { }
 #endif
 
+#ifdef CONFIG_OPLUS_ION_BOOSTPOOL
+extern pid_t alloc_svc_tgid;
+#endif /* CONFIG_OPLUS_ION_BOOSTPOOL */
+
 extern void __set_task_comm(struct task_struct *tsk, const char *from, bool exec);
 
 static inline void set_task_comm(struct task_struct *tsk, const char *from)
 {
 	__set_task_comm(tsk, from, false);
+#ifdef CONFIG_OPLUS_ION_BOOSTPOOL
+	if (!strncmp(from, "allocator-servi", TASK_COMM_LEN))
+		alloc_svc_tgid = tsk->tgid;
+#endif /* CONFIG_OPLUS_ION_BOOSTPOOL */
 }
 
 extern char *__get_task_comm(char *to, size_t len, struct task_struct *tsk);

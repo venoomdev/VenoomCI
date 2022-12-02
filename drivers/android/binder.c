@@ -88,6 +88,10 @@
 
 #include "linux/trace_clock.h"
 
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+#include <linux/tuning/frame_boost_group.h>
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
+
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_CPU_JANKINFO)
 #include <soc/oplus/cpu_jankinfo/jank_tasktrack.h>
 #endif
@@ -2949,6 +2953,11 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 		binder_transaction_priority(thread->task, t, node_prio,
 					    node->inherit_rt);
 		binder_enqueue_thread_work_ilocked(thread, &t->work);
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+		if (t->from) {
+			binder_thread_set_fbg(thread->task, t->from->task, oneway);
+		}
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
 	} else if (!pending_async) {
 		binder_enqueue_work_ilocked(&t->work, &proc->todo);
 	} else {
@@ -3618,6 +3627,9 @@ static void binder_transaction(struct binder_proc *proc,
 	t->work.type = BINDER_WORK_TRANSACTION;
 
 	if (reply) {
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+		bool oneway = !!(t->flags & TF_ONE_WAY);
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
 		binder_enqueue_thread_work(thread, tcomplete);
 		binder_inner_proc_lock(target_proc);
 		if (target_thread->is_dead) {
@@ -3631,6 +3643,9 @@ static void binder_transaction(struct binder_proc *proc,
 		binder_inner_proc_unlock(target_proc);
 
 		wake_up_interruptible_sync(&target_thread->wait);
+#ifdef CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4
+		binder_thread_remove_fbg(thread->task, oneway);
+#endif /* CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4 */
 		binder_thread_restore_inherit_top_app(thread);
 		binder_restore_priority(current, in_reply_to->saved_priority);
 		binder_free_transaction(in_reply_to);
