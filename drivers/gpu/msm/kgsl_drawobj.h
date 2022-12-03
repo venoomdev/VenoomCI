@@ -122,22 +122,6 @@ struct kgsl_drawobj_timeline {
 	int count;
 };
 
-#define KGSL_FENCE_NAME_LEN 74
-
-struct fence_info {
-	char name[KGSL_FENCE_NAME_LEN];
-};
-
-struct event_fence_info {
-	struct fence_info *fences;
-	int num_fences;
-};
-
-struct event_timeline_info {
-	u64 seqno;
-	u32 timeline;
-};
-
 /**
  * struct kgsl_drawobj_sync_event
  * @id: Identifer (position within the pending bitmap)
@@ -159,11 +143,6 @@ struct kgsl_drawobj_sync_event {
 	struct kgsl_device *device;
 	/** @priv: Type specific private information */
 	void *priv;
-	/**
-	 * @fence: Pointer to a dma fence for KGSL_CMD_SYNCPOINT_TYPE_TIMELINE
-	 * events
-	 */
-	struct dma_fence *fence;
 	/** @cb: Callback struct for KGSL_CMD_SYNCPOINT_TYPE_TIMELINE */
 	struct dma_fence_cb cb;
 	/** @work : irq worker for KGSL_CMD_SYNCPOINT_TYPE_TIMELINE */
