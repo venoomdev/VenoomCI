@@ -375,13 +375,13 @@ static void mhi_bl_dl_cb(struct mhi_device *mhi_device,
 	/* force a null at last character */
 	buf[mhi_result->bytes_xferd - 1] = 0;
 
-	pSerial_number = strnstr(buf, const_serial_number, sizeof(buf));
+	pSerial_number = strstr(buf, const_serial_number);
 	if (pSerial_number != NULL)
 		strscpy(sdx55m_cpuid,
 			pSerial_number + strlen(const_serial_number),
 			strlen("0x3de665bd"));
 
-	pSerial_number = strnstr(buf, const_sdx55m_fuse, sizeof(buf));
+	pSerial_number = strstr(buf, const_sdx55m_fuse);
 	if (pSerial_number != NULL)
 		strscpy(sdx55m_fuse,
 			pSerial_number + strlen(const_sdx55m_fuse),
