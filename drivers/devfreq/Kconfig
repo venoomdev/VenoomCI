@@ -129,6 +129,15 @@ config DEVFREQ_GOV_CDSPL3
 	  a callback routine for CDSP resource manager to register a CPU L3
 	  clock frequency level.
 
+config ADRENO_IDLER
+	tristate "MSM Adreno idler"
+	depends on DEVFREQ_GOV_MSM_ADRENO_TZ
+	help
+	  Uses a different calculation method on top of Adreno TZ
+	  just for calculating frequency for idle to reduce the
+	  wasted power coming from stock Adreno TZ while
+	  maintaining high-performance.
+
 comment "DEVFREQ Drivers"
 
 config DEVFREQ_GOV_QCOM_ADRENO_TZ
