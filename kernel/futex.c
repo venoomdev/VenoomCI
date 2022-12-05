@@ -865,29 +865,6 @@ static void pi_state_update_owner(struct futex_pi_state *pi_state,
 	}
 }
 
-static void pi_state_update_owner(struct futex_pi_state *pi_state,
-				  struct task_struct *new_owner)
-{
-	struct task_struct *old_owner = pi_state->owner;
-
-	lockdep_assert_held(&pi_state->pi_mutex.wait_lock);
-
-	if (old_owner) {
-		raw_spin_lock(&old_owner->pi_lock);
-		WARN_ON(list_empty(&pi_state->list));
-		list_del_init(&pi_state->list);
-		raw_spin_unlock(&old_owner->pi_lock);
-	}
-
-	if (new_owner) {
-		raw_spin_lock(&new_owner->pi_lock);
-		WARN_ON(!list_empty(&pi_state->list));
-		list_add(&pi_state->list, &new_owner->pi_state_list);
-		pi_state->owner = new_owner;
-		raw_spin_unlock(&new_owner->pi_lock);
-	}
-}
-
 static void get_pi_state(struct futex_pi_state *pi_state)
 {
 	WARN_ON_ONCE(!atomic_inc_not_zero(&pi_state->refcount));
