@@ -6,6 +6,7 @@
 obj-y				+= mem.o
 obj-$(CONFIG_RANDOM_DEFAULT_IMPL) += random.o
 obj-$(CONFIG_LRNG)		+= lrng/
+obj-$(CONFIG_SRANDOM)		+= srandom.o
 obj-$(CONFIG_TTY_PRINTK)	+= ttyprintk.o
 obj-y				+= misc.o
 obj-$(CONFIG_ATARI_DSP56K)	+= dsp56k.o
