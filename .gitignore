@@ -136,16 +136,15 @@ all.config
 # fetched Android config fragments
 kernel/configs/android-*.cfg
 
-# vendor device tree directories
-#arch/arm64/boot/dts/vendor/
-
 # Tech package directories
 #techpack/
 out/
-b
-16
-AnyKernel3/
-caf
+/nanotap
 kernel/power/nvs.c
-build.log
 g
+b
+build.log
+16
+caf
+build
+AnyKernel3/
