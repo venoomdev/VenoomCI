@@ -649,7 +649,7 @@ endif
 export LLVM_AR LLVM_NM
 
 # Set O3 optimization level for LTO
-LDFLAGS		+= --plugin-opt=O3
+LDFLAGS		+= --plugin-opt=O2
 
 endif
 
@@ -705,9 +705,9 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, address-of-packed-member)
 
 ifeq ($(CONFIG_CC_OPTIMIZE_FOR_SIZE), y)
 ifeq ($(cc-name),clang)
-KBUILD_CFLAGS   += -O3
-KBUILD_AFLAGS   += -O3
-KBUILD_LDFLAGS  += -O3
+KBUILD_CFLAGS   += -O2
+KBUILD_AFLAGS   += -O2
+KBUILD_LDFLAGS  += -O2
 else
 KBUILD_CFLAGS   += -O2
 KBUILD_AFLAGS   += -O2
