@@ -512,6 +512,12 @@ config BOARD_UMI
 	help
 	  This enables support for Xiaomi MI 10.
 
+config OXYGEN_OS
+	bool "oxygen platform"
+	select BOARD_XIAOMI_SM8250
+	help
+	  This enables support for build OxigenOs drivers.
+
 endif
 endmenu
 
