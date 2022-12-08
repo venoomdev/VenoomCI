@@ -4,7 +4,7 @@
  */
 
 #undef TRACE_SYSTEM
-#define TRACE_INCLUDE_PATH ../../block/foreground_io_opt/trace
+#define TRACE_INCLUDE_PATH ../../drivers/oplus/oplus_performance/foreground_io_opt/trace
 #define TRACE_SYSTEM foreground_io_opt_trace
 
 #if !defined(_OPLUS_FOREGROUND_IO_OPT_TRACE_H) || defined(TRACE_HEADER_MULTI_READ)

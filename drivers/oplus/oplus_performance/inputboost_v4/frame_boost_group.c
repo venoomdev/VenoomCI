@@ -4,6 +4,7 @@
 #include <../kernel/sched/walt.h>
 #include <trace/events/sched.h>
 #include <linux/reciprocal_div.h>
+#include <linux/module.h>
 
 #include "frame_boost_group.h"
 #include "frame_info.h"
@@ -90,9 +91,9 @@ static inline u64 scale_exec_time(u64 delta, struct rq *rq)
 		SCHED_CAPACITY_SHIFT;
 
 	task_exec_scale = DIV64_U64_ROUNDUP(curr_freq *
-				arch_scale_cpu_capacity(NULL, cpu),
+				arch_scale_cpu_capacity(cpu),
 				rq->cluster->max_possible_freq);
-	trace_task_exec_scale(cpu, task_exec_scale, curr_freq, arch_scale_cpu_capacity(NULL, cpu), rq->cluster->max_possible_freq);
+	trace_task_exec_scale(cpu, task_exec_scale, curr_freq, arch_scale_cpu_capacity(cpu), rq->cluster->max_possible_freq);
 	return (delta * task_exec_scale) >> 10;
 }
 
