@@ -178,7 +178,9 @@ static ssize_t shutdown_detect_trigger(struct file *filp, const char *ubuf, size
     char buf[64];
     long val = 0;
     int ret = 0;
+#ifdef OPLUS_BUG_STABILITY
     struct task_struct *tsk = NULL;
+#endif
     unsigned int temp = SHUTDOWN_DEFAULT_TOTAL_TIME;
 
     if(shutdown_detect_enable == false) {

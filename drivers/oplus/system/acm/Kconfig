@@ -1,6 +1,6 @@
 config OPLUS_FEATURE_ACM
 	bool "Enable Access Control Module"
-	depends on OPLUS_SYSTEM_KERNEL
+	depends on OXYGEN_OS
 	default n
 	---help---
 	  Access Control Module device driver. The purpose of this module
