@@ -2136,6 +2136,7 @@ static int __init init_sel_fs(void)
 #ifdef CONFIG_OPLUS_FEATURE_SELINUX_CONTROL_LOG
 	init_denied_proc();
 #endif /* CONFIG_OPLUS_FEATURE_SELINUX_CONTROL_LOG */
+
 	return err;
 }
 
