@@ -7,7 +7,7 @@
 #include <linux/sched.h>
 #include <linux/reciprocal_div.h>
 #include <../kernel/sched/sched.h>
-#include "special_opt.h"
+#include <linux/special_opt.h>
 
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_UIFRIST_HEAVYLOAD)
 #include <trace/hooks/sched.h>
