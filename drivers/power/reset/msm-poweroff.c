@@ -28,6 +28,15 @@
 #include <soc/qcom/watchdog.h>
 #include <soc/qcom/minidump.h>
 
+#ifdef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
+#include <soc/oplus/system/oplus_project.h>
+#include <soc/oplus/system/qcom_minidump_enhance.h>
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_MISC
+#include <soc/oplus/system/oplus_misc.h>
+#endif
+
 #define EMERGENCY_DLOAD_MAGIC1    0x322A4F99
 #define EMERGENCY_DLOAD_MAGIC2    0xC67E4350
 #define EMERGENCY_DLOAD_MAGIC3    0x77777777
@@ -67,14 +76,33 @@ static void scm_disable_sdi(void);
 static int download_mode = 0;
 static struct kobject dload_kobj;
 
+#ifndef CONFIG_BOARD_XIAOMI
+static int in_panic;
+#ifndef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
+static int dload_type = SCM_DLOAD_FULLDUMP;
+#else
+int dload_type = SCM_DLOAD_FULLDUMP;
+#endif
+#else
 int in_panic = 0;
+#ifndef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
 static int dload_type = SCM_DLOAD_BOTHDUMPS;
+#else
+int dload_type = SCM_DLOAD_BOTHDUMPS;
+#endif
+#endif
+
 static void *dload_mode_addr;
 static bool dload_mode_enabled;
 static void *emergency_dload_mode_addr;
 static bool scm_dload_supported;
 
 static bool force_warm_reboot = true;
+
+bool oem_is_fulldump(void)
+{
+	return download_mode && (dload_type & SCM_DLOAD_FULLDUMP);
+}
 
 /* interface for exporting attributes */
 struct reset_attribute {
@@ -164,6 +192,41 @@ int scm_set_dload_mode(int arg1, int arg2)
 				&desc);
 }
 
+bool is_fulldump_enable(void)
+{
+	return download_mode && (dload_type & SCM_DLOAD_FULLDUMP);
+}
+
+void oplus_switch_fulldump(int on)
+{
+	int ret;
+
+	if (dload_mode_addr) {
+		__raw_writel(0xE47B337D, dload_mode_addr);
+		__raw_writel(0xCE14091A,
+			dload_mode_addr + sizeof(unsigned int));
+		mb();
+	}
+	if(on){
+		ret = scm_set_dload_mode(SCM_DLOAD_FULLDUMP, 0);
+		if (ret)
+			pr_err("Failed to set secure DLOAD mode: %d\n", ret);
+		dload_type = SCM_DLOAD_FULLDUMP;
+	}else{
+		ret = scm_set_dload_mode(SCM_DLOAD_MINIDUMP, 0);
+		if (ret)
+			pr_err("Failed to set secure DLOAD mode: %d\n", ret);
+		dload_type = SCM_DLOAD_MINIDUMP;
+	}
+
+	if(dload_type == SCM_DLOAD_MINIDUMP)
+		__raw_writel(EMMC_DLOAD_TYPE, dload_type_addr);
+	else
+		__raw_writel(0, dload_type_addr);
+	dload_mode_enabled = on;
+}
+EXPORT_SYMBOL(oplus_switch_fulldump);
+
 static void set_dload_mode(int on)
 {
 	int ret;
@@ -179,6 +242,13 @@ static void set_dload_mode(int on)
 	ret = scm_set_dload_mode(on ? dload_type : 0, 0);
 	if (ret)
 		pr_err("Failed to set secure DLOAD mode: %d\n", ret);
+
+#ifdef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
+	if(dload_type == SCM_DLOAD_MINIDUMP)
+		__raw_writel(EMMC_DLOAD_TYPE, dload_type_addr);
+	else
+		__raw_writel(0, dload_type_addr);
+#endif /* CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE */
 
 	dload_mode_enabled = on;
 }
@@ -507,7 +577,26 @@ static void msm_restart_prepare(const char *cmd)
 		need_warm_reset = (get_dload_mode() ||
 				(cmd != NULL && cmd[0] != '\0'));
 	}
+#ifdef OPLUS_BUG_STABILITY 
+	if (in_panic){
+		//warm reset
+		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
+		qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_KERNEL);
+#ifdef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
+		if (get_eng_version() == AGING || get_eng_version() == FACTORY) {
+			oplus_switch_fulldump(1);
+		}
+#endif
+		flush_cache_all();
 
+		/*outer_flush_all is not supported by 64bit kernel*/
+#ifndef CONFIG_ARM64
+		outer_flush_all();
+#endif
+		return;
+	}
+#endif /* OPLUS_BUG_STABILITY */
 	if (force_warm_reboot)
 		pr_info("Forcing a warm reset of the system\n");
 
@@ -642,6 +731,13 @@ static int msm_restart_probe(struct platform_device *pdev)
 	struct resource *mem;
 	struct device_node *np;
 	int ret = 0;
+
+#ifdef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
+	if (oplus_daily_build() == true || get_eng_version() == AGING || get_eng_version() == FACTORY)
+		dload_type = SCM_DLOAD_FULLDUMP;
+	else
+		dload_type = SCM_DLOAD_MINIDUMP;
+#endif
 
 	setup_dload_mode_support();
 

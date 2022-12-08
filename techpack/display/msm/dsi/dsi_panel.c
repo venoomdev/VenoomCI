@@ -20,6 +20,10 @@
 #include "sde_dbg.h"
 #include "dsi_mi_feature.h"
 
+#ifdef CONFIG_OPLUS_FEATURE_MISC
+#include <soc/oplus/system/oplus_misc.h>
+#endif
+
 /**
  * topology is currently defined by a set of following 3 values:
  * 1. num of layer mixers
@@ -672,6 +676,46 @@ static int dsi_panel_wled_register(struct dsi_panel *panel,
 	return 0;
 }
 
+/*
+static int dsi_panel_wled_register_a(struct dsi_panel *panel,
+		struct dsi_backlight_config *bl)
+{
+	struct backlight_device *bd;
+
+	bd = backlight_device_get_by_type_a(BACKLIGHT_RAW);
+	if (!bd) {
+		DSI_ERR("[%s] fail raw backlight register\n", panel->name);
+		return -EPROBE_DEFER;
+	}
+
+	bl->raw_bd = bd;
+	return 0;
+}
+
+static int dsi_panel_wled_register_b(struct dsi_panel *panel,
+		struct dsi_backlight_config *bl)
+{
+	struct backlight_device *bd;
+
+	bd = backlight_device_get_by_type_b(BACKLIGHT_RAW);
+	if (!bd) {
+		DSI_ERR("[%s] fail raw backlight register\n", panel->name);
+		return -EPROBE_DEFER;
+	}
+
+	bl->raw_bd = bd;
+	return 0;
+}
+*/
+#ifdef CONFIG_OPLUS_FEATURE_MISC
+static int saved_backlight = -1;
+
+int dsi_panel_backlight_get(void)
+{
+	return saved_backlight;
+}
+#endif
+
 static int dsi_panel_dcs_set_display_brightness_c2(struct mipi_dsi_device *dsi,
 			u32 bl_lvl)
 {
@@ -703,6 +747,9 @@ int dsi_panel_update_backlight(struct dsi_panel *panel,
 	}
 
 	dsi = &panel->mipi_device;
+#ifdef CONFIG_OPLUS_FEATURE_MISC
+	saved_backlight = bl_lvl;
+#endif
 	bl = &panel->bl_config;
 
 	if (panel->bl_config.bl_inverted_dbv)
