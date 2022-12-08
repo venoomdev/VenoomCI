@@ -12,12 +12,6 @@ config OPLUS_FEATURE_OPROJECT
   help
     define this config to define oplus project
 
-config OPLUS_FEATURE_SELINUX_CONTROL_LOG
-  bool "config control selinux log"
-  default y
-  help
-	define this config to control selinux log.
-
 config OPLUS_FEATURE_CPU_JANKINFO
 	tristate "config cpu_jankinfo"
 	default n
@@ -28,9 +22,12 @@ config OPLUS_FEATURE_CPU_JANKINFO
 source "drivers/oplus/game_opt/Kconfig"
 source "drivers/oplus/network/Kconfig"
 source "drivers/oplus/wakelock_profiler/Kconfig"
+source "drivers/oplus/system/acm/Kconfig"
 source "drivers/oplus/system/misc/Kconfig"
 source "drivers/oplus/system/oplus_pmic_monitor/Kconfig"
 source "drivers/oplus/system/project_info/Kconfig"
+source "drivers/oplus/system/selinux/Kconfig"
+source "drivers/oplus/system/shutdown_detect/Kconfig"
 source "drivers/oplus/oplus_performance/healthinfo/fs/Kconfig"
 source "drivers/oplus/oplus_performance/healthinfo/main/Kconfig"
 source "drivers/oplus/oplus_performance/healthinfo/mm/Kconfig"

@@ -13,6 +13,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
+#include <soc/oplus/system/proc.h>
 
 static int enable_audit = 0;
 

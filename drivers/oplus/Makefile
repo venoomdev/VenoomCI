@@ -2,11 +2,13 @@
 # Copyright (C) 2018-2020 Oplus. All rights reserved.
 obj-$(CONFIG_OPLUS_FEATURE_DUMP_DEVICE_INFO)	+=  dump_device_info.o
 obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= oplus_project.o
-obj-$(CONFIG_OPLUS_FEATURE_SELINUX_CONTROL_LOG) += proc.o
 #obj-y     += charger/
 obj-y     += system/cmdline_parser/
+obj-y     += system/acm/
 obj-y     += system/misc/
 obj-y     += system/project_info/
+obj-y     += system/selinux/
+obj-y     += system/shutdown_detect/
 obj-$(CONFIG_OPLUS_FEATURE_PMIC_MONITOR)     += system/oplus_pmic_monitor/
 obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO)     += oplus_performance/cpu_jankinfo/
 obj-$(CONFIG_OPLUS_HEALTHINFO)     += oplus_performance/healthinfo/main/
