@@ -521,6 +521,12 @@ config BOARD_MONET
 	select BOARD_XIAOMI_SM7250
 	help
 	  This enables support for Xiaomi MI 10 Lite
+
+config OPLUS_PIRATEREX
+	bool "Oplus platform"
+	select BOARD_XIAOMI_SM8250
+	help
+	  This enables support for build Oplus drivers for OxygenOS and ColorOS.
 endif
 
 endmenu
