@@ -6,3 +6,10 @@ config OPLUS_FEATURE_OPROJECT
   help
     define this config to define oplus project
 source "drivers/oplus/system/project_info/Kconfig"
+
+config OPLUS_ION_BOOSTPOOL
+	bool "Support ION Boost pool"
+	default n
+	help
+	  This driver supports ION boost pool.
+
