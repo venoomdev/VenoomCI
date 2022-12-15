@@ -14,22 +14,22 @@ scripts/kconfig/conf  --syncconfig Kconfig
   LEX     scripts/dtc/dtc-lexer.lex.c
   YACC    scripts/dtc/dtc-parser.tab.h
   YACC    scripts/dtc/dtc-parser.tab.c
-  HOSTCC  scripts/dtc/dtc-parser.tab.o
   HOSTCC  scripts/dtc/dtc-lexer.lex.o
+  HOSTCC  scripts/dtc/dtc-parser.tab.o
   HOSTLD  scripts/dtc/dtc
   HOSTCC  scripts/bin2c
-  HOSTCC  scripts/kallsyms
-  HOSTCC  scripts/sortextable
-  HOSTCC  scripts/mod/mk_elfconfig
   HOSTCC  scripts/genksyms/genksyms.o
+  HOSTCC  scripts/kallsyms
   YACC    scripts/genksyms/parse.tab.c
-  CC      scripts/mod/empty.o
   LEX     scripts/genksyms/lex.lex.c
-  HOSTCC  scripts/asn1_compiler
-  CC      scripts/mod/devicetable-offsets.s
+  HOSTCC  scripts/mod/mk_elfconfig
+  HOSTCC  scripts/sortextable
+  CC      scripts/mod/empty.o
   YACC    scripts/genksyms/parse.tab.h
-  HOSTCC  scripts/selinux/mdp/mdp
+  CC      scripts/mod/devicetable-offsets.s
+  HOSTCC  scripts/asn1_compiler
   HOSTCC  scripts/selinux/genheaders/genheaders
+  HOSTCC  scripts/selinux/mdp/mdp
   HOSTCC  scripts/extract-cert
   MKELF   scripts/mod/elfconfig.h
   HOSTCC  scripts/mod/modpost.o
@@ -116,18 +116,18 @@ In file included from ../arch/arm64/include/asm/atomic.h:27:
   AS      arch/arm64/kernel/vdso/sigreturn.o
   LD      arch/arm64/kernel/vdso/vdso.so.dbg
   VDSOSYM include/generated/vdso-offsets.h
-  LDS     arch/arm64/kernel/vdso32/vdso.lds
-  CC32    arch/arm64/kernel/vdso32/note.o
-  CC32    arch/arm64/kernel/vdso32/vgettimeofday.o
-  AS32    arch/arm64/kernel/vdso32/sigreturn.o
   HOSTCC  arch/arm64/kernel/vdso32/../../../arm/vdso/vdsomunge
-/root/kernel/proton/bin/as: unrecognized option '-EL'
-clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
-make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:175: arch/arm64/kernel/vdso32/note.o] Error 1
-make[2]: *** Waiting for unfinished jobs....
+  LDS     arch/arm64/kernel/vdso32/vdso.lds
+  CC32    arch/arm64/kernel/vdso32/vgettimeofday.o
+  CC32    arch/arm64/kernel/vdso32/note.o
+  AS32    arch/arm64/kernel/vdso32/sigreturn.o
 /root/kernel/proton/bin/as: unrecognized option '-EL'
 clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
 make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:179: arch/arm64/kernel/vdso32/sigreturn.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+/root/kernel/proton/bin/as: unrecognized option '-EL'
+clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
+make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:175: arch/arm64/kernel/vdso32/note.o] Error 1
 /root/kernel/proton/bin/as: unrecognized option '-EL'
 clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
 make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:177: arch/arm64/kernel/vdso32/vgettimeofday.o] Error 1
