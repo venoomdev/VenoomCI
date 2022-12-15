@@ -1,0 +1,189 @@
+make[1]: Entering directory '/root/kernel/oos/out'
+  GEN     ./Makefile
+scripts/kconfig/conf  --syncconfig Kconfig
+  GEN     ./Makefile
+  UPD     include/config/kernel.release
+  WRAP    arch/arm64/include/generated/uapi/asm/errno.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ioctl.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ioctls.h
+  WRAP    arch/arm64/include/generated/uapi/asm/kvm_para.h
+  WRAP    arch/arm64/include/generated/uapi/asm/ipcbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/mman.h
+  WRAP    arch/arm64/include/generated/uapi/asm/msgbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/poll.h
+  WRAP    arch/arm64/include/generated/uapi/asm/resource.h
+  WRAP    arch/arm64/include/generated/uapi/asm/sembuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/shmbuf.h
+  WRAP    arch/arm64/include/generated/uapi/asm/socket.h
+  WRAP    arch/arm64/include/generated/uapi/asm/sockios.h
+  WRAP    arch/arm64/include/generated/uapi/asm/swab.h
+  WRAP    arch/arm64/include/generated/uapi/asm/termbits.h
+  WRAP    arch/arm64/include/generated/uapi/asm/termios.h
+  WRAP    arch/arm64/include/generated/uapi/asm/types.h
+  UPD     include/generated/uapi/linux/version.h
+  UPD     include/generated/utsrelease.h
+  Using .. as source for kernel
+  WRAP    arch/arm64/include/generated/asm/bugs.h
+  WRAP    arch/arm64/include/generated/asm/delay.h
+  WRAP    arch/arm64/include/generated/asm/div64.h
+  WRAP    arch/arm64/include/generated/asm/dma.h
+  WRAP    arch/arm64/include/generated/asm/dma-contiguous.h
+  WRAP    arch/arm64/include/generated/asm/early_ioremap.h
+  WRAP    arch/arm64/include/generated/asm/emergency-restart.h
+  WRAP    arch/arm64/include/generated/asm/hw_irq.h
+  WRAP    arch/arm64/include/generated/asm/irq_regs.h
+  WRAP    arch/arm64/include/generated/asm/kdebug.h
+  WRAP    arch/arm64/include/generated/asm/kmap_types.h
+  WRAP    arch/arm64/include/generated/asm/local.h
+  WRAP    arch/arm64/include/generated/asm/local64.h
+  HOSTCC  scripts/dtc/dtc.o
+  HOSTCC  scripts/dtc/flattree.o
+  WRAP    arch/arm64/include/generated/asm/mcs_spinlock.h
+  WRAP    arch/arm64/include/generated/asm/mm-arch-hooks.h
+  HOSTCC  scripts/dtc/fstree.o
+  WRAP    arch/arm64/include/generated/asm/msi.h
+  HOSTCC  scripts/dtc/data.o
+  WRAP    arch/arm64/include/generated/asm/preempt.h
+  HOSTCC  scripts/dtc/livetree.o
+  HOSTCC  scripts/dtc/treesource.o
+  WRAP    arch/arm64/include/generated/asm/qrwlock.h
+  WRAP    arch/arm64/include/generated/asm/qspinlock.h
+  WRAP    arch/arm64/include/generated/asm/rwsem.h
+  WRAP    arch/arm64/include/generated/asm/segment.h
+  WRAP    arch/arm64/include/generated/asm/serial.h
+  WRAP    arch/arm64/include/generated/asm/set_memory.h
+  WRAP    arch/arm64/include/generated/asm/sizes.h
+  HOSTCC  scripts/dtc/srcpos.o
+  HOSTCC  scripts/dtc/checks.o
+  WRAP    arch/arm64/include/generated/asm/switch_to.h
+  WRAP    arch/arm64/include/generated/asm/trace_clock.h
+  WRAP    arch/arm64/include/generated/asm/unaligned.h
+  HOSTCC  scripts/dtc/util.o
+  WRAP    arch/arm64/include/generated/asm/user.h
+  LEX     scripts/dtc/dtc-lexer.lex.c
+  WRAP    arch/arm64/include/generated/asm/vga.h
+  YACC    scripts/dtc/dtc-parser.tab.h
+  YACC    scripts/dtc/dtc-parser.tab.c
+  CC      kernel/bounds.s
+In file included from ../kernel/bounds.c:10:
+In file included from ../include/linux/page-flags.h:10:
+In file included from ../include/linux/bug.h:5:
+In file included from ../arch/arm64/include/asm/bug.h:37:
+In file included from ../include/asm-generic/bug.h:18:
+In file included from ../include/linux/kernel.h:10:
+In file included from ../include/linux/bitops.h:5:
+../include/linux/bits.h:9:9: warning: 'BIT' macro redefined [-Wmacro-redefined]
+#define BIT(nr)                 (UL(1) << (nr))
+        ^
+../include/vdso/bits.h:5:9: note: previous definition is here
+#define BIT(nr)                 (1UL << (nr))
+        ^
+  UPD     include/generated/timeconst.h
+In file included from ../kernel/bounds.c:10:
+In file included from ../include/linux/page-flags.h:10:
+In file included from ../include/linux/bug.h:5:
+In file included from ../arch/arm64/include/asm/bug.h:37:
+In file included from ../include/asm-generic/bug.h:18:
+In file included from ../include/linux/kernel.h:10:
+In file included from ../include/linux/bitops.h:26:
+In file included from ../arch/arm64/include/asm/bitops.h:37:
+In file included from ../include/asm-generic/bitops/atomic.h:5:
+In file included from ../include/linux/atomic.h:7:
+In file included from ../arch/arm64/include/asm/atomic.h:27:
+../arch/arm64/include/asm/lse.h:29:9: warning: '__LSE_PREAMBLE' macro redefined [-Wmacro-redefined]
+#define __LSE_PREAMBLE
+        ^
+../arch/arm64/include/asm/lse.h:7:9: note: previous definition is here
+#define __LSE_PREAMBLE  ".arch_extension lse\n"
+        ^
+  HOSTCC  scripts/dtc/dtc-lexer.lex.o
+  HOSTCC  scripts/dtc/dtc-parser.tab.o
+2 warnings generated.
+  UPD     include/generated/bounds.h
+  CC      arch/arm64/kernel/asm-offsets.s
+In file included from ../arch/arm64/kernel/asm-offsets.c:21:
+In file included from ../include/linux/arm_sdei.h:14:
+In file included from ../arch/arm64/include/asm/sdei.h:15:
+In file included from ../include/linux/preempt.h:11:
+In file included from ../include/linux/list.h:9:
+In file included from ../include/linux/kernel.h:10:
+In file included from ../include/linux/bitops.h:5:
+../include/linux/bits.h:9:9: warning: 'BIT' macro redefined [-Wmacro-redefined]
+#define BIT(nr)                 (UL(1) << (nr))
+        ^
+../include/vdso/bits.h:5:9: note: previous definition is here
+#define BIT(nr)                 (1UL << (nr))
+        ^
+In file included from ../arch/arm64/kernel/asm-offsets.c:21:
+In file included from ../include/linux/arm_sdei.h:14:
+In file included from ../arch/arm64/include/asm/sdei.h:15:
+In file included from ../include/linux/preempt.h:11:
+In file included from ../include/linux/list.h:9:
+In file included from ../include/linux/kernel.h:10:
+In file included from ../include/linux/bitops.h:26:
+In file included from ../arch/arm64/include/asm/bitops.h:37:
+In file included from ../include/asm-generic/bitops/atomic.h:5:
+In file included from ../include/linux/atomic.h:7:
+In file included from ../arch/arm64/include/asm/atomic.h:27:
+../arch/arm64/include/asm/lse.h:29:9: warning: '__LSE_PREAMBLE' macro redefined [-Wmacro-redefined]
+#define __LSE_PREAMBLE
+        ^
+../arch/arm64/include/asm/lse.h:7:9: note: previous definition is here
+#define __LSE_PREAMBLE  ".arch_extension lse\n"
+        ^
+  HOSTLD  scripts/dtc/dtc
+  HOSTCC  scripts/bin2c
+  HOSTCC  scripts/kallsyms
+  HOSTCC  scripts/genksyms/genksyms.o
+  HOSTCC  scripts/sortextable
+  HOSTCC  scripts/asn1_compiler
+  YACC    scripts/genksyms/parse.tab.c
+  LEX     scripts/genksyms/lex.lex.c
+  YACC    scripts/genksyms/parse.tab.h
+  CC      scripts/mod/empty.o
+  HOSTCC  scripts/mod/mk_elfconfig
+  CC      scripts/mod/devicetable-offsets.s
+  HOSTCC  scripts/selinux/mdp/mdp
+  HOSTCC  scripts/selinux/genheaders/genheaders
+  DTC     arch/arm64/boot/dts/vendor/qcom/kona.dtb
+  DTC     arch/arm64/boot/dts/vendor/qcom/kona-v2.dtb
+  DTC     arch/arm64/boot/dts/vendor/qcom/kona-v2.1.dtb
+  HOSTCC  scripts/extract-cert
+  UPD     scripts/mod/devicetable-offsets.h
+  HOSTCC  scripts/genksyms/lex.lex.o
+2 warnings generated.
+  MKELF   scripts/mod/elfconfig.h
+  HOSTCC  scripts/mod/modpost.o
+  HOSTCC  scripts/mod/file2alias.o
+  HOSTCC  scripts/mod/sumversion.o
+  HOSTCC  scripts/genksyms/parse.tab.o
+  UPD     include/generated/asm-offsets.h
+  CALL    ../scripts/checksyscalls.sh
+  LDS     arch/arm64/kernel/vdso/vdso.lds
+  CC      arch/arm64/kernel/vdso/vgettimeofday.o
+  AS      arch/arm64/kernel/vdso/note.o
+  AS      arch/arm64/kernel/vdso/sigreturn.o
+  LD      arch/arm64/kernel/vdso/vdso.so.dbg
+  VDSOSYM include/generated/vdso-offsets.h
+  HOSTLD  scripts/genksyms/genksyms
+  HOSTLD  scripts/mod/modpost
+  LDS     arch/arm64/kernel/vdso32/vdso.lds
+  CC32    arch/arm64/kernel/vdso32/note.o
+  CC32    arch/arm64/kernel/vdso32/vgettimeofday.o
+  AS32    arch/arm64/kernel/vdso32/sigreturn.o
+  HOSTCC  arch/arm64/kernel/vdso32/../../../arm/vdso/vdsomunge
+/root/kernel/proton/bin/as: unrecognized option '-EL'
+clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
+make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:175: arch/arm64/kernel/vdso32/note.o] Error 1
+make[2]: *** Waiting for unfinished jobs....
+/root/kernel/proton/bin/as: unrecognized option '-EL'
+clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
+make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:179: arch/arm64/kernel/vdso32/sigreturn.o] Error 1
+  DTC     arch/arm64/boot/dts/vendor/qcom/alioth-sm8250-overlay.dtbo
+/root/kernel/proton/bin/as: unrecognized option '-EL'
+clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
+make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:177: arch/arm64/kernel/vdso32/vgettimeofday.o] Error 1
+make[1]: *** [arch/arm64/Makefile:198: vdso_prepare] Error 2
+make[1]: *** Waiting for unfinished jobs....
+make[1]: Leaving directory '/root/kernel/oos/out'
+make: *** [Makefile:146: sub-make] Error 2
