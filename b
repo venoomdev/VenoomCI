@@ -13,13 +13,12 @@ KERNELVER=$(make kernelversion)
 # Include argument
 ARGS="ARCH=arm64 \
         O=out \
-	CC=clang \
 	LLVM=1 \
-#	CLANG_TRIPLE=aarch64-linux-gnu- \
-#	CROSS_COMPILE=aarch64-linux-gnu- \
-	CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
+	AS=llvm-as \
+	LD=ld.lld \
+	CLANG_TRIPLE=aarch64-linux-gnu- \
 	CROSS_COMPILE=aarch64-linux-gnu- \
-	CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+	CROSS_COMPILE_COMPAT=arm-linux-gnueabi- \
         -j48"
 
 # Build Kernel

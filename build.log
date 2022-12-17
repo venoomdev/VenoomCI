@@ -4,29 +4,25 @@ scripts/kconfig/conf  --syncconfig Kconfig
   GEN     ./Makefile
   HOSTCC  scripts/dtc/dtc.o
   HOSTCC  scripts/dtc/flattree.o
-  HOSTCC  scripts/dtc/fstree.o
-  HOSTCC  scripts/dtc/data.o
   HOSTCC  scripts/dtc/livetree.o
   HOSTCC  scripts/dtc/treesource.o
   HOSTCC  scripts/dtc/srcpos.o
+  HOSTCC  scripts/dtc/fstree.o
+  HOSTCC  scripts/dtc/data.o
   HOSTCC  scripts/dtc/checks.o
   HOSTCC  scripts/dtc/util.o
-  LEX     scripts/dtc/dtc-lexer.lex.c
-  YACC    scripts/dtc/dtc-parser.tab.h
-  YACC    scripts/dtc/dtc-parser.tab.c
   HOSTCC  scripts/dtc/dtc-lexer.lex.o
   HOSTCC  scripts/dtc/dtc-parser.tab.o
   HOSTLD  scripts/dtc/dtc
   HOSTCC  scripts/bin2c
   HOSTCC  scripts/genksyms/genksyms.o
-  HOSTCC  scripts/kallsyms
-  YACC    scripts/genksyms/parse.tab.c
-  LEX     scripts/genksyms/lex.lex.c
-  HOSTCC  scripts/mod/mk_elfconfig
-  HOSTCC  scripts/sortextable
+  HOSTCC  scripts/genksyms/parse.tab.o
   CC      scripts/mod/empty.o
-  YACC    scripts/genksyms/parse.tab.h
+  HOSTCC  scripts/mod/mk_elfconfig
   CC      scripts/mod/devicetable-offsets.s
+  HOSTCC  scripts/genksyms/lex.lex.o
+  HOSTCC  scripts/kallsyms
+  HOSTCC  scripts/sortextable
   HOSTCC  scripts/asn1_compiler
   HOSTCC  scripts/selinux/genheaders/genheaders
   HOSTCC  scripts/selinux/mdp/mdp
@@ -35,8 +31,6 @@ scripts/kconfig/conf  --syncconfig Kconfig
   HOSTCC  scripts/mod/modpost.o
   HOSTCC  scripts/mod/file2alias.o
   HOSTCC  scripts/mod/sumversion.o
-  HOSTCC  scripts/genksyms/parse.tab.o
-  HOSTCC  scripts/genksyms/lex.lex.o
   HOSTLD  scripts/genksyms/genksyms
   HOSTLD  scripts/mod/modpost
   Using .. as source for kernel
@@ -44,8 +38,8 @@ scripts/kconfig/conf  --syncconfig Kconfig
   DTC     arch/arm64/boot/dts/vendor/qcom/kona-v2.dtb
   DTC     arch/arm64/boot/dts/vendor/qcom/kona-v2.1.dtb
   DTC     arch/arm64/boot/dts/vendor/qcom/alioth-sm8250-overlay.dtbo
-  DTBOIMG arch/arm64/boot/dtbo.img
   CC      kernel/bounds.s
+  DTBOIMG arch/arm64/boot/dtbo.img
 In file included from ../kernel/bounds.c:10:
 In file included from ../include/linux/page-flags.h:10:
 In file included from ../include/linux/bug.h:5:
@@ -116,21 +110,20 @@ In file included from ../arch/arm64/include/asm/atomic.h:27:
   AS      arch/arm64/kernel/vdso/sigreturn.o
   LD      arch/arm64/kernel/vdso/vdso.so.dbg
   VDSOSYM include/generated/vdso-offsets.h
-  HOSTCC  arch/arm64/kernel/vdso32/../../../arm/vdso/vdsomunge
   LDS     arch/arm64/kernel/vdso32/vdso.lds
-  CC32    arch/arm64/kernel/vdso32/vgettimeofday.o
   CC32    arch/arm64/kernel/vdso32/note.o
+  CC32    arch/arm64/kernel/vdso32/vgettimeofday.o
   AS32    arch/arm64/kernel/vdso32/sigreturn.o
-/root/kernel/proton/bin/as: unrecognized option '-EL'
-clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
-make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:179: arch/arm64/kernel/vdso32/sigreturn.o] Error 1
-make[2]: *** Waiting for unfinished jobs....
-/root/kernel/proton/bin/as: unrecognized option '-EL'
-clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
+/root/kernel/c/bin/as: unrecognized option '-EL'
+/root/kernel/c/bin/as: unrecognized option '-EL'
+clang-15: error: assembler command failed with exit code 1 (use -v to see invocation)
+clang-15: error: assembler command failed with exit code 1 (use -v to see invocation)
 make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:175: arch/arm64/kernel/vdso32/note.o] Error 1
-/root/kernel/proton/bin/as: unrecognized option '-EL'
-clang-13: error: assembler command failed with exit code 1 (use -v to see invocation)
+make[2]: *** Waiting for unfinished jobs....
+make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:179: arch/arm64/kernel/vdso32/sigreturn.o] Error 1
+/root/kernel/c/bin/as: unrecognized option '-EL'
+clang-15: error: assembler command failed with exit code 1 (use -v to see invocation)
 make[2]: *** [../arch/arm64/kernel/vdso32/Makefile:177: arch/arm64/kernel/vdso32/vgettimeofday.o] Error 1
-make[1]: *** [arch/arm64/Makefile:198: vdso_prepare] Error 2
+make[1]: *** [arch/arm64/Makefile:217: vdso_prepare] Error 2
 make[1]: Leaving directory '/root/kernel/oos/out'
 make: *** [Makefile:146: sub-make] Error 2

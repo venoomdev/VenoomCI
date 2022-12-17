@@ -149,3 +149,7 @@ build
 build.log
 *.zip
 v
+AnyKernel3/
+bu
+anykernel/
+anykernel3/
