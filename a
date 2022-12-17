@@ -49,11 +49,6 @@ zip -r9 $FINAL_KERNEL_ZIP * -x README $FINAL_KERNEL_ZIP
 cp $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP /root/kernel/oos/$FINAL_KERNEL_ZIP
 
 echo -e "$yellow**** Done, here is your checksum ****$nocol"
-cd ..
-rm -rf $ANYKERNEL3_DIR/$FINAL_KERNEL_ZIP
-rm -rf $ANYKERNEL3_DIR/Image
-rm -rf $ANYKERNEL3_DIR/dtbo.img
-
 BUILD_END=$(date +"%s")
 DIFF=$(($BUILD_END - $BUILD_START))
 echo -e "$yellow Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.$nocol"
