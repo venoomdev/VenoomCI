@@ -546,15 +546,6 @@ static int verity_verify_io(struct dm_verity_io *io)
 }
 
 /*
- * Skip verity work in response to I/O error when system is shutting down.
- */
-static inline bool verity_is_system_shutting_down(void)
-{
-	return system_state == SYSTEM_HALT || system_state == SYSTEM_POWER_OFF
-		|| system_state == SYSTEM_RESTART;
-}
-
-/*
  * End one "io" structure with a given error.
  */
 static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
@@ -1248,3 +1239,4 @@ MODULE_AUTHOR("Mandeep Baines <msb@chromium.org>");
 MODULE_AUTHOR("Will Drewry <wad@chromium.org>");
 MODULE_DESCRIPTION(DM_NAME " target for transparent disk integrity checking");
 MODULE_LICENSE("GPL");
+

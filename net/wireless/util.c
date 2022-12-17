@@ -259,6 +259,9 @@ bool cfg80211_valid_key_idx(struct cfg80211_registered_device *rdev,
 
 	if (pairwise)
 		max_key_idx = 3;
+	else if (wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+		max_key_idx = 7;
 	else if (cfg80211_igtk_cipher_supported(rdev))
 		max_key_idx = 5;
 	else
@@ -275,12 +278,6 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 				   bool pairwise, const u8 *mac_addr)
 {
 	if (!cfg80211_valid_key_idx(rdev, key_idx, pairwise))
- 		return -EINVAL;
-
-	if (wiphy_ext_feature_isset(&rdev->wiphy,
-				    NL80211_EXT_FEATURE_BEACON_PROTECTION))
-		max_key_idx = 7;
-	if (key_idx < 0 || key_idx > max_key_idx)
 		return -EINVAL;
 
 	if (!pairwise && mac_addr && !(rdev->wiphy.flags & WIPHY_FLAG_IBSS_RSN))
@@ -2072,3 +2069,4 @@ void cfg80211_send_layer2_update(struct net_device *dev, const u8 *addr)
 	netif_rx_ni(skb);
 }
 EXPORT_SYMBOL(cfg80211_send_layer2_update);
+

@@ -1945,3 +1945,4 @@ unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd)
 }
 
 #endif	/* CONFIG_PM */
+
