@@ -1604,6 +1604,7 @@ int f2fs_write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 	}
 
 	trace_f2fs_write_checkpoint(sbi->sb, cpc->reason, "start block_ops");
+
 #ifdef CONFIG_F2FS_BD_STAT
 	cp_begin = local_clock();
 #endif
