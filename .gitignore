@@ -135,7 +135,7 @@ all.config
 
 # fetched Android config fragments
 kernel/configs/android-*.cfg
-
+AnyKernel3/
 # Tech package directories
 #techpack/
 out/

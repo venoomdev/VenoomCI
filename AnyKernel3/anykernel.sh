@@ -4,7 +4,7 @@
 ## AnyKernel setup
 # begin properties
 properties() { '
-kernel.string=Black Panda Kernel by piraterex
+kernel.string=Panguin Kernel by piraterex
 do.devicecheck=1
 do.modules=0
 do.systemless=1
