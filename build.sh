@@ -1,33 +1,68 @@
 #!/bin/bash
 
 #set -e
-
+KERNEL_DIR=$(pwd)
 KERNEL_DEFCONFIG=vendor/alioth_defconfig
-ANYKERNEL3_DIR=$PWD/AnyKernel3/
-FINAL_KERNEL_ZIP=InfiniR_Alioth_v2.25.zip
+DEVICE=aliothin
+ANYKERNEL3_DIR=AnyKernel3
+TYPE=REL-1.0
+DATE=$(date +"%d.%m.%y")
+VERSION="Red-Panda-${DEVICE}-${TYPE}-${DATE}"
+# Export Zip name
+export ZIPNAME="${VERSION}.zip"
+export PATH="/home/piraterex/clang/bin:${PATH}"
 export ARCH=arm64
-
-# Speed up build process
-MAKE="./makeparallel"
+export SUBARCH=arm64
+export KBUILD_COMPILER_STRING="$(/home/piraterex/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
 
 BUILD_START=$(date +"%s")
 blue='\033[1;34m'
 yellow='\033[1;33m'
 nocol='\033[0m'
 
-# Always do clean build lol
-echo -e "$yellow**** Cleaning ****$nocol"
-mkdir -p out
-make O=out clean
+# Speed up build process
+MAKE="./makeparallel"
 
-echo -e "$yellow**** Kernel defconfig is set to $KERNEL_DEFCONFIG ****$nocol"
-echo -e "$blue***********************************************"
-echo "          BUILDING KERNEL          "
-echo -e "***********************************************$nocol"
-make $KERNEL_DEFCONFIG O=out
+
+#git clone --depth=1 https://github.com/EmanuelCN/zyc_clang-14 clang
+#anykernel
+git clone https://github.com/dereference23/AnyKernel3.git AnyKernel3
+make $KERNEL_DEFCONFIG O=out CC=clang
 make -j$(nproc --all) O=out \
                       ARCH=arm64 \
-                      CC=/home/raystef66/kernel/prebuilts/clang-r445002/bin/clang \
-                      CLANG_TRIPLE=aarch64-linux-gnu- \
-                      CROSS_COMPILE=/home/raystef66/kernel/prebuilts/aarch64-linux-android-4.9/bin/aarch64-linux-android- \
-                      CROSS_COMPILE_ARM32=/home/raystef66/kernel/prebuilts/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-
+                      CC=clang \
+                      CROSS_COMPILE=aarch64-linux-gnu- \
+                      NM=llvm-nm \
+                      OBJDUMP=llvm-objdump \
+                      STRIP=llvm-strip
+
+echo -e "$yellow**** Verify Image.gz-dtb & dtbo.img ****$nocol"
+ls out/arch/arm64/boot/Image
+ls out/arch/arm64/boot/dtbo.img
+
+echo -e "$yellow**** Verifying AnyKernel3 Directory ****$nocol"
+ls $ANYKERNEL3_DIR
+echo -e "$yellow**** Removing leftovers ****$nocol"
+rm -rf $ANYKERNEL3_DIR/Image
+rm -rf $ANYKERNEL3_DIR/dtbo.img
+rm -rf $ANYKERNEL3_DIR/$ZIPNAME
+
+echo -e "$yellow**** Copying Image.gz-dtb & dtbo.img ****$nocol"
+cp out/arch/arm64/boot/Image $ANYKERNEL3_DIR/
+cp out/arch/arm64/boot/dtbo.img $ANYKERNEL3_DIR/
+
+echo -e "$yellow**** Time to zip up! ****$nocol"
+cd $ANYKERNEL3_DIR/
+zip -r9 $ZIPNAME * -x README $ZIPNAME
+cp $ANYKERNEL3_DIR/$ZIPNAME ../
+
+echo -e "$yellow**** Done, here is your checksum ****$nocol"
+cd ..
+# rm -rf $ANYKERNEL3_DIR/$ZIPNAME
+rm -rf $ANYKERNEL3_DIR/Image
+rm -rf $ANYKERNEL3_DIR/dtbo.img
+#rm -rf out/
+
+BUILD_END=$(date +"%s")
+DIFF=$(($BUILD_END - $BUILD_START))
+echo -e "$yellow Build completed in $(($DIFF / 60)) minute(s) and $(($DIFF % 60)) seconds.$nocol"
