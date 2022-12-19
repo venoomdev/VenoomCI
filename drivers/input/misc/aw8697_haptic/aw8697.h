@@ -1,24 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _AW8697_H_
 #define _AW8697_H_
 
-/*
- ********************************************************
+/*********************************************************
  *
  * kernel version
  *
- *******************************************************
- */
+ ********************************************************/
 #define INPUT_DEV
+//#define TEST_RTP
 #define TEST_CONT_TO_RAM
-
-/*
- ********************************************************
+/*********************************************************
  *
  * aw8697.h
  *
- *******************************************************
- */
+ ********************************************************/
 #include <linux/regmap.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -29,13 +24,12 @@
 #include <linux/atomic.h>
 
 
-/*
- ********************************************************
+/*********************************************************
  *
  * marco
  *
- *******************************************************
- */
+ ********************************************************/
+
 
 #define AW8695_CHIPID			0x95
 #define AW8697_CHIPID			0x97
@@ -78,16 +72,14 @@
 #define HAP_DISABLE_DELAY_USEC      1000
 #endif
 
-/*
- *******************************************
+/********************************************
  * print information control
- ******************************************
- */
+ *******************************************/
 #define aw_dev_err(dev, format, ...) \
 			pr_err("[%s]" format, dev_name(dev), ##__VA_ARGS__)
 
 #define aw_dev_info(dev, format, ...) \
-			pr_debug("[%s]" format, dev_name(dev), ##__VA_ARGS__)
+			pr_info("[%s]" format, dev_name(dev), ##__VA_ARGS__)
 
 #define aw_dev_dbg(dev, format, ...) \
 			pr_debug("[%s]" format, dev_name(dev), ##__VA_ARGS__)
@@ -109,20 +101,18 @@
  *        first edge
  *                   second edge
  */
-
 /* trig config */
-
-/* dts config
- * default_level -> 1: high level; 0: low level
- * dual_edge     -> 1: dual edge; 0: first edge
- *vib_trig_config = <
- *       1   1              1          1           2
- *  enable   default_level  dual_edge  first_seq   second_seq
- *       1   1              2          1           2
- *  enable   default_level  dual_edge  first_seq   second_seq
- *       1   1              3          1           2
- *  enable   default_level  dual_edge  first_seq   second_seq
- */
+/*dts config
+* default_level -> 1: high level; 0: low level
+* dual_edge     -> 1: dual edge; 0: first edge
+*vib_trig_config = <
+*       1   1              1          1           2
+*  enable   default_level  dual_edge  first_seq   second_seq
+*       1   1              2          1           2
+*  enable   default_level  dual_edge  first_seq   second_seq
+*       1   1              3          1           2
+*  enable   default_level  dual_edge  first_seq   second_seq
+*/
 #define AW8697_TRIG_NUM                     3
 
 enum aw8697_chip_version {
@@ -221,14 +211,11 @@ enum aw8697_haptic_strength {
 	AW8697_MEDIUM_MAGNITUDE = 0x5fff,
 	AW8697_STRONG_MAGNITUDE = 0x7fff,
 };
-
-/*
- ********************************************************
+/*********************************************************
  *
  * struct
  *
- *******************************************************
- */
+ ********************************************************/
 struct fileops {
 	unsigned char cmd;
 	unsigned char reg;
@@ -300,7 +287,7 @@ struct aw8697_dts_info {
 	unsigned int bst_vol_ram;
 	unsigned int bst_vol_rtp;
 
-	/* aw869xx */
+/* aw869xx */
 	unsigned int cont_drv1_lvl;
 	unsigned int cont_drv2_lvl;
 	unsigned int cont_drv1_time;
@@ -410,7 +397,7 @@ struct aw8697 {
 	struct timeval start, end;
 	unsigned int timeval_flags;
 	unsigned int osc_cali_flag;
-	unsigned long microsecond;
+	unsigned long int microsecond;
 	unsigned int sys_frequency;
 	unsigned int rtp_len;
 	unsigned int lra_calib_data;
@@ -458,6 +445,7 @@ struct aw8697 {
 	unsigned char max_pos_beme;
 	unsigned char max_neg_beme;
 	unsigned char f0_cali_flag;
+	bool f0_cali_status;
 	unsigned int osc_cali_run;
 
 	unsigned char ram_vbat_comp;
@@ -475,8 +463,8 @@ struct aw8697 {
 	atomic_t is_in_rtp_loop;
 	atomic_t exit_in_rtp_loop;
 	atomic_t is_in_write_loop;
-	wait_queue_head_t wait_q; //wait queue for exit irq mode
-	wait_queue_head_t stop_wait_q; //wait queue for stop rtp mode
+	wait_queue_head_t wait_q;//wait queue for exit irq mode
+	wait_queue_head_t stop_wait_q;  //wait queue for stop rtp mode
 	struct workqueue_struct *work_queue;
 
 #ifdef INPUT_DEV
@@ -492,7 +480,7 @@ struct aw8697 {
 	struct regulator *vdd_supply;
 	struct hrtimer stop_timer;
 	struct hrtimer hap_disable_timer;
-	struct hrtimer timer; /* test used, del */
+	struct hrtimer timer;	/*test used  ,del */
 	struct dentry *hap_debugfs;
 	struct mutex rtp_lock;
 	spinlock_t bus_lock;
@@ -517,13 +505,11 @@ struct aw8697_container {
 	unsigned char data[];
 };
 
-/*
- ********************************************************
+/*********************************************************
  *
  * ioctl
  *
- *******************************************************
- */
+ ********************************************************/
 struct aw8697_seq_loop {
 	unsigned char loop[AW8697_SEQUENCER_SIZE];
 };
@@ -556,4 +542,4 @@ struct aw8697_que_seq {
 						7,\
 						unsigned int)
 
-#endif /* _AW8697_H_ */
+#endif
