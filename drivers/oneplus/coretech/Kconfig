@@ -68,11 +68,6 @@ config TPD
 	default n
 	bool "a task placement decision for cpu limitation"
 
-config TPP
-	default n
-	depends on IM
-	bool "Task parallel placement"
-
 config MEMEX_STANDALONE
 	default n
 	bool "MemEX feature"
