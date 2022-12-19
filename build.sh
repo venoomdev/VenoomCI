@@ -7,7 +7,7 @@ DEVICE=aliothin
 ANYKERNEL3_DIR=AnyKernel3
 TYPE=REL-1.0
 DATE=$(date +"%d.%m.%y")
-VERSION="Panguin-${DEVICE}-${TYPE}-${DATE}"
+VERSION="Penguin-${DEVICE}-${TYPE}-${DATE}"
 # Export Zip name
 export ZIPNAME="${VERSION}.zip"
 export PATH="/home/piraterex/clang/bin:${PATH}"
