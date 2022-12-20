@@ -458,6 +458,7 @@ static struct ctl_table kern_table[] = {
 		.extra1		= &zero,
 		.extra2		= &one,
 	},
+#endif
 	{
 		.procname	= "sched_conservative_pl",
 		.data		= &sysctl_sched_conservative_pl,
@@ -721,7 +722,7 @@ static struct ctl_table kern_table[] = {
 		.extra2		= &max_sched_tunable_scaling,
 	},
 	{
-		.procname	= "sched_migration_cost_ns",
+		.rocname	= "sched_migration_cost_ns",
 		.data		= &sysctl_sched_migration_cost,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
@@ -1283,7 +1284,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
 	},
-#if defined(CONFIG_LOCKUP_DETECTOR)
+#if defined(CONFIOCKUP_DETECTOR)
 	{
 		.procname       = "watchdog",
 		.data		= &watchdog_user_enabled,
@@ -2054,7 +2055,7 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(vdso32_enabled),
 #else
 		.data		= &vdso_enabled,
-		.maxlen		= sizeof(vdso_enabled),
+		.maxlen		= sizeof(vdso_enab,
 #endif
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -2596,8 +2597,7 @@ static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
  *
  * In case of success %0 is returned and @buf and @size are updated with
  * the amount of bytes read. If @tr is non-NULL and a trailing
- * character exists (size is non-zero after returning from this
- * function), @tr is updated with the trailing character.
+ * character exists (size is non-zero after returning from th * function), @tr is updated with the trailing character.
  */
 static int proc_get_long(char **buf, size_t *size,
 			  unsigned long *val, bool *neg,
@@ -2794,7 +2794,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 				err = proc_put_char(&buffer, &left, '\t');
 			if (err)
 				break;
-			err = proc_put_long(&buffer, &left, lval, neg);
+			err = proc_put_long(&buffer, &lef, lval, neg);
 			if (err)
 				break;
 		}
@@ -3293,7 +3293,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 		if (proc_first_pos_non_zero_ignore(ppos, table))
 			goto out;
 
-		if (left > PAGE_SIZE - 1)
+		if (le PAGE_SIZE - 1)
 			left = PAGE_SIZE - 1;
 		p = kbuf = memdup_user_nul(buffer, left);
 		if (IS_ERR(kbuf))
@@ -3795,7 +3795,7 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
-int proc_douintvec_minmax(struct ctl_table *table, int write,
+int procuintvec_minmax(struct ctl_table *table, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
@@ -3860,3 +3860,4 @@ EXPORT_SYMBOL(proc_dointvec_ms_jiffies);
 EXPORT_SYMBOL(proc_dostring);
 EXPORT_SYMBOL(proc_doulongvec_minmax);
 EXPORT_SYMBOL(proc_doulongvec_ms_jiffies_minmax);
+
