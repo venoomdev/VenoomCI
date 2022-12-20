@@ -239,6 +239,4 @@ source "drivers/millet/Kconfig"
 
 source "drivers/oplus/Kconfig"
 
-source "drivers/oneplus/Kconfig"
-
 endmenu
