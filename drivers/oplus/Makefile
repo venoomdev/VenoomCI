@@ -11,3 +11,6 @@ obj-$(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK) += oplus_fdleak_check.o
 obj-$(CONFIG_COLOR_CTRL_V2) += colorctrl.o
 obj-$(CONFIG_OPLUS_ION_BOOSTPOOL) += oplus_performance/ion_boost_pool/oplus_ion_boost_pool.o
 obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += game_opt/
+
+#Add for NandSwap
+obj-$(CONFIG_NANDSWAP)		+= oplus_performance/oplus_nandswap/
