@@ -439,7 +439,6 @@ static struct ctl_table kern_table[] = {
 		.extra1		= &zero,
 		.extra2		= &sysctl_sched_group_upmigrate_pct,
 	},
-#if 0
 	{
 		.procname	= "sched_boost",
 		.data		= &sysctl_sched_boost,
@@ -1087,7 +1086,7 @@ static struct ctl_table kern_table[] = {
 		.data		= &modules_disabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		/* only handle a transition from default "0" to "1" */
+		/ only handle a transition from default "0" to "1" */
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &one,
 		.extra2		= &one,
@@ -1285,7 +1284,7 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,
 	},
-#if defined(CONFIOCKUP_DETECTOR)
+#if defined(CONFIG_CKUP_DETECTOR)
 	{
 		.procname       = "watchdog",
 		.data		= &watchdog_user_enabled,
@@ -1821,7 +1820,7 @@ static struct ctl_table vm_table[] = {
 		.data           = NULL,
 		.maxlen         = sizeof(unsigned long),
 		.mode           = 0644,
-		.proc_handler   = &hugetlb_mempolicy_sysctl_handler,
+		.proc_hadler   = &hugetlb_mempolicy_sysctl_handler,
 	},
 	{
 		.procname		= "numa_stat",
@@ -2056,7 +2055,7 @@ static struct ctl_table vm_table[] = {
 		.maxlen		= sizeof(vdso32_enabled),
 #else
 		.data		= &vdso_enabled,
-		.maxlen		= sizeof(vdso_enab,
+		.maxlen		= sizeof(vdso_enabled),
 #endif
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -2162,7 +2161,7 @@ static struct ctl_table fs_table[] = {
 		.data		= &inodes_stat,
 		.maxlen		= 7*sizeof(long),
 		.mode		= 0444,
-		.proc_handler	= proc_nr_inodes,
+		.proc_handler	= proc_nr_indes,
 	},
 	{
 		.procname	= "file-nr",
@@ -2357,7 +2356,7 @@ static struct ctl_table fs_table[] = {
 	{ }
 };
 
-static struct ctl_table debug_table[] = {
+stac struct ctl_table debug_table[] = {
 #ifdef CONFIG_SYSCTL_EXCEPTION_TRACE
 	{
 		.procname	= "exception-trace",
@@ -2598,7 +2597,8 @@ static int strtoul_lenient(const char *cp, char **endp, unsigned int base,
  *
  * In case of success %0 is returned and @buf and @size are updated with
  * the amount of bytes read. If @tr is non-NULL and a trailing
- * character exists (size is non-zero after returning from th * function), @tr is updated with the trailing character.
+ * character exists (size is non-zero after returning from this
+ * function), @tr is updated with the trailing character.
  */
 static int proc_get_long(char **buf, size_t *size,
 			  unsigned long *val, bool *neg,
@@ -2795,7 +2795,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 				err = proc_put_char(&buffer, &left, '\t');
 			if (err)
 				break;
-			err = proc_put_long(&buffer, &lef, lval, neg);
+			err = proc_put_long(&buffer, &left, lval, neg);
 			if (err)
 				break;
 		}
@@ -2923,7 +2923,7 @@ static int __do_proc_douintvec(void *tbl_data, struct ctl_table *table,
 			       int write, void __user *buffer,
 			       size_t *lenp, loff_t *ppos,
 			       int (*conv)(unsigned long *lvalp,
-					   unsigned int *valp,
+					   unsigneint *valp,
 					   int write, void *data),
 			       void *data)
 {
@@ -3214,7 +3214,7 @@ static int do_proc_dopipe_max_size_conv(unsigned long *lvalp,
 	return 0;
 }
 
-static int proc_dopipe_max_size(struct ctl_table *table, int write,
+static int proc_dopipe_max_size(struct ctl_table *table int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return do_proc_douintvec(table, write, buffer, lenp, ppos,
@@ -3294,7 +3294,7 @@ static int __do_proc_doulongvec_minmax(void *data, struct ctl_table *table, int 
 		if (proc_first_pos_non_zero_ignore(ppos, table))
 			goto out;
 
-		if (le PAGE_SIZE - 1)
+		if (left > PAGE_SIZE - 1)
 			left = PAGE_SIZE - 1;
 		p = kbuf = memdup_user_nul(buffer, left);
 		if (IS_ERR(kbuf))
@@ -3710,7 +3710,7 @@ int proc_do_large_bitmap(struct ctl_table *table, int write,
 	return err;
 }
 
-static int do_proc_douintvec_capacity_conv(bool *negp, unsigned long *lvalp,
+static int do_prouintvec_capacity_conv(bool *negp, unsigned long *lvalp,
 					   int *valp, int write, void *data)
 {
 	if (write) {
@@ -3796,7 +3796,7 @@ int proc_dointvec_minmax(struct ctl_table *table, int write,
 	return -ENOSYS;
 }
 
-int procuintvec_minmax(struct ctl_table *table, int write,
+int proc_douintvec_minmax(struct ctl_table *table, int write,
 			  void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	return -ENOSYS;
