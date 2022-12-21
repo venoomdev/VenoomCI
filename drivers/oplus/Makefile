@@ -31,6 +31,7 @@ obj-y += network/
 obj-y += wakelock_profiler/
 obj-y += oplus_performance/healthinfo/fs/
 obj-y += oplus_performance/healthinfo/mm/
+obj-y += oplus_performance/tpp/
 
 obj-$(CONFIG_OPLUS_FEATURE_INPUT_BOOST_V4) += oplus_performance/inputboost_v4/
 obj-y += oplus_performance/im/

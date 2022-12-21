@@ -1563,6 +1563,10 @@ struct task_struct {
 	unsigned in_epoll:1;
 #endif
 
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	int tpp_flag;
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
+
 #ifdef CONFIG_OPLUS_FEATURE_IM
 	int im_flag;
 #endif

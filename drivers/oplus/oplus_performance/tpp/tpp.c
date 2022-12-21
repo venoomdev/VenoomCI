@@ -10,7 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/cpufreq.h>
 #include <linux/im/im.h>
-#include <linux/tpp/tpp.h>
+#include "tpp.h"
 
 /*
  * log output

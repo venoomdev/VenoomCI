@@ -79,6 +79,10 @@
 #include <linux/im/im.h>
 #endif
 
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+#include <../../drivers/oplus/oplus_performance/tpp/tpp.h>
+#endif
+
 int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
@@ -1290,6 +1294,9 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 #ifdef CONFIG_OPLUS_FEATURE_IM
 	im_wmi(tsk);
 #endif
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_tagging(tsk);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 	task_unlock(tsk);
 	perf_event_comm(tsk, exec);
 }

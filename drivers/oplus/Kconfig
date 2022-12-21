@@ -38,6 +38,7 @@ source "drivers/oplus/oplus_performance/inputboost_v4/Kconfig"
 source "drivers/oplus/oplus_performance/im/Kconfig"
 source "drivers/oplus/oplus_performance/oplus_mm/process_reclaim/Kconfig"
 source "drivers/oplus/oplus_performance/oplus_mm/zram_opt/Kconfig"
+source "drivers/oplus/oplus_performance/tpp/Kconfig"
 
 config OPLUS_FEATURE_FDLEAK_CHECK
     tristate "fdleak check"
