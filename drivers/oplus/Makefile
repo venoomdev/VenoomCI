@@ -7,6 +7,7 @@ obj-y     += system/project_info/
 obj-$(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK) += oplus_fdleak_check.o
 obj-$(CONFIG_OPLUS_ION_BOOSTPOOL) += oplus_performance/ion_boost_pool/oplus_ion_boost_pool.o
 obj-y += wakelock_profiler/
+obj-y += oplus_performance/tpp/
 
 #Add for NandSwap
 obj-$(CONFIG_NANDSWAP)		+= oplus_performance/oplus_nandswap/

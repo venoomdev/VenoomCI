@@ -947,6 +947,10 @@ static void update_tg_load_avg(struct cfs_rq *cfs_rq, int force)
 }
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+#include <../../drivers/oplus/oplus_performance/tpp/tpp.h>
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
+ 
 /*
  * Update the current task's runtime statistics.
  */
@@ -5706,6 +5710,9 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	assert_list_leaf_cfs_rq(rq);
 
 	hrtick_update(rq);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_enqueue(cpu_of(rq), p);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 }
 
 static void set_next_buddy(struct sched_entity *se);
@@ -5784,6 +5791,9 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 	util_est_dequeue(&rq->cfs, p, task_sleep);
 	hrtick_update(rq);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_dequeue(cpu_of(rq), p);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 }
 
 #ifdef CONFIG_SMP
@@ -7173,6 +7183,7 @@ static void find_best_target(struct sched_domain *sd, cpumask_t *cpus,
 	unsigned int target_nr_rtg_high_prio = UINT_MAX;
 	bool rtg_high_prio_task = task_rtg_high_prio(p);
 	struct task_struct *curr_tsk;
+	cpumask_t new_allowed_cpus;
 	/*
 	 * In most cases, target_capacity tracks capacity_orig of the most
 	 * energy efficient CPU candidate, thus requiring to minimise
@@ -7216,8 +7227,15 @@ static void find_best_target(struct sched_domain *sd, cpumask_t *cpus,
 
 	/* Scan CPUs in all SDs */
 	sg = start_sd->groups;
+
+	cpumask_copy(&new_allowed_cpus, &p->cpus_allowed);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	if (tpp_task(p)) {
+		cpumask_setall(&new_allowed_cpus);
+	}
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 	do {
-		for_each_cpu_and(i, &p->cpus_allowed, sched_group_span(sg)) {
+		for_each_cpu_and(i, &new_allowed_cpus, sched_group_span(sg)) {
 			unsigned long capacity_curr = capacity_curr_of(i);
 			unsigned long capacity_orig = capacity_orig_of(i);
 			unsigned long wake_util, new_util, new_util_cuml;
@@ -8133,6 +8151,11 @@ unlock:
 	    (prev_energy != ULONG_MAX) && (best_energy_cpu != prev_cpu) &&
 	    ((prev_energy - best_energy) <= prev_energy >> 4))
 		best_energy_cpu = prev_cpu;
+
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	if (tpp_task(p))
+		tpp_find_cpu(&best_energy_cpu, p);
+#endif /* CONFIG_OPLUS_FEATURE_TPP */
 
 done:
 
