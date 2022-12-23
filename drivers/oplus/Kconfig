@@ -19,7 +19,7 @@ config OPLUS_FEATURE_SELINUX_CONTROL_LOG
 	define this config to control selinux log.
 
 source "drivers/oplus/game_opt/Kconfig"
-source "drivers/oplus/oplus_pmic_monitor/Kconfig"
+#source "drivers/oplus/oplus_pmic_monitor/Kconfig"
 
 config OPLUS_FEATURE_CPU_JANKINFO
 	tristate "config cpu_jankinfo"

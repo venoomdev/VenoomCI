@@ -5448,6 +5448,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		}
 	}
 
+#ifdef CONFIG_MIHW
 	if (binder_debugfs_dir_entry_proc_transaction) {
 		char strbuf[11];
 		snprintf(strbuf, sizeof(strbuf), "%u", proc->pid);
@@ -5475,6 +5476,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 			}
 		}
 	}
+#endif
 	return 0;
 }
 
@@ -5659,14 +5661,14 @@ static void binder_deferred_flush(struct binder_proc *proc)
 static int binder_release(struct inode *nodp, struct file *filp)
 {
 	struct binder_proc *proc = filp->private_data;
-
+#ifdef CONFIG_MIHW
 	debugfs_remove(proc->debugfs_entry);
 	debugfs_remove(proc->debugfs_transaction_entry);
 	if (proc->binderfs_transaction_entry) {
 		binderfs_remove_file(proc->binderfs_transaction_entry);
 		proc->binderfs_transaction_entry = NULL;
 	}
-
+#endif
 	if (proc->binderfs_entry) {
 		binderfs_remove_file(proc->binderfs_entry);
 		proc->binderfs_entry = NULL;

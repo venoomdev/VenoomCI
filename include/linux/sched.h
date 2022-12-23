@@ -1551,7 +1551,6 @@ struct task_struct {
 	unsigned in_epoll:1;
 #endif
 
->>>>>>> 234afdc87498... Import oplus feature and changes
 	/* task is frozen/stopped (used by the cgroup freezer) */
 	ANDROID_KABI_USE(1, unsigned frozen:1);
 
