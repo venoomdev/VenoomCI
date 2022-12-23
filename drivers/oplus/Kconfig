@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2018-2020 Oplus. All rights reserved.
+config OPLUS_SYSTEM_KERNEL
+  bool "config oplus system feature "
+  default y
+  help
+	define this config to add oplus sytstem kernel feature
+
 config OPLUS_FEATURE_DUMP_DEVICE_INFO
   bool "config dump device info"
   default n
@@ -15,15 +21,11 @@ source "drivers/oplus/game_opt/Kconfig"
 source "drivers/oplus/wakelock_profiler/Kconfig"
 source "drivers/oplus/system/dump_device_info/Kconfig"
 source "drivers/oplus/system/project_info/Kconfig"
+
+#ifdef CONFIG_OPLUS_FEATURE_FDLEAK_CHECK
+source "drivers/oplus/system/oplus_fdleak/Kconfig"
+#endif /*CONFIG_OPLUS_FEATURE_FDLEAK_CHECK*/
 source "drivers/oplus/oplus_performance/tpp/Kconfig"
-
-config OPLUS_FEATURE_FDLEAK_CHECK
-    tristate "fdleak check"
-    default n
-    depends on OPLUS_SYSTEM_KERNEL
-    help
-      general utility to detect fdleak for userspace key process.
-
 
 config OPLUS_ION_BOOSTPOOL
 	bool "Support ION Boost pool"

@@ -4,7 +4,6 @@ obj-$(CONFIG_OPLUS_FEATURE_DUMP_DEVICE_INFO) += system/dump_device_info/
 obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= oplus_project.o
 obj-y     += system/cmdline_parser/
 obj-y     += system/project_info/
-obj-$(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK) += oplus_fdleak_check.o
 obj-$(CONFIG_OPLUS_ION_BOOSTPOOL) += oplus_performance/ion_boost_pool/oplus_ion_boost_pool.o
 obj-y += wakelock_profiler/
 obj-y += oplus_performance/tpp/
@@ -12,3 +11,8 @@ obj-y += oplus_performance/tpp/
 obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += game_opt/
 #Add for NandSwap
 obj-$(CONFIG_NANDSWAP)		+= oplus_performance/oplus_nandswap/
+
+
+#ifdef CONFIG_OPLUS_FEATURE_FDLEAK_CHECK
+obj-$(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK)     += system/oplus_fdleak/
+#endif /*CONFIG_OPLUS_FEATURE_FDLEAK_CHECK*/

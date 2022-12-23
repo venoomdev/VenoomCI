@@ -1549,6 +1549,9 @@ struct task_struct {
 #ifdef CONFIG_ANDROID_SIMPLE_LMK
 	struct task_struct		*simple_lmk_next;
 #endif
+#if IS_ENABLED(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK)
+	unsigned int fdleak_flag;
+#endif
 
 	/*
 	 * New fields for task_struct should be added above here, so that
