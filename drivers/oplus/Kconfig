@@ -70,3 +70,6 @@ config OPLUS_FEATURE_SHUTDOWN_SPEED
 	default n
 	help
 	  define this config to get shutdown_speed cmdline.
+
+#Add for NandSwap
+source "drivers/oplus/oplus_performance/oplus_nandswap/Kconfig"
