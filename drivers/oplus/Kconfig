@@ -11,6 +11,7 @@ config OPLUS_FEATURE_OPROJECT
   default n
   help
     define this config to define oplus project
+source "drivers/oplus/game_opt/Kconfig"
 source "drivers/oplus/wakelock_profiler/Kconfig"
 source "drivers/oplus/system/dump_device_info/Kconfig"
 source "drivers/oplus/system/project_info/Kconfig"
