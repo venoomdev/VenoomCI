@@ -4,6 +4,7 @@ obj-$(CONFIG_OPLUS_FEATURE_DUMP_DEVICE_INFO) += system/dump_device_info/
 obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= oplus_project.o
 obj-y     += system/cmdline_parser/
 obj-y     += system/project_info/
+obj-$(CONFIG_OPLUS_FEATURE_SHUTDOWN_DETECT)    += system/shutdown_detect/
 obj-$(CONFIG_OPLUS_ION_BOOSTPOOL) += oplus_performance/ion_boost_pool/oplus_ion_boost_pool.o
 obj-y += wakelock_profiler/
 obj-y += oplus_performance/tpp/
