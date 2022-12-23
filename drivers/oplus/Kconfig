@@ -25,6 +25,11 @@ source "drivers/oplus/system/project_info/Kconfig"
 #ifdef CONFIG_OPLUS_FEATURE_FDLEAK_CHECK
 source "drivers/oplus/system/oplus_fdleak/Kconfig"
 #endif /*CONFIG_OPLUS_FEATURE_FDLEAK_CHECK*/
+
+#ifdef OPLUS_FEATURE_MDMFEATURE
+source "drivers/oplus/system/mdmfeature/Kconfig"
+#endif /*OPLUS_FEATURE_MDMFEATURE*/
+
 source "drivers/oplus/system/shutdown_detect/Kconfig"
 source "drivers/oplus/oplus_performance/tpp/Kconfig"
 
