@@ -30,6 +30,10 @@ source "drivers/oplus/system/oplus_fdleak/Kconfig"
 source "drivers/oplus/system/mdmfeature/Kconfig"
 #endif /*OPLUS_FEATURE_MDMFEATURE*/
 
+#ifdef OPLUS_FEATURE_MIDAS
+source "drivers/oplus/system/oplus_midas/Kconfig"
+#endif
+
 source "drivers/oplus/system/shutdown_detect/Kconfig"
 source "drivers/oplus/oplus_performance/tpp/Kconfig"
 

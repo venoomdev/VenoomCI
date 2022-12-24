@@ -7,6 +7,11 @@ obj-y     += system/project_info/
 #ifdef OPLUS_FEATURE_MDMFEATURE
 obj-$(CONFIG_OPLUS_FEATURE_MDMFEATURE)     += system/mdmfeature/
 #endif /*OPLUS_FEATURE_MDMFEATURE*/
+
+#ifdef VENDOR_EDIT
+obj-$(CONFIG_OPLUS_FEATURE_MIDAS)    += system/oplus_midas/
+#endif /* VENDOR_EDIT */
+
 obj-$(CONFIG_OPLUS_FEATURE_SHUTDOWN_DETECT)    += system/shutdown_detect/
 obj-$(CONFIG_OPLUS_ION_BOOSTPOOL) += oplus_performance/ion_boost_pool/oplus_ion_boost_pool.o
 obj-y += wakelock_profiler/
