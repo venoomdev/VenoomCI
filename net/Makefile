@@ -88,3 +88,10 @@ obj-$(CONFIG_QRTR)		+= qrtr/
 obj-$(CONFIG_NET_NCSI)		+= ncsi/
 obj-$(CONFIG_XDP_SOCKETS)	+= xdp/
 obj-$(CONFIG_SLA_STAIC_COLLECT) += sla/
+
+#ifdef OPLUS_FEATURE_APP_MONITOR
+#Add for apps network monitors
+obj-y				+= oplus_apps_monitor/
+#endif /* OPLUS_FEATURE_APP_MONITOR */
+
+obj-y                           += oplus_modules/

@@ -35,6 +35,10 @@
 #define NETLINK_MILLET          29
 #endif
 
+//Add for apps network monitors
+#define NETLINK_OPLUS_APPS_MONITOR  35      /* Apps monitor NETLINK SOCK */
+//#endif /* VENDOR_EDIT */
+
 #define MAX_LINKS 32		
 
 struct sockaddr_nl {
