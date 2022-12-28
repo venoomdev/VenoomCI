@@ -43,6 +43,16 @@
 #define NETLINK_OPLUS_NWPOWERSTATE	36	/*OPLUS NW PowerState*/
 //#endif /* OPLUS_FEATURE_NWPOWER */
 
+
+//#ifdef OPLUS_FEATURE_DHCP
+#define NETLINK_OPLUS_DHCP 38
+//#endif /* OPLUS_FEATURE_DHCP */
+
+
+//#ifdef OPLUS_FEATURE_IPV6_OPTIMIZE
+#define NETLINK_OPLUS_IPV6_RTO  42
+//#endif /* OPLUS_FEATURE_IPV6_OPTIMIZE */
+
 #define MAX_LINKS 32		
 
 struct sockaddr_nl {

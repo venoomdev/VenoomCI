@@ -93,9 +93,20 @@ obj-$(CONFIG_SLA_STAIC_COLLECT) += sla/
 obj-y				+= oplus_nwpower/
 #endif /* OPLUS_FEATURE_NWPOWER */
 
+
+#ifdef OPLUS_FEATURE_IPV6_OPTIMIZE
+obj-y                   	+= oplus_ipv6/
+#endif /* OPLUS_FEATURE_IPV6_OPTIMIZE */
+
 #ifdef OPLUS_FEATURE_APP_MONITOR
 #Add for apps network monitors
 obj-y				+= oplus_apps_monitor/
 #endif /* OPLUS_FEATURE_APP_MONITOR */
+
+
+OPLUS_FEATURE_DHCP=1
+ifneq ($(OPLUS_FEATURE_DHCP),)
+obj-y				+= oplus_dhcp/
+endif #/* OPLUS_FEATURE_DHCP */
 
 obj-y                           += oplus_modules/
