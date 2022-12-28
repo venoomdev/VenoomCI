@@ -3,6 +3,7 @@
 obj-$(CONFIG_OPLUS_FEATURE_DUMP_DEVICE_INFO) += system/dump_device_info/
 obj-$(CONFIG_OPLUS_FEATURE_OPROJECT) 	+= oplus_project.o
 obj-y     += system/cmdline_parser/
+obj-y     += system/acm/
 obj-y     += system/project_info/
 #ifdef OPLUS_FEATURE_MDMFEATURE
 obj-$(CONFIG_OPLUS_FEATURE_MDMFEATURE)     += system/mdmfeature/

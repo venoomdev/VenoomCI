@@ -20,6 +20,7 @@ config OPLUS_FEATURE_OPROJECT
 source "drivers/oplus/game_opt/Kconfig"
 source "drivers/oplus/wakelock_profiler/Kconfig"
 source "drivers/oplus/system/dump_device_info/Kconfig"
+source "drivers/oplus/system/acm/Kconfig"
 source "drivers/oplus/system/project_info/Kconfig"
 
 #ifdef CONFIG_OPLUS_FEATURE_FDLEAK_CHECK
