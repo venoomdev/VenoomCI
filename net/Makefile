@@ -89,6 +89,10 @@ obj-$(CONFIG_NET_NCSI)		+= ncsi/
 obj-$(CONFIG_XDP_SOCKETS)	+= xdp/
 obj-$(CONFIG_SLA_STAIC_COLLECT) += sla/
 
+#ifdef OPLUS_FEATURE_NWPOWER
+obj-y				+= oplus_nwpower/
+#endif /* OPLUS_FEATURE_NWPOWER */
+
 #ifdef OPLUS_FEATURE_APP_MONITOR
 #Add for apps network monitors
 obj-y				+= oplus_apps_monitor/

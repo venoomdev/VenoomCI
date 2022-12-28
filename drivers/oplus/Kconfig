@@ -35,6 +35,10 @@ source "drivers/oplus/system/mdmfeature/Kconfig"
 source "drivers/oplus/system/oplus_midas/Kconfig"
 #endif
 
+#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+source "drivers/oplus/wakelock_profiler/Kconfig"
+#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
+
 source "drivers/oplus/system/shutdown_detect/Kconfig"
 source "drivers/oplus/oplus_performance/tpp/Kconfig"
 

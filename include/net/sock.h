@@ -188,6 +188,14 @@ struct sock_common {
 	struct proto		*skc_prot;
 	possible_net_t		skc_net;
 
+
+	//#ifdef OPLUS_FEATURE_NWPOWER
+	u32 skc_oplus_pid;
+	u64 skc_oplus_last_rcv_stamp[2];//index 0 = last, index 1 = now
+	u64 skc_oplus_last_send_stamp[2];//index 0 = last, index 1 = now
+	//#endif /* OPLUS_FEATURE_NWPOWER */
+
+
 #if IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr		skc_v6_daddr;
 	struct in6_addr		skc_v6_rcv_saddr;
@@ -364,6 +372,14 @@ struct sock {
 #define sk_incoming_cpu		__sk_common.skc_incoming_cpu
 #define sk_flags		__sk_common.skc_flags
 #define sk_rxhash		__sk_common.skc_rxhash
+
+
+//#ifdef OPLUS_FEATURE_NWPOWER
+#define sk_oplus_pid				__sk_common.skc_oplus_pid
+#define oplus_last_rcv_stamp		__sk_common.skc_oplus_last_rcv_stamp
+#define oplus_last_send_stamp	__sk_common.skc_oplus_last_send_stamp
+//#endif /* OPLUS_FEATURE_NWPOWER */
+
 
 	socket_lock_t		sk_lock;
 	atomic_t		sk_drops;

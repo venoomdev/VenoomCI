@@ -26,3 +26,8 @@ obj-$(CONFIG_NANDSWAP)		+= oplus_performance/oplus_nandswap/
 #ifdef CONFIG_OPLUS_FEATURE_FDLEAK_CHECK
 obj-$(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK)     += system/oplus_fdleak/
 #endif /*CONFIG_OPLUS_FEATURE_FDLEAK_CHECK*/
+
+#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+obj-$(CONFIG_OPLUS_WAKELOCK_PROFILER) += wakelock_profiler/
+#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
+

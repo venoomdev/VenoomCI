@@ -478,6 +478,10 @@ MODULE_PARM_DESC(pm_test_delay,
 static int suspend_test(int level)
 {
 #ifdef CONFIG_PM_DEBUG
+	#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	pr_info("%s pm_test_level:%d, level:%d\n", __func__,
+		pm_test_level, level);
+	#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
 	if (pm_test_level == level) {
 		pr_info("suspend debug: Waiting for %d second(s).\n",
 				pm_test_delay);
@@ -595,6 +599,10 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	arch_suspend_disable_irqs();
 	BUG_ON(!irqs_disabled());
 
+	#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	pr_info("%s syscore_suspend\n", __func__);
+	#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
+
 	system_state = SYSTEM_SUSPEND;
 
 #ifdef CONFIG_PM_SLEEP_MONITOR
@@ -678,6 +686,10 @@ int suspend_devices_and_enter(suspend_state_t state)
 		error = suspend_enter(state, &wakeup);
 	} while (!error && !wakeup && platform_suspend_again(state));
 
+	#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	pr_info("suspend_enter end, error:%d, wakeup:%d\n", error, wakeup);
+	#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
+
  Resume_devices:
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
@@ -730,6 +742,9 @@ static int enter_state(suspend_state_t state)
 		}
 #endif
 	} else if (!valid_state(state)) {
+		#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+		pr_info("%s invalid_state\n", __func__);
+		#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
 		return -EINVAL;
 	}
 	if (!mutex_trylock(&system_transition_mutex))
@@ -752,6 +767,10 @@ static int enter_state(suspend_state_t state)
 	if (error)
 		goto Unlock;
 
+	#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	pr_info("%s suspend_prepare success\n", __func__);
+	#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
+
 	if (suspend_test(TEST_FREEZER))
 		goto Finish;
 
@@ -760,6 +779,9 @@ static int enter_state(suspend_state_t state)
 	pm_restrict_gfp_mask();
 	error = suspend_devices_and_enter(state);
 	pm_restore_gfp_mask();
+	#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	pr_info("%s suspend_devices_and_enter end\n", __func__);
+	#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
 
  Finish:
 	events_check_enabled = false;
