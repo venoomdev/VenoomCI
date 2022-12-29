@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 #ifndef _UAPI__LINUX_NETLINK_H
 #define _UAPI__LINUX_NETLINK_H
+#define OPLUS_FEATURE_WIFI_LUCKYMONEY
 
 #include <linux/const.h>
 #include <linux/socket.h> /* for __kernel_sa_family_t */
@@ -31,6 +32,11 @@
 #define NETLINK_SMC		22	/* SMC monitoring */
 #define NETLINK_SOCKEV		23	/* Socket Administrative Events */
 #define NETLINK_INET_DIAG	NETLINK_SOCK_DIAG
+
+#ifdef OPLUS_FEATURE_WIFI_LUCKYMONEY
+#define NETLINK_OPLUS_NF_HOOKS	32
+#endif /* OPLUS_FEATURE_WIFI_LUCKYMONEY */
+
 #ifdef CONFIG_MILLET
 #define NETLINK_MILLET          29
 #endif
@@ -43,6 +49,9 @@
 #define NETLINK_OPLUS_NWPOWERSTATE	36	/*OPLUS NW PowerState*/
 //#endif /* OPLUS_FEATURE_NWPOWER */
 
+//#ifdef OPLUS_FEATURE_DATA_EVAL
+#define NETLINK_OPLUS_KERNEL2USER  37      /* kernel data info to user space */
+//#endif /* OPLUS_FEATURE_DATA_EVAL */
 
 //#ifdef OPLUS_FEATURE_DHCP
 #define NETLINK_OPLUS_DHCP 38
