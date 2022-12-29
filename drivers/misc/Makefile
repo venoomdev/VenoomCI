@@ -78,6 +78,14 @@ obj-$(CONFIG_WIGIG_SENSING_SPI)	+= wigig_sensing.o
 obj-$(CONFIG_QTI_MAXIM_FAN_CONTROLLER) += max31760.o
 obj-$(CONFIG_QTI_XR_SMRTVWR_MISC) += qxr-stdalonevwr.o
 obj-$(CONFIG_FPR_FPC)		+= fpr_FingerprintCard/
+
+#ifdef OPLUS_FEATURE_SIM_DETECT
+obj-$(CONFIG_SIM_DETECT)	+= sim_detect.o
+#endif
+
+#ifdef OPLUS_FEATURE_SIM_DETECT
+obj-$(CONFIG_OEM_QMI)	+= oem_qmi_client.o
+#endif
 obj-y                           += qrc/
 
 obj-$(CONFIG_HALL_AKM09970)	+= akm09970.o
