@@ -92,6 +92,9 @@ obj-$(CONFIG_SLA_STAIC_COLLECT) += sla/
 #ifdef OPLUS_FEATURE_NWPOWER
 obj-y				+= oplus_nwpower/
 #endif /* OPLUS_FEATURE_NWPOWER */
+#ifdef OPLUS_FEATURE_WIFI_SLA
+obj-y                   	+= oplus_connectivity_sla/
+#endif /* OPLUS_FEATURE_WIFI_SLA */
 
 
 #ifdef OPLUS_FEATURE_IPV6_OPTIMIZE
@@ -116,5 +119,10 @@ OPLUS_FEATURE_DHCP=1
 ifneq ($(OPLUS_FEATURE_DHCP),)
 obj-y				+= oplus_dhcp/
 endif #/* OPLUS_FEATURE_DHCP */
+
+OPLUS_FEATURE_WIFI_CAP_CENTER=1
+ifneq ($(OPLUS_FEATURE_WIFI_CAP_CENTER),)
+obj-y				+= oplus_wificapcenter/
+endif #/* OPLUS_FEATURE_WIFI_CAP_CENTER */
 
 obj-y                           += oplus_modules/

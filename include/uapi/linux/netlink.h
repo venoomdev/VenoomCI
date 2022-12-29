@@ -57,12 +57,17 @@
 #define NETLINK_OPLUS_DHCP 38
 //#endif /* OPLUS_FEATURE_DHCP */
 
+//#ifdef OPLUS_FEATURE_WIFI_CAPCENTER
+#define NETLINK_OPLUS_WIFI_CAP_CENTER_SYNC 39
+#define NETLINK_OPLUS_WIFI_CAP_CENTER_ASYNC 40
 
 //#ifdef OPLUS_FEATURE_IPV6_OPTIMIZE
 #define NETLINK_OPLUS_IPV6_RTO  42
 //#endif /* OPLUS_FEATURE_IPV6_OPTIMIZE */
 
-#define MAX_LINKS 32		
+//#define MAX_LINKS 40
+#define MAX_LINKS 44
+//#endif /* OPLUS_FEATURE_WIFI_CAPCENTER */
 
 struct sockaddr_nl {
 	__kernel_sa_family_t	nl_family;	/* AF_NETLINK	*/
