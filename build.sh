@@ -10,10 +10,10 @@ DATE=$(date +"%d.%m.%y")
 VERSION="Penguin-${DEVICE}-${TYPE}-${DATE}"
 # Export Zip name
 export ZIPNAME="${VERSION}.zip"
-export PATH="/home/piraterex/clang/bin:${PATH}"
+export PATH="${KERNEL_DIR}/clang/bin:${PATH}"
 export ARCH=arm64
 export SUBARCH=arm64
-export KBUILD_COMPILER_STRING="$(/home/piraterex/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
+export KBUILD_COMPILER_STRING="$(${KERNEL_DIR}/clang/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')"
 
 BUILD_START=$(date +"%s")
 blue='\033[1;34m'
@@ -23,10 +23,6 @@ nocol='\033[0m'
 # Speed up build process
 MAKE="./makeparallel"
 
-
-#git clone --depth=1 https://github.com/EmanuelCN/zyc_clang-14 clang
-#anykernel
-git clone https://github.com/dereference23/AnyKernel3.git AnyKernel3
 make $KERNEL_DEFCONFIG O=out CC=clang
 make -j$(nproc --all) O=out \
                       ARCH=arm64 \
