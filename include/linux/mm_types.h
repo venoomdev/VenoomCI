@@ -296,9 +296,6 @@ struct vm_area_struct {
 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
 	unsigned long vm_flags;		/* Flags, see mm.h. */
 
-#ifdef CONFIG_VM_FRAGMENT_MONITOR
-	unsigned long rb_glfragment_gap;
-#endif
 	/*
 	 * For areas with an address space and backing store,
 	 * linkage into the address_space->i_mmap interval tree.

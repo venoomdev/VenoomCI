@@ -91,13 +91,6 @@ struct cpuidle_state;
 extern __read_mostly bool sched_predl;
 extern unsigned int sched_capacity_margin_up[NR_CPUS];
 extern unsigned int sched_capacity_margin_down[NR_CPUS];
-#ifdef CONFIG_IM
-extern int group_show(struct seq_file *m, void *v);
-extern void group_remove(void);
-#else
-static inline int group_show(struct seq_file *m, void *v) {return 0; }
-static inline void group_remove(void) {}
-#endif
 
 struct sched_walt_cpu_load {
 	unsigned long nl;

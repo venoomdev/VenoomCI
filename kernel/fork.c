@@ -97,12 +97,6 @@
 #include <linux/scs.h>
 #include <linux/simple_lmk.h>
 
-#ifdef CONFIG_HOUSTON
-#include <oneplus/houston/houston_helper.h>
-#endif
-#ifdef CONFIG_CONTROL_CENTER
-#include <oneplus/control_center/control_center_helper.h>
-#endif
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -2279,30 +2273,6 @@ static __latent_entropy struct task_struct *copy_process(
 
 	trace_task_newtask(p, clone_flags);
 	uprobe_copy_process(p, clone_flags);
-
-#if defined(CONFIG_CONTROL_CENTER) || defined(CONFIG_HOUSTON) || defined(CONFIG_IM)
-	if (likely(!IS_ERR(p))) {
-#ifdef CONFIG_HOUSTON
-		ht_perf_event_init(p);
-		ht_rtg_init(p);
-#endif
-#ifdef CONFIG_CONTROL_CENTER
-		cc_tsk_init((void *) p);
-#endif
-// #ifdef CONFIG_RATP
-// 	tsk->cpus_suggested = CPU_MASK_ALL;
-// #endif
-#ifdef CONFIG_TPP
-		p->tpp_flag = 0;
-#endif
-#ifdef CONFIG_ONEPLUS_FG_OPT
-		p->fuse_boost = 0;
-#endif
-#ifdef CONFIG_IM
-		im_tsk_init_flag((void *) p);
-#endif
-	}
-#endif
 
 	copy_oom_score_adj(clone_flags, p);
 

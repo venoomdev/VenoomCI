@@ -54,10 +54,6 @@ extern struct cred init_cred;
 #else
 #define __init_task_data /**/
 #endif
-#ifdef CONFIG_RATP
-# define INIT_RATP(tsk)						\
-	.cpus_suggested	= CPU_MASK_ALL, 
-#endif
 
 /* Attach to the thread_info data structure for proper alignment */
 #define __init_thread_info __attribute__((__section__(".data..init_thread_info")))

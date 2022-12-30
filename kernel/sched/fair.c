@@ -26,18 +26,6 @@
 
 #include "walt.h"
 
-#ifdef CONFIG_HOUSTON
-#include <oneplus/houston/houston_helper.h>
-#endif
-
-#ifdef CONFIG_CONTROL_CENTER
-#include <linux/oem/control_center.h>
-#endif
-#ifdef CONFIG_RATP
-#include <linux/oem/ratp.h>
-#include <linux/oem/im.h>
-#endif
-
 #ifdef CONFIG_SMP
 static inline bool task_fits_max(struct task_struct *p, int cpu);
 #endif /* CONFIG_SMP */
@@ -7098,26 +7086,12 @@ static int get_start_cpu(struct task_struct *p)
 			task_boost_policy(p) == SCHED_BOOST_ON_BIG ||
 			task_boost == TASK_BOOST_ON_MID;
 	bool task_skip_min = task_skip_min_cpu(p);
-#if defined(CONFIG_HOUSTON) && defined(CONFIG_OPCHAIN)
-	if (is_uxtop && current->ravg.demand_scaled >= p->ravg.demand_scaled) {
-		ht_rtg_list_add_tail(current);
-	}
-#endif
+
 	/*
 	 * note about min/mid/max_cap_orig_cpu - either all of them will be -ve
 	 * or just mid will be -1, there never be any other combinations of -1s
 	 * beyond these
 	 */
-#if defined(CONFIG_CONTROL_CENTER) && defined(CONFIG_IM)
-	if ((im_rendering(p)) &&
-			im_render_grouping_enable() &&
-			ccdm_get_hint(CCDM_TB_PLACE_BOOST) &&
-			task_util(p) > ccdm_get_min_util_threshold()) {
-		start_cpu = rd->mid_cap_orig_cpu == -1 ?
-			rd->max_cap_orig_cpu : rd->mid_cap_orig_cpu;
-		return start_cpu;
-	}
-#endif
 	if (task_skip_min || boosted) {
 		start_cpu = rd->mid_cap_orig_cpu == -1 ?
 			rd->max_cap_orig_cpu : rd->mid_cap_orig_cpu;
@@ -8981,30 +8955,6 @@ static inline int migrate_degrades_locality(struct task_struct *p,
 static inline bool can_migrate_boosted_task(struct task_struct *p,
 			int src_cpu, int dst_cpu)
 {
-
-#ifdef CONFIG_RATP
-	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
-
-	if (is_ratp_enable()) {
-		/*avoid rendering task migrate to sliver core*/
-		if (im_rendering(p) && prefer_sched_group(p) &&
-				(capacity_orig_of(dst_cpu) < capacity_orig_of(src_cpu)) &&
-				(capacity_orig_of(dst_cpu) == capacity_orig_of(rd->min_cap_orig_cpu)))
-			return false;
-
-		if (!cpumask_test_cpu(dst_cpu, &p->cpus_suggested))
-			return false;
-	}
-#endif
-
-#ifdef CONFIG_TPD
-	if (is_tpd_enable() && is_tpd_task(p)) {
-		/*avoid task migrate to wrong tpd suggested cpu*/
-		if (tpd_check(p, dst_cpu))
-			return false;
-	}
-#endif
-
 	if (per_task_boost(p) == TASK_BOOST_STRICT_MAX &&
 		task_in_related_thread_group(p) &&
 		(capacity_orig_of(dst_cpu) < capacity_orig_of(src_cpu)))
