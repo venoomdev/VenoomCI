@@ -30,6 +30,12 @@
 #include <linux/task_io_accounting.h>
 #include <linux/rseq.h>
 
+#ifdef OPLUS_FEATURE_HEALTHINFO
+#ifdef CONFIG_OPLUS_JANK_INFO
+#include <linux/healthinfo/jank_monitor.h>
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
 struct backing_dev_info;
@@ -1503,6 +1509,18 @@ struct task_struct {
 	void				*security;
 #endif
 
+#ifdef OPLUS_FEATURE_HEALTHINFO
+#ifdef CONFIG_OPLUS_JANK_INFO
+	int jank_trace;
+	struct jank_monitor_info jank_info;
+	unsigned in_mutex:1;
+	unsigned in_downread:1;
+	unsigned in_downwrite:1;
+	unsigned in_futex:1;
+	unsigned in_binder:1;
+	unsigned in_epoll:1;
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 
 #ifdef CONFIG_OPLUS_FEATURE_TPP
 	int tpp_flag;
@@ -1541,6 +1559,16 @@ struct task_struct {
 	ANDROID_KABI_RESERVE(8);
 #ifdef CONFIG_ANDROID_SIMPLE_LMK
 	struct task_struct		*simple_lmk_next;
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	int im_flag;
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_TPD
+	int tpd;
+	int dtpd; /* dynamic tpd task */
+	int dtpdg; /* dynamic tpd task group */
+	int tpd_st; /* affinity decision from im */
 #endif
 #if IS_ENABLED(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK)
 	unsigned int fdleak_flag;

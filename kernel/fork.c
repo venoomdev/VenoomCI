@@ -109,6 +109,14 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/task.h>
+#ifdef OPLUS_FEATURE_HEALTHINFO
+#ifdef CONFIG_OPLUS_JANK_INFO
+#include <linux/healthinfo/jank_monitor.h>
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+#ifdef CONFIG_OPLUS_FEATURE_IM
+#include <linux/im/im.h>
+#endif
 
 /*
  * Minimum number of threads to boot the kernel
@@ -927,6 +935,13 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 
 #ifdef CONFIG_MEMCG
 	tsk->active_memcg = NULL;
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_TPD
+	tsk->tpd = 0;
+	tsk->dtpd = 0;
+	tsk->dtpdg = -1;
+	tsk->tpd_st = 0; /* for system thread affinity */
 #endif
 	return tsk;
 
@@ -2038,6 +2053,13 @@ static __latent_entropy struct task_struct *copy_process(
 	p->sequential_io	= 0;
 	p->sequential_io_avg	= 0;
 #endif
+#ifdef OPLUS_FEATURE_HEALTHINFO
+#ifdef CONFIG_OPLUS_JANK_INFO
+	p->jank_trace = 0;
+	memset(&p->jank_info, 0, sizeof(struct jank_monitor_info));
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+
 #ifdef CONFIG_KPERFEVENTS
 	rwlock_init(&p->kperfevents_lock);
 	p->kperfevents = NULL;
@@ -2275,6 +2297,11 @@ static __latent_entropy struct task_struct *copy_process(
 	uprobe_copy_process(p, clone_flags);
 
 	copy_oom_score_adj(clone_flags, p);
+	if (!IS_ERR(p)) {
+#ifdef CONFIG_OPLUS_FEATURE_IM
+		im_tsk_init_flag((void *) p);
+#endif
+	}
 
 	return p;
 

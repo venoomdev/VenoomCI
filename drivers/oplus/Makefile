@@ -14,6 +14,11 @@ obj-$(CONFIG_OPLUS_FEATURE_MIDAS)    += system/oplus_midas/
 #endif /* VENDOR_EDIT */
 
 obj-$(CONFIG_OPLUS_FEATURE_SHUTDOWN_DETECT)    += system/shutdown_detect/
+
+#ifdef OPLUS_FEATURE_HEALTHINFO
+obj-y     +=  oplus_performance/healthinfo/main/
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+
 obj-$(CONFIG_OPLUS_ION_BOOSTPOOL) += oplus_performance/ion_boost_pool/oplus_ion_boost_pool.o
 obj-y += wakelock_profiler/
 obj-y += oplus_performance/tpp/
@@ -30,4 +35,13 @@ obj-$(CONFIG_OPLUS_FEATURE_FDLEAK_CHECK)     += system/oplus_fdleak/
 #ifdef OPLUS_FEATURE_POWERINFO_STANDBY
 obj-$(CONFIG_OPLUS_WAKELOCK_PROFILER) += wakelock_profiler/
 #endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
+
+#ifdef OPLUS_FEATURE_TPD
+obj-$(CONFIG_OPLUS_FEATURE_TPD)     +=  oplus_performance/tpd/
+#endif
+
+#ifdef OPLUS_FEATURE_IM
+#ted.lin@optimization add for im module
+obj-$(CONFIG_OPLUS_FEATURE_IM) += oplus_performance/im/
+#endif /* OPLUS_FEATURE_IM */
 

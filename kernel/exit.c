@@ -68,6 +68,11 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
+
+#ifdef CONFIG_OPLUS_FEATURE_TPD
+#include <linux/tpd/tpd.h>
+#endif
+
 static void __unhash_process(struct task_struct *p, bool group_dead)
 {
 	nr_threads--;
@@ -175,6 +180,10 @@ static void __exit_signal(struct task_struct *tsk)
 static void delayed_put_task_struct(struct rcu_head *rhp)
 {
 	struct task_struct *tsk = container_of(rhp, struct task_struct, rcu);
+
+#ifdef CONFIG_OPLUS_FEATURE_TPD
+	tpd_tglist_del(tsk);
+#endif
 
 	perf_event_delayed_put(tsk);
 	trace_sched_process_free(tsk);
@@ -552,6 +561,10 @@ static void exit_mm(void)
 	enter_lazy_tlb(mm, current);
 	task_unlock(current);
 	mm_update_next_owner(mm);
+#if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_OPLUS_HEALTHINFO) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
+	//Trigger and upload the event.
+	trigger_svm_oom_event(mm, false, false);
+#endif
 	mmput(mm);
 #ifdef CONFIG_ANDROID_SIMPLE_LMK
 	clear_thread_flag(TIF_MEMDIE);

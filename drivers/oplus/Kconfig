@@ -40,6 +40,10 @@ source "drivers/oplus/wakelock_profiler/Kconfig"
 #endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
 
 source "drivers/oplus/system/shutdown_detect/Kconfig"
+#ifdef OPLUS_FEATURE_HEALTHINFO
+source "drivers/oplus/oplus_performance/healthinfo/main/Kconfig"
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+
 source "drivers/oplus/oplus_performance/tpp/Kconfig"
 
 config OPLUS_ION_BOOSTPOOL
@@ -98,3 +102,13 @@ config OPLUS_FEATURE_SHUTDOWN_SPEED
 
 #Add for NandSwap
 source "drivers/oplus/oplus_performance/oplus_nandswap/Kconfig"
+
+#ifdef OPLUS_FEATURE_TPD
+source "drivers/oplus/oplus_performance/tpd/Kconfig"
+#endif
+
+#ifdef OPLUS_FEATURE_IM
+#ted.lin@optimization add for im module
+source "drivers/oplus/oplus_performance/im/Kconfig"
+#endif /* OPLUS_FEATURE_IM */
+

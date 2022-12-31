@@ -19,9 +19,12 @@
 #include "internal.h"
 #include <linux/module.h>
 
-#ifdef CONFIG_ONEPLUS_HEALTHINFO
-#include <linux/oem/oneplus_healthinfo.h>
+#ifdef OPLUS_FEATURE_HEALTHINFO
+// Add for get cpu load
+#ifdef CONFIG_OPLUS_HEALTHINFO
+#include <soc/oplus/healthinfo.h>
 #endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 
 #ifdef CONFIG_DYNAMIC_FSYNC
 #include <linux/dyn_sync_cntrl.h>
@@ -252,11 +255,12 @@ static int do_fsync(unsigned int fd, int datasync)
 {
 	struct fd f;
 	int ret = -EBADF;
-
-#ifdef CONFIG_ONEPLUS_HEALTHINFO
-	unsigned long oneplus_fsync_time = jiffies;
+#ifdef OPLUS_FEATURE_HEALTHINFO
+// Add for record  fsync  time
+#ifdef CONFIG_OPLUS_HEALTHINFO
+    unsigned long fsync_time = jiffies;
 #endif
-
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	
 	#ifdef CONFIG_DYNAMIC_FSYNC
 	if (likely(dyn_fsync_active && suspend_active))
@@ -269,6 +273,12 @@ static int do_fsync(unsigned int fd, int datasync)
 		fdput(f);
 		inc_syscfs(current);
 	}
+#ifdef OPLUS_FEATURE_HEALTHINFO
+// Add for record  fsync  time
+#ifdef CONFIG_OPLUS_HEALTHINFO
+	ohm_schedstats_record(OHM_SCHED_FSYNC, current, jiffies_to_msecs(jiffies - fsync_time));
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	return ret;
 }
 

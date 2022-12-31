@@ -75,6 +75,9 @@
 #ifdef CONFIG_PERF_HUMANTASK
 #include <linux/sched.h>
 #endif
+#ifdef CONFIG_OPLUS_FEATURE_IM
+#include <linux/im/im.h>
+#endif
 
 #ifdef CONFIG_OPLUS_FEATURE_TPP
 #include <../../drivers/oplus/oplus_performance/tpp/tpp.h>
@@ -1285,6 +1288,9 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 #endif
 	trace_task_rename(tsk, buf);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	im_wmi(tsk);
+#endif
 #ifdef CONFIG_OPLUS_FEATURE_TPP
 	tpp_tagging(tsk);
 #endif /* CONFIG_OPLUS_FEATURE_TPP */

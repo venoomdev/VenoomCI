@@ -1341,6 +1341,12 @@ static void print_slabinfo_header(struct seq_file *m)
 	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
+#ifdef OPLUS_FEATURE_HEALTHINFO
+	/* if SLAB_STAT_DEBUG is enabled,
+	 * /proc/slabinfo is created for getting more slab details.
+	 */
+	seq_puts(m, " <reclaim>");
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	seq_putc(m, '\n');
 }
 
