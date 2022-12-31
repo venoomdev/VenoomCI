@@ -7,6 +7,7 @@
 #include <linux/fs.h>
 #include <linux/proc_fs.h>
 #include <linux/errno.h>
+#include "../../kernel/sched/sched.h"
 
 #include "game_ctrl.h"
 

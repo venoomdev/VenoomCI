@@ -16,6 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/cpufreq.h>
 #include <linux/sched/cpufreq.h>
+#include "../../kernel/sched/sched.h"
 
 #include "game_ctrl.h"
 
