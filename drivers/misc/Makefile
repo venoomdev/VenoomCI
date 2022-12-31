@@ -86,6 +86,10 @@ obj-$(CONFIG_SIM_DETECT)	+= sim_detect.o
 #ifdef OPLUS_FEATURE_SIM_DETECT
 obj-$(CONFIG_OEM_QMI)	+= oem_qmi_client.o
 #endif
+#ifdef OPLUS_FEATURE_TP_BASIC
+obj-$(CONFIG_COLOR_CTRL) 	+= colorctrl/
+obj-$(CONFIG_COLOR_CTRL_V2) 	+= colorctrl_v2/
+#endif /* OPLUS_FEATURE_TP_BASIC */
 obj-y                           += qrc/
 
 obj-$(CONFIG_HALL_AKM09970)	+= akm09970.o

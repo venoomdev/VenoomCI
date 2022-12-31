@@ -733,6 +733,10 @@ source "drivers/misc/cxl/Kconfig"
 source "drivers/misc/ocxl/Kconfig"
 source "drivers/misc/cardreader/Kconfig"
 source "drivers/misc/tri_state_key/Kconfig"
+#ifdef OPLUS_FEATURE_TP_BASIC
+source "drivers/misc/colorctrl/Kconfig"
+source "drivers/misc/colorctrl_v2/Kconfig"
+#endif /* OPLUS_FEATURE_TP_BASIC */
 source "drivers/misc/fpr_FingerprintCard/Kconfig"
 source "drivers/misc/qrc/Kconfig"
 endmenu
