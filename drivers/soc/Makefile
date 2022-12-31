@@ -26,3 +26,7 @@ obj-$(CONFIG_PLAT_VERSATILE)	+= versatile/
 obj-y				+= xilinx/
 obj-$(CONFIG_ARCH_ZX)		+= zte/
 obj-y                           += oplus/
+
+#ifdef OPLUS_FEATURE_SENSOR_SMEM
+obj-y						+= oplus/sensor/
+#endif
