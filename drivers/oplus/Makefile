@@ -45,3 +45,8 @@ obj-$(CONFIG_OPLUS_FEATURE_TPD)     +=  oplus_performance/tpd/
 obj-$(CONFIG_OPLUS_FEATURE_IM) += oplus_performance/im/
 #endif /* OPLUS_FEATURE_IM */
 
+
+#ifdef OPLUS_FEATURE_SAUPWK
+#Add for theia saupwrkey
+obj-$(CONFIG_OPLUS_FEATURE_SAUPWK)     += system/oplus_saupwk/
+#endif /* OPLUS_FEATURE_SAUPWK */

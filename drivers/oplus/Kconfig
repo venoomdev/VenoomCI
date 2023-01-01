@@ -112,3 +112,9 @@ source "drivers/oplus/oplus_performance/tpd/Kconfig"
 source "drivers/oplus/oplus_performance/im/Kconfig"
 #endif /* OPLUS_FEATURE_IM */
 
+
+#ifdef OPLUS_FEATURE_SAUPWK
+#Add for theia saupwrkey
+source "drivers/oplus/system/oplus_saupwk/Kconfig"
+#endif /* OPLUS_FEATURE_SAUPWK */
+
