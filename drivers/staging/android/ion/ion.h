@@ -148,6 +148,16 @@ struct ion_buffer {
 	struct list_head attachments;
 	struct list_head vmas;
 	struct msm_iommu_data iommu_data;
+#if defined(OPLUS_FEATURE_MEMLEAK_DETECT) && defined(CONFIG_DUMP_TASKS_MEM)
+	/* ion buffer allocator */
+	struct task_struct *tsk;
+#endif
+#if defined(OPLUS_FEATURE_MEMLEAK_DETECT) && defined(CONFIG_MEMLEAK_DETECT_THREAD)
+	/* add record the buffer
+	 * create time and calc the buffer age on dump.
+	 */
+	unsigned long jiffies;
+#endif
 };
 
 void ion_buffer_destroy(struct ion_buffer *buffer);

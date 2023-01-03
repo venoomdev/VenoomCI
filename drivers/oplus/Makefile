@@ -58,4 +58,8 @@ obj-$(CONFIG_OPLUS_COMMON_SOFT)  +=  device_info/
 obj-$(CONFIG_OPLUS_FEATURE_LOWMEM_DBG)	+=  oplus_performance/lowmem_dbg/
 #endif /* OPLUS_FEATURE_LOWMEM_DBG */
 
+#ifdef OPLUS_FEATURE_MEMLEAK_DETECT
+#Add for svelte logging
+obj-$(CONFIG_SVELTE) +=  oplus_performance/memleak_detect/svelte/
+#endif /* OPLUS_FEATURE_MEMLEAK_DETECT */
 
