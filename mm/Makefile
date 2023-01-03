@@ -115,6 +115,15 @@ obj-$(CONFIG_PROCESS_RECLAIM)	+= process_reclaim.o
 obj-y += healthinfo/
 #endif /* OPLUS_FEATURE_HEALTHINFO */
 
+
+#if defined(OPLUS_FEATURE_PROCESS_RECLAIM)
+ifeq ($(OPLUS_FEATURE_PROCESS_RECLAIM), yes)
+obj-$(CONFIG_PROCESS_RECLAIM_ENHANCE) += process_mm_reclaim.o
+else
+obj-$(CONFIG_PROCESS_RECLAIM_ENHANCE) += process_mm_reclaim_weak.o
+endif
+#endif /*defined(OPLUS_FEATURE_PROCESS_RECLAIM)
+
 #if defined(OPLUS_FEATURE_MEMLEAK_DETECT)
 obj-$(CONFIG_DUMP_TASKS_MEM) += task_mem/
 #endif /*defined(OPLUS_FEATURE_MEMLEAK_DETECT)
