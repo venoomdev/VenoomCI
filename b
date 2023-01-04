@@ -4,8 +4,8 @@ START=$(date +"%s")
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 VERSION=Lemper
 TANGGAL=$(TZ=Asia/Jakarta date "+%Y%m%d-%H%M")
-KBUILD_COMPILER_STRING=$(/root/kernel/c/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
-KBUILD_LINKER_STRING=$(/root/kernel/c/bin/ld.lld --version  | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//' | sed 's/(compatible with [^)]*)//')
+KBUILD_COMPILER_STRING=$(/home/pocong/c/bin/clang --version | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//')
+KBUILD_LINKER_STRING=$(/home/pocong/c/bin/ld.lld --version  | head -n 1 | perl -pe 's/\(http.*?\)//gs' | sed -e 's/  */ /g' -e 's/[[:space:]]*$//' | sed 's/(compatible with [^)]*)//')
 
 # Set Kernel Version
 KERNELVER=$(make kernelversion)
@@ -34,11 +34,11 @@ export KBUILD_LINKER_STRING
 export chat_id="-1001551521202"
 export TOKEN="5452672785:AAFh0ke8wGsfvk1qzEnZKi3fJ_eZvpOx1Rc!"
 export DEF="vendor/alioth_defconfig"
-TC_DIR=/root/kernel/c
+TC_DIR=/home/pocong/c
 GCC64_DIR="/root/kernel/gcc/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64"
 GCC32_DIR="/root/kernel/gcc/toolchains/arm-linux-androideabi-4.9/prebuilt/linux-x86_64"
-export PATH="/root/kernel/c/bin:${PATH}"
-export LD_LIBRARY_PATH=/root/kernel/c/lib64:$LD_LIBRARY_PATH
+export PATH="/home/pocong/c/bin:${PATH}"
+export LD_LIBRARY_PATH=/home/pocong/c/lib64:$LD_LIBRARY_PATH
 
 rm AnyKernel3/*.zip
 # Post to CI channel
