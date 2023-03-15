@@ -153,3 +153,8 @@ gcc32/
 out/
 ids.txt
 error.log
+kernel/power/nvs.c
+build
+b
+AnyKernel3
+arch/arm64/boot/dts/vendor/qcom/kona-v2-gpu-xxxx/
